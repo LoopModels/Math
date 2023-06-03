@@ -2,7 +2,7 @@
 #include "Math/Math.hpp"
 #include <cstdint>
 #include <gtest/gtest.h>
-#include <iostream>
+#include <ostream>
 #include <random>
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
@@ -28,7 +28,7 @@ TEST(LinearAlgebraTest, BasicAssertions) {
 
   auto LUFopt = LU::fact(A);
   EXPECT_TRUE(LUFopt.has_value());
-  assert(LUFopt.has_value());
+  ASSERT(LUFopt.has_value());
   auto &LUF = *LUFopt;
   Matrix<Rational> B = A;
   std::cout << "A = \n" << A << "\nB = \n" << B << "\n";

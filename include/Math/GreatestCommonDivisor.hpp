@@ -1,7 +1,7 @@
 #pragma once
+#include "Utilities/Invariant.hpp"
 #include <algorithm>
 #include <array>
-#include <cassert>
 #include <cmath>
 #include <concepts>
 #include <cstdint>
@@ -14,8 +14,8 @@ constexpr inline auto constexpr_abs(std::signed_integral auto x) noexcept {
 constexpr auto gcd(int64_t x, int64_t y) -> int64_t {
   if (x == 0) return constexpr_abs(y);
   if (y == 0) return constexpr_abs(x);
-  assert(x != std::numeric_limits<int64_t>::min());
-  assert(y != std::numeric_limits<int64_t>::min());
+  invariant(x != std::numeric_limits<int64_t>::min());
+  invariant(y != std::numeric_limits<int64_t>::min());
   int64_t a = constexpr_abs(x);
   int64_t b = constexpr_abs(y);
   if ((a == 1) | (b == 1)) return 1;
@@ -55,26 +55,23 @@ template <std::integral I> constexpr auto copySign(I x, I s) -> I {
 template <std::integral T>
 constexpr auto dgcdx(T a, T b)
   -> std::array<T, 5> { // NOLINT(bugprone-easily-swappable-parameters)
-  T old_r = a;
-  T r = b;
-  T old_s = 1;
-  T s = 0;
-  T old_t = 0;
-  T t = 1;
+  T rOld = a, r = b;
+  T sOld = 1, s = 0;
+  T tOld = 0, t = 1;
   while (r) {
-    T quotient = old_r / r;
-    old_r -= quotient * r;
-    old_s -= quotient * s;
-    old_t -= quotient * t;
-    std::swap(r, old_r);
-    std::swap(s, old_s);
-    std::swap(t, old_t);
+    T quotient = rOld / r;
+    rOld -= quotient * r;
+    sOld -= quotient * s;
+    tOld -= quotient * t;
+    std::swap(r, rOld);
+    std::swap(s, sOld);
+    std::swap(t, tOld);
   }
   // Solving for `t` at the end has 1 extra division, but lets us remove
   // the `t` updates in the loop:
   // T t = (b == 0) ? 0 : ((old_r - old_s * a) / b);
   // For now, I'll favor forgoing the division.
-  return {old_r, old_s, old_t, copySign(t, a), copySign(s, b)};
+  return {rOld, sOld, tOld, copySign(t, a), copySign(s, b)};
 }
 template <
   std::integral T> // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)

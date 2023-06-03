@@ -69,9 +69,8 @@ constexpr void eraseConstraint(MutDensePtrMatrix<int64_t> &A, Row i) {
 }
 constexpr void eraseConstraintImpl(MutDensePtrMatrix<int64_t> A, size_t _i,
                                    size_t _j) {
-  assert(_i != _j);
-  Row i = std::min(_i, _j);
-  Row j = std::max(_i, _j);
+  invariant(_i != _j);
+  Row i = std::min(_i, _j), j = std::max(_i, _j);
   const auto [M, N] = A.size();
   const Row lastRow = M - 1;
   const Row penuRow = lastRow - 1;
@@ -156,8 +155,7 @@ substituteEqualityPairImpl(std::array<MutDensePtrMatrix<int64_t>, 2> AE,
   }
   if (rowMinNonZero == numConstraints) return rowMinNonZero;
   auto Es = E(rowMinNonZero, _);
-  int64_t Eis = Es[i];
-  int64_t s = 2 * (Eis > 0) - 1;
+  int64_t Eis = Es[i], s = 2 * (Eis > 0) - 1;
   // we now subsitute the equality expression with the minimum number
   // of terms.
   if (constexpr_abs(Eis) == 1) {
@@ -172,7 +170,7 @@ substituteEqualityPairImpl(std::array<MutDensePtrMatrix<int64_t>, 2> AE,
     for (Row j = 0; j < A.numRow(); ++j) {
       if (int64_t Aij = A(j, i)) {
         int64_t g = gcd(Aij, Eis);
-        assert(g > 0);
+        invariant(g > 0);
         // `A` contains inequalities; flipping signs is illegal
         A(j, _) << ((s * Eis) / g) * A(j, _) - ((s * Aij) / g) * Es;
       }
@@ -370,7 +368,6 @@ constexpr void fourierMotzkinCore(DenseMatrix<int64_t> &A, size_t v,
     if (posCount == 0) // last posCount not overwritten, so we erase
       eraseConstraint(A, i);
   }
-  // assert(numRows == (numRowsNew+1));
 }
 constexpr void fourierMotzkin(DenseMatrix<int64_t> &A, size_t v) {
   invariant(v < A.numCol());

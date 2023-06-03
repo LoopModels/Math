@@ -10,7 +10,6 @@
 #include "Utilities/Show.hpp"
 #include "Utilities/TypePromotion.hpp"
 #include <algorithm>
-#include <cassert>
 #include <charconv>
 #include <cmath>
 #include <concepts>
@@ -133,7 +132,7 @@ template <typename Op, Trivial A, Trivial B> struct ElementwiseVectorBinaryOp {
   [[nodiscard]] constexpr auto size() const -> size_t {
     if constexpr (AbstractVector<A> && AbstractVector<B>) {
       const size_t N = a.size();
-      assert(N == b.size());
+      invariant(N == b.size());
       return N;
     } else if constexpr (AbstractVector<A>) {
       return a.size();
@@ -400,7 +399,7 @@ inline auto operator<<(OS &os, SmallSparseMatrix<T> const &A) -> OS & {
     os << "\n";
   }
   os << " ]";
-  assert(k == A.nonZeros.size());
+  invariant(k == A.nonZeros.size());
   return os;
 }
 template <OStream OS, AbstractMatrix T>
@@ -425,14 +424,14 @@ constexpr auto operator*(const AbstractMatrix auto &a,
                          const AbstractMatrix auto &b) {
   auto AA{a.view()};
   auto BB{b.view()};
-  assert(size_t(AA.numCol()) == size_t(BB.numRow()));
+  invariant(size_t(AA.numCol()) == size_t(BB.numRow()));
   return MatMatMul<decltype(AA), decltype(BB)>{.a = AA, .b = BB};
 }
 constexpr auto operator*(const AbstractMatrix auto &a,
                          const AbstractVector auto &b) {
   auto AA{a.view()};
   auto BB{b.view()};
-  assert(size_t(AA.numCol()) == BB.size());
+  invariant(size_t(AA.numCol()) == BB.size());
   return MatVecMul<decltype(AA), decltype(BB)>{.a = AA, .b = BB};
 }
 constexpr auto operator*(const AbstractVector auto &a,

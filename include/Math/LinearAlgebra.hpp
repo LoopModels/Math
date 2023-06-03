@@ -21,12 +21,6 @@ public:
     -> bool {
     auto [M, N] = rhs.size();
     invariant(size_t(F.numRow()), size_t(M));
-    // // check unimodularity
-    // Rational unit = 1;
-    // for (size_t i = 0; i < FM; ++i)
-    //     unit *= F(i, i);
-    // assert(unit == 1);
-
     // permute rhs
     for (size_t i = 0; i < M; ++i) {
       unsigned ip = ipiv[i];
@@ -58,12 +52,6 @@ public:
   template <class S> constexpr void ldiv(MutPtrMatrix<S> rhs) const {
     auto [M, N] = rhs.size();
     invariant(size_t(F.numRow()), size_t(M));
-    // // check unimodularity
-    // Rational unit = 1;
-    // for (size_t i = 0; i < FM; ++i)
-    //     unit *= F(i, i);
-    // assert(unit == 1);
-
     // permute rhs
     for (size_t i = 0; i < M; ++i) {
       unsigned ip = ipiv[i];
@@ -93,12 +81,6 @@ public:
     -> bool {
     auto [M, N] = rhs.size();
     invariant(size_t(F.numCol()), size_t(N));
-    // // check unimodularity
-    // Rational unit = 1;
-    // for (size_t i = 0; i < FN; ++i)
-    //     unit *= F(i, i);
-    // assert(unit == 1);
-
     // PA = LU
     // x LU = rhs
     // y U = rhs
@@ -133,12 +115,6 @@ public:
   template <class S> constexpr void rdiv(MutPtrMatrix<S> &rhs) const {
     auto [M, N] = rhs.size();
     invariant(size_t(F.numCol()), size_t(N));
-    // // check unimodularity
-    // Rational unit = 1;
-    // for (size_t i = 0; i < FN; ++i)
-    //     unit *= F(i, i);
-    // assert(unit == 1);
-
     // PA = LU
     // x LU = rhs
     // y U = rhs

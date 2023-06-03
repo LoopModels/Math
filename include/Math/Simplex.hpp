@@ -177,7 +177,7 @@ public:
     return getCost()[0];
   }
   constexpr void truncateConstraints(unsigned i) {
-    assert(i <= numConstraints);
+    ASSERT(i <= numConstraints);
     numConstraints = i;
   }
   constexpr void simplifySystem() {
@@ -196,17 +196,17 @@ public:
     for (size_t v = 0; v < basicCons.size();) {
       index_type c = basicCons[v++];
       if (c < 0) continue;
-      assert(allZero(C(_(1, 1 + c), v)));
-      assert(allZero(C(_(2 + c, end), v)));
-      assert(size_t(basicVars[c]) == v - 1);
+      ASSERT(allZero(C(_(1, 1 + c), v)));
+      ASSERT(allZero(C(_(2 + c, end), v)));
+      invariant(size_t(basicVars[c]), v - 1);
     }
     for (size_t c = 1; c < C.numRow(); ++c) {
       index_type v = basicVars[c - 1];
       if (size_t(v) < basicCons.size()) {
-        assert(c - 1 == size_t(basicCons[v]));
-        assert(C(c, v + 1) >= 0);
+        invariant(c - 1, size_t(basicCons[v]));
+        invariant(C(c, v + 1) >= 0);
       }
-      assert(C(c, 0) >= 0);
+      invariant(C(c, 0) >= 0);
     }
   }
 #endif
@@ -406,7 +406,7 @@ public:
   constexpr auto removeAugmentVars(PtrVector<unsigned> augmentVars) -> bool {
     // TODO: try to avoid reallocating, via reserving enough ahead of time
     unsigned numAugment = augmentVars.size(), oldNumVar = numVars;
-    assert(numAugment + numVars <= varCapacity);
+    invariant(numAugment + numVars <= varCapacity);
     numVars += numAugment;
     MutPtrMatrix<value_type> C{getConstraints()};
     MutPtrVector<index_type> basicVars{getBasicVariables()};
@@ -422,7 +422,7 @@ public:
       // we now zero out the implicit cost of `1`
       costs[_(begin, oldNumVar + 1)] -= C(a, _(begin, oldNumVar + 1));
     }
-    assert(std::all_of(basicVars.begin(), basicVars.end(),
+    ASSERT(std::all_of(basicVars.begin(), basicVars.end(),
                        [](int64_t i) { return i >= 0; }));
     // false/0 means feasible
     // true/non-zero infeasible
@@ -431,9 +431,9 @@ public:
     // other variable (column) instead.
     for (ptrdiff_t c = 0; c < C.numRow(); ++c) {
       if (ptrdiff_t(basicVars[c]) >= ptrdiff_t(oldNumVar)) {
-        assert(C(c, 0) == 0);
-        assert(c == basicCons[basicVars[c]]);
-        assert(C(c, basicVars[c] + 1) >= 0);
+        invariant(C(c, 0) == 0);
+        invariant(c == basicCons[basicVars[c]]);
+        invariant(C(c, basicVars[c] + 1) >= 0);
         // find var to make basic in its place
         for (ptrdiff_t v = oldNumVar; v != 0;) {
           // search for a non-basic variable
@@ -512,7 +512,7 @@ public:
   // 0
   constexpr auto runCore(int64_t f = 1) -> Rational {
 #ifndef NDEBUG
-    assert(inCanonicalForm);
+    ASSERT(inCanonicalForm);
 #endif
     //     return runCore(getCostsAndConstraints(), f);
     // }
@@ -529,7 +529,7 @@ public:
   // set basicVar's costs to 0, and then runCore()
   constexpr auto run() -> Rational {
 #ifndef NDEBUG
-    assert(inCanonicalForm);
+    ASSERT(inCanonicalForm);
     assertCanonical();
 #endif
     MutPtrVector<index_type> basicVars{getBasicVariables()};
@@ -575,7 +575,7 @@ public:
   // minimize v, not touching any variable lex > v
   constexpr auto rLexMin(size_t v) -> bool {
 #ifndef NDEBUG
-    assert(inCanonicalForm);
+    ASSERT(inCanonicalForm);
 #endif
     MutPtrMatrix<value_type> C{getTableau()};
     MutPtrVector<index_type> basicConstraints{getBasicConstraints()};
@@ -616,7 +616,7 @@ public:
       for (size_t i = 1; i < C.numRow(); ++i)
         if (i != size_t(c)) NormalForm::zeroWithRowOp(C, i, c, ev, 0);
       int64_t oldBasicVar = basicVars[cc];
-      assert(oldBasicVar == int64_t(v));
+      invariant(oldBasicVar == int64_t(v));
       basicVars[cc] = index_type(evm1);
       // if (size_t(oldBasicVar) < basicConstraints.size())
       basicConstraints[oldBasicVar] = -1;
@@ -630,7 +630,7 @@ public:
   }
   constexpr auto rLexMinLast(size_t n) -> Solution {
 #ifndef NDEBUG
-    assert(inCanonicalForm);
+    ASSERT(inCanonicalForm);
     assertCanonical();
 #endif
     for (size_t v = getNumVars(), e = v - n; v != e;) rLexMin(--v);
@@ -641,7 +641,7 @@ public:
   }
   constexpr auto rLexMinStop(size_t skippedVars) -> Solution {
 #ifndef NDEBUG
-    assert(inCanonicalForm);
+    ASSERT(inCanonicalForm);
     assertCanonical();
 #endif
     for (size_t v = getNumVars(); v != skippedVars;) rLexMin(--v);
@@ -854,7 +854,7 @@ public:
                     << C(i, v) << "\n";
         } else {
           std::cout << "v_" << v << " = " << C(i, 0) << "\n";
-          assert(false);
+          __builtin_trap();
         }
       }
     }

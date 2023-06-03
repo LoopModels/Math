@@ -4,6 +4,7 @@
 #include "Math/Matrix.hpp"
 #include "Math/MatrixDimensions.hpp"
 #include "Math/Vector.hpp"
+#include <algorithm>
 #include <type_traits>
 
 namespace LinAlg {

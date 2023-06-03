@@ -6,8 +6,7 @@
 // TODO: communicate not-null to the compiler somehow?
 template <typename T> class NotNull {
   [[no_unique_address]] T *value;
-  // we shouldn't be calling the default ctor
-  // constexpr NotNull() : value(nullptr) { assert(false); }
+
 public:
   NotNull() = delete;
   constexpr NotNull(T &v) : value(&v) {}

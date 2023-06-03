@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GreatestCommonDivisor.hpp"
+#include "Utilities/Invariant.hpp"
 #include "Utilities/Show.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -67,7 +68,7 @@ struct Rational {
   }
   constexpr auto operator+=(Rational y) -> Rational & {
     std::optional<Rational> a = *this + y;
-    assert(a.has_value());
+    invariant(a.has_value());
     *this = *a;
     return *this;
   }
@@ -89,7 +90,7 @@ struct Rational {
   }
   constexpr auto operator-=(Rational y) -> Rational & {
     std::optional<Rational> a = *this - y;
-    assert(a.has_value());
+    invariant(a.has_value());
     *this = *a;
     return *this;
   }
@@ -131,8 +132,8 @@ struct Rational {
   }
   [[nodiscard]] constexpr auto inv() const -> Rational {
     if (numerator > 0) return Rational{denominator, numerator};
-    assert(denominator != std::numeric_limits<int64_t>::min());
-    assert(numerator != 0);
+    invariant(denominator != std::numeric_limits<int64_t>::min());
+    invariant(numerator != 0);
     return Rational{-denominator, -numerator};
   }
   [[nodiscard]] constexpr auto safeDiv(Rational y) const

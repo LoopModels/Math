@@ -5,7 +5,6 @@
 #include <Containers/UnrolledList.hpp>
 #include <algorithm>
 #include <bit>
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>

@@ -3,11 +3,10 @@
 #include "Math/Array.hpp"
 #include "Math/Math.hpp"
 #include "Math/MatrixDimensions.hpp"
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 
-constexpr int64_t cstoll(const char *s, size_t &cur) {
+constexpr auto cstoll(const char *s, size_t &cur) -> int64_t {
   int64_t res = 0;
   bool neg = false;
   while (s[cur] == ' ') ++cur;
@@ -24,25 +23,24 @@ constexpr int64_t cstoll(const char *s, size_t &cur) {
 
 [[nodiscard]] constexpr auto operator"" _mat(const char *s, size_t)
   -> LinAlg::DenseMatrix<int64_t, 0> {
-  assert(s[0] == '[');
+  invariant(s[0] == '[');
   LinAlg::ManagedArray<int64_t, unsigned, 0> content;
   size_t cur = 1;
   size_t numRows = 1;
   while (s[cur] != ']') {
-    char c = s[cur];
-    if (c == ' ') {
+    switch (s[cur]) {
+    case ';':
+      ++numRows;
+      [[fallthrough]];
+    case ' ':
       ++cur;
-      continue;
-    } else if (c == ';') {
-      numRows += 1;
-      ++cur;
-      continue;
+      break;
+    default:
+      content.push_back(cstoll(s, cur));
     }
-    int64_t ll = cstoll(s, cur);
-    content.push_back(ll);
   }
   size_t numCols = content.size() / numRows;
-  assert(content.size() % numRows == 0);
+  if (content.size() % numRows != 0) __builtin_trap();
   LinAlg::DenseMatrix<int64_t, 0> A(std::move(content),
                                     DenseDims{Row{numRows}, Col{numCols}});
   return A;

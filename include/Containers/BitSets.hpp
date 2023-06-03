@@ -1,16 +1,16 @@
 #pragma once
 #include "Math/Array.hpp"
+#include "Utilities/Invariant.hpp"
 #include <bits/ranges_base.h>
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <ios>
-#include <iostream>
 #include <istream>
 #include <iterator>
 #include <limits>
 #include <llvm/Support/raw_ostream.h>
+#include <ostream>
 #include <string>
 
 struct EndSentinel {
@@ -91,16 +91,16 @@ template <typename T = Vector<uint64_t, 1>> struct BitSet {
   constexpr BitSet(size_t N) : data{numElementsNeeded(N), 0} {}
   constexpr void resize64(size_t N) {
     if constexpr (CanResize<T>) data.resize(N);
-    else assert(N <= data.size());
+    else ASSERT(N <= data.size());
   }
   constexpr void resize(size_t N) {
     if constexpr (CanResize<T>) data.resize(numElementsNeeded(N));
-    else assert(N <= data.size() * 64);
+    else ASSERT(N <= data.size() * 64);
   }
   constexpr void resize(size_t N, uint64_t x) {
     if constexpr (CanResize<T>) data.resize(numElementsNeeded(N), x);
     else {
-      assert(N <= data.size() * 64);
+      ASSERT(N <= data.size() * 64);
       std::fill(data.begin(), data.end(), x);
     }
   }
@@ -108,7 +108,7 @@ template <typename T = Vector<uint64_t, 1>> struct BitSet {
     if constexpr (CanResize<T>) {
       size_t M = numElementsNeeded(N);
       if (M > data.size()) data.resize(M);
-    } else assert(N <= data.size() * 64);
+    } else ASSERT(N <= data.size() * 64);
   }
   static constexpr auto dense(size_t N) -> BitSet {
     BitSet b;
@@ -363,25 +363,6 @@ template <typename T, typename B = BitSet<>> struct BitSliceView {
 }
 template <typename T, typename B>
 BitSliceView(MutPtrVector<T>, const B &) -> BitSliceView<T, B>;
-// typedef
-// std::iterator_traits<BitSliceView<int64_t>::Iterator>::iterator_category;
 
 static_assert(std::movable<BitSliceView<int64_t>::Iterator>);
 static_assert(std::movable<BitSliceView<int64_t>::ConstIterator>);
-
-// static_assert(std::weakly_incrementable<BitSliceView<int64_t>::Iterator>);
-// static_assert(std::weakly_incrementable<BitSliceView<int64_t>::ConstIterator>);
-// static_assert(std::input_or_output_iterator<BitSliceView<int64_t>::Iterator>);
-// static_assert(
-//   std::input_or_output_iterator<BitSliceView<int64_t>::ConstIterator>);
-// // static_assert(std::indirectly_readable<BitSliceView<int64_t>::Iterator>);
-// static_assert(std::indirectly_readable<BitSliceView<int64_t>::ConstIterator>);
-// // static_assert(std::input_iterator<BitSliceView<int64_t>::Iterator>);
-// static_assert(std::input_iterator<BitSliceView<int64_t>::ConstIterator>);
-// static_assert(std::ranges::range<BitSliceView<int64_t>>);
-// static_assert(std::ranges::range<const BitSliceView<int64_t>>);
-// // static_assert(std::ranges::forward_range<BitSliceView<int64_t>>);
-// static_assert(std::ranges::forward_range<const BitSliceView<int64_t>>);
-
-// static_assert(std::sentinel_for<EndSentinel, BitSetIterator>);
-// static_assert(std::ranges::range<BitSet<>>);

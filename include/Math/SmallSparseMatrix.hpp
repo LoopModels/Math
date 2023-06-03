@@ -106,7 +106,7 @@ ArrayOps<T, S, P>::operator<<(const SmallSparseMatrix<T> &B) -> P & {
     }
     for (; j < N; ++j) mem[l + j] = T{};
   }
-  assert(k == nz.size());
+  invariant(k == nz.size());
   return *static_cast<P *>(this);
 }
 

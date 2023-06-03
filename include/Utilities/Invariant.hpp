@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef NDEBUG
-#include <iostream>
+#include <ostream>
 #include <source_location>
 [[gnu::artificial]] constexpr inline void
 invariant(bool condition,
@@ -25,6 +25,9 @@ invariant(const T &x, const T &y,
     __builtin_trap();
   }
 }
+// we want gdb-friendly builtin trap
+#define ASSERT(condition) invariant(condition)
+
 #else // ifdef NDEBUG
 #if __cplusplus >= 202202L
 #include <utility>
@@ -56,5 +59,5 @@ template <typename T>
 #endif
   }
 }
-
-#endif
+#define ASSERT(condition) ((void)0)
+#endif // ifdef NDEBUG

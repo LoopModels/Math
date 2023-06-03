@@ -1,10 +1,9 @@
-#include "Math/Unimodularization.hpp"
-
 #include "Math/Math.hpp"
+#include "Math/Unimodularization.hpp"
 #include "Utilities/MatrixStringParse.hpp"
 #include <cstdint>
 #include <gtest/gtest.h>
-#include <iostream>
+#include <ostream>
 #include <random>
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
@@ -13,13 +12,13 @@ TEST(UnimodularizationTest, BasicAssertions) {
   std::cout << "VE=\n" << VE << "\n";
   auto VB = unimodularize(VE);
   EXPECT_TRUE(VB.has_value());
-  assert(VB.has_value());
+  ASSERT(VB.has_value());
   std::cout << "VB:\n" << *VB << "\n";
 
   IntMatrix A23{"[9 5; -5 -2; 1 0]"_mat};
   auto B = unimodularize(A23);
   EXPECT_TRUE(B.has_value());
-  assert(B.has_value());
+  ASSERT(B.has_value());
   std::cout << "B:\n" << *B << "\n";
   // EXPECT_EQ(j, length(bsc));
   // EXPECT_EQ(j, length(bs));

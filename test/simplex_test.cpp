@@ -17,8 +17,8 @@ TEST(SimplexTest, BasicAssertions) {
   EXPECT_TRUE(optS0.hasValue());
   Optional<Simplex *> optS1{Simplex::positiveVariables(alloc, A, B)};
   EXPECT_TRUE(optS1.hasValue());
-  assert(optS0.hasValue());
-  assert(optS1.hasValue());
+  ASSERT(optS0.hasValue());
+  ASSERT(optS1.hasValue());
   for (size_t i = 0; i < 2; ++i) {
     Simplex &S{i ? *optS1 : *optS0};
     auto C{S.getCost()};

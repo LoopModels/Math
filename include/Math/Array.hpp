@@ -188,8 +188,7 @@ template <class T, class S> struct Array {
   }
 #ifndef NDEBUG
   constexpr void extendOrAssertSize(Row MM, Col NN) const {
-    assert(MM == numRow());
-    assert(NN == numCol());
+    ASSERT((MM == numRow() && NN == numCol()));
   }
 #else
   static constexpr void extendOrAssertSize(Row, Col) {}
@@ -556,13 +555,13 @@ struct ResizeableView : MutArray<T, S> {
   }
   constexpr void pop_back() {
     static_assert(std::is_integral_v<S>, "pop_back requires integral size");
-    assert(this->sz > 0 && "pop_back on empty buffer");
+    invariant(this->sz > 0);
     if constexpr (std::is_trivially_destructible_v<T>) --this->sz;
     else this->ptr[--this->sz].~T();
   }
   constexpr auto pop_back_val() -> T {
     static_assert(std::is_integral_v<S>, "pop_back requires integral size");
-    assert(this->sz > 0 && "pop_back on empty buffer");
+    invariant(this->sz > 0);
     return std::move(this->ptr[--this->sz]);
   }
   // behavior
@@ -1170,7 +1169,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
         (*this)(i, j++) = T(B.getNonZeros()[k++]);
       }
     }
-    assert(k == B.getNonZeros().size());
+    invariant(k == B.getNonZeros().size());
   }
 #if !defined(__clang__) && defined(__GNUC__)
 #pragma GCC diagnostic pop

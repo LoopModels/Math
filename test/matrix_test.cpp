@@ -6,7 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <gtest/gtest.h>
-#include <iostream>
+#include <ostream>
 #include <sstream>
 #include <string>
 

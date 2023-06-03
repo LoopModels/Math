@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <gtest/gtest.h>
-#include <iostream>
+#include <ostream>
 #include <random>
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)

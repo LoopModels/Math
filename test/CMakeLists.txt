@@ -86,7 +86,6 @@ target_precompile_headers(
   ${PROJECT_NAME}
   PRIVATE
   <algorithm>
-  <cassert>
   <cmath>
   <cstddef>
   <cstdint>
