@@ -3,9 +3,9 @@
 
 using namespace greeter;
 
-Greeter::Greeter(std::string _name) : name(std::move(_name)) {}
+Math::Math(std::string _name) : name(std::move(_name)) {}
 
-std::string Greeter::greet(LanguageCode lang) const {
+std::string Math::greet(LanguageCode lang) const {
   switch (lang) {
     default:
     case LanguageCode::EN:

@@ -36,7 +36,7 @@ auto main(int argc, char** argv) -> int {
   }
 
   if (result["version"].as<bool>()) {
-    std::cout << "Greeter, version " << GREETER_VERSION << std::endl;
+    std::cout << "Math, version " << GREETER_VERSION << std::endl;
     return 0;
   }
 
@@ -46,7 +46,7 @@ auto main(int argc, char** argv) -> int {
     return 1;
   }
 
-  greeter::Greeter greeter(name);
+  greeter::Math greeter(name);
   std::cout << greeter.greet(langIt->second) << std::endl;
 
   return 0;
