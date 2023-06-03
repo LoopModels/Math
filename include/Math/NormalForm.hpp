@@ -1,4 +1,5 @@
 #pragma once
+
 #include "Math/Array.hpp"
 #include "Math/Comparisons.hpp"
 #include "Math/Constructors.hpp"
@@ -7,6 +8,7 @@
 #include "Math/Math.hpp"
 #include "Math/MatrixDimensions.hpp"
 #include "Math/VectorGreatestCommonDivisor.hpp"
+#include "Utilities/Invariant.hpp"
 #include <algorithm>
 #include <array>
 #include <concepts>
@@ -73,7 +75,7 @@ constexpr void zeroSubDiagonal(MutPtrMatrix<int64_t> A,
     for (size_t m = 0; m < N; ++m) A(k, m) *= -1;
     for (size_t m = 0; m < M; ++m) K(k, m) *= -1;
   } else {
-    assert(Akk == 1);
+    invariant(Akk == 1);
   }
   size_t minMN = std::min(size_t(M), size_t(N));
   for (size_t z = 0; z < k; ++z) {
@@ -157,6 +159,7 @@ constexpr auto orthogonalizeBang(MutPtrMatrix<int64_t> &A)
   }
   return std::make_pair(std::move(K), std::move(included));
 }
+
 constexpr auto orthogonalize(IntMatrix A)
   -> std::pair<SquareMatrix<int64_t>, Vector<unsigned>> {
   return orthogonalizeBang(A);
@@ -181,7 +184,7 @@ constexpr void zeroSupDiagonal(std::array<MutPtrMatrix<int64_t>, 2> AB, Col c,
   auto [A, B] = AB;
   auto [M, N] = A.size();
   const Col K = B.numCol();
-  assert(M == B.numRow());
+  invariant(M, B.numRow());
   for (Row j = r + 1; j < M; ++j) {
     int64_t Aii = A(r, c);
     if (int64_t Aij = A(j, c)) {
@@ -423,7 +426,7 @@ constexpr void zeroColumnPair(std::array<MutPtrMatrix<int64_t>, 2> AB, Col c,
   const Col N = A.numCol();
   const Col K = B.numCol();
   const Row M = A.numRow();
-  assert(M == B.numRow());
+  invariant(M, B.numRow());
   for (size_t j = 0; j < r; ++j) {
     int64_t Arc = A(r, c);
     if (int64_t Ajc = A(j, c)) {
@@ -489,7 +492,7 @@ constexpr auto pivotRowsBareiss(MutPtrMatrix<int64_t> A, size_t i, Row M,
 }
 constexpr void bareiss(MutPtrMatrix<int64_t> A, MutPtrVector<size_t> pivots) {
   const auto [M, N] = A.size();
-  invariant(pivots.size() == min(M, N));
+  invariant(size_t(pivots.size()), min(M, N));
   int64_t prev = 1, pivInd = 0;
   for (size_t r = 0, c = 0; c < N && r < M; ++c) {
     if (auto piv = pivotRowsBareiss(A, c, M, r)) {
@@ -520,7 +523,9 @@ constexpr auto updateForNewRow(MutPtrMatrix<int64_t> A) -> size_t {
   size_t M = size_t(A.numRow()), N = size_t(A.numCol()), MM = M - 1, NN = N - 1,
          n = 0, i, j = std::numeric_limits<size_t>::max();
   for (size_t m = 0; m < MM; ++m) {
-    assert(allZero(A(m, _(0, n))));
+#ifndef NDEBUG
+    if (!allZero(A(m, _(0, n)))) __builtin_trap();
+#endif
     while (A(m, n) == 0) {
       if ((j > NN) && (A(MM, n) != 0)) {
         i = m;

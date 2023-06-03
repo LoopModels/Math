@@ -43,11 +43,11 @@ struct StridedDims {
     return (M == D.M) && (N == D.N) && (strideM == D.strideM);
   }
   [[nodiscard]] constexpr auto truncate(Row r) const -> StridedDims {
-    assert((r <= Row{M}) && "truncate cannot add rows.");
+    invariant(r <= Row{M});
     return {unsigned(r), N, strideM};
   }
   [[nodiscard]] constexpr auto truncate(Col c) const -> StridedDims {
-    assert((c <= Col{M}) && "truncate cannot add columns.");
+    invariant(c <= Col{M});
     return {M, unsigned(c), strideM};
   }
   constexpr auto set(Row r) -> StridedDims & {
@@ -91,11 +91,11 @@ struct DenseDims {
   constexpr explicit operator Col() const { return N; }
   constexpr explicit operator RowStride() const { return N; }
   [[nodiscard]] constexpr auto truncate(Row r) const -> DenseDims {
-    assert((r <= Row{M}) && "truncate cannot add rows.");
+    invariant(r <= Row{M});
     return {unsigned(r), N};
   }
   [[nodiscard]] constexpr auto truncate(Col c) const -> StridedDims {
-    assert((c <= Col{M}) && "truncate cannot add columns.");
+    invariant(c <= Col{M});
     return {M, c, N};
   }
   constexpr auto set(Row r) -> DenseDims & {
@@ -135,11 +135,11 @@ struct SquareDims {
   constexpr explicit operator Col() const { return M; }
   constexpr explicit operator RowStride() const { return M; }
   [[nodiscard]] constexpr auto truncate(Row r) const -> DenseDims {
-    assert((r <= Row{M}) && "truncate cannot add rows.");
+    invariant(r <= Row{M});
     return {unsigned(r), M};
   }
   [[nodiscard]] constexpr auto truncate(Col c) const -> StridedDims {
-    assert((c <= Col{M}) && "truncate cannot add columns.");
+    invariant(c <= Col{M});
     return {M, unsigned(c), M};
   }
   [[nodiscard]] constexpr auto similar(Row r) const -> DenseDims {
