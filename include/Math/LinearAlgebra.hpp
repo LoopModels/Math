@@ -218,7 +218,7 @@ template <class S>
     }
     if (kp != k)
       for (size_t j = 0; j < M; ++j) std::swap(A(kp, j), A(k, j));
-    S invAkk = S{1} / A(k, k);
+    S invAkk = 1.0 / A(k, k);
     for (size_t i = k + 1; i < M; ++i) A(i, k) = A(i, k) * invAkk;
     for (size_t i = k + 1; i < M; ++i)
       for (size_t j = k + 1; j < M; ++j) A(i, j) = A(i, j) - A(i, k) * A(k, j);
