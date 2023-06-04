@@ -8,12 +8,12 @@
 #include <concepts>
 
 namespace LU {
-template <class T> class Fact {
-  SquareMatrix<T> F;
+template <class T, size_t L> class Fact {
+  SquareMatrix<T, L> F;
   Vector<unsigned> ipiv;
 
 public:
-  constexpr Fact(SquareMatrix<T> f, Vector<unsigned> ip)
+  constexpr Fact(SquareMatrix<T, L> f, Vector<unsigned> ip)
     : F(std::move(f)), ipiv(std::move(ip)) {
     invariant(size_t(F.numRow()), size_t(ipiv.size()));
   }
@@ -143,9 +143,9 @@ public:
   }
 
   [[nodiscard]] constexpr auto inv() const
-    -> std::optional<SquareMatrix<Rational>> {
-    SquareMatrix<Rational> A{
-      SquareMatrix<Rational>::identity(size_t(F.numCol()))};
+    -> std::optional<SquareMatrix<Rational, L>> {
+    SquareMatrix<Rational, L> A{
+      SquareMatrix<Rational, L>::identity(size_t(F.numCol()))};
     if (!ldivrat(A)) return A;
     return {};
   }
@@ -167,10 +167,11 @@ public:
     return os << "LU fact:\n" << lu.F << "\nperm = \n" << lu.ipiv << '\n';
   }
 };
-[[nodiscard]] constexpr auto fact(const SquareMatrix<int64_t> &B)
-  -> std::optional<Fact<Rational>> {
+template <size_t L>
+[[nodiscard]] constexpr auto fact(const SquareMatrix<int64_t, L> &B)
+  -> std::optional<Fact<Rational, L>> {
   Row M = B.numRow();
-  SquareMatrix<Rational> A(B);
+  SquareMatrix<Rational, L> A(B);
   // auto ipiv = Vector<unsigned>{.s = unsigned(M)};
   auto ipiv{vector(std::allocator<unsigned>{}, unsigned(M))};
   // Vector<unsigned> ipiv{.s = unsigned(M)};
@@ -201,10 +202,10 @@ public:
       }
     }
   }
-  return Fact<Rational>{std::move(A), std::move(ipiv)};
+  return Fact<Rational, L>{std::move(A), std::move(ipiv)};
 }
-template <class S>
-[[nodiscard]] constexpr auto fact(SquareMatrix<S> A) -> Fact<S> {
+template <class S, size_t L>
+[[nodiscard]] constexpr auto fact(SquareMatrix<S, L> A) -> Fact<S, L> {
   Row M = A.numRow();
   auto ipiv{vector(std::allocator<unsigned>{}, unsigned(M))};
   invariant(size_t(ipiv.size()), size_t(M));
@@ -223,6 +224,6 @@ template <class S>
     for (size_t i = k + 1; i < M; ++i)
       for (size_t j = k + 1; j < M; ++j) A(i, j) = A(i, j) - A(i, k) * A(k, j);
   }
-  return Fact<S>{std::move(A), std::move(ipiv)};
+  return Fact<S, L>{std::move(A), std::move(ipiv)};
 }
 } // namespace LU
