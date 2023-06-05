@@ -1,6 +1,7 @@
 #pragma once
 #include "Math/Array.hpp"
 #include "Utilities/Invariant.hpp"
+#include "Utilities/Show.hpp"
 #include <bits/ranges_base.h>
 #include <cstddef>
 #include <cstdint>
@@ -9,7 +10,6 @@
 #include <istream>
 #include <iterator>
 #include <limits>
-#include <llvm/Support/raw_ostream.h>
 #include <ostream>
 #include <string>
 
@@ -274,8 +274,8 @@ template <typename T = math::Vector<uint64_t, 1>> struct BitSet {
     return data == bs.data;
   }
 
-  friend inline auto operator<<(llvm::raw_ostream &os, BitSet const &x)
-    -> llvm::raw_ostream & {
+  template <utils::OStream O>
+  friend inline auto operator<<(O &os, BitSet const &x) -> O & {
     os << "BitSet[";
     auto it = x.begin();
     constexpr EndSentinel e = BitSet::end();

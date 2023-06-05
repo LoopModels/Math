@@ -2,7 +2,6 @@
 #include "Math/Matrix.hpp"
 #include "Math/MatrixDimensions.hpp"
 #include <cstddef>
-#include <llvm/ADT/SmallVector.h>
 
 namespace poly::math {
 
