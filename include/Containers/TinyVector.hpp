@@ -5,13 +5,14 @@
 #include <cstddef>
 #include <memory>
 namespace poly::containers {
+using utils::invariant;
 template <class T, size_t N> class TinyVector {
   static_assert(N > 0);
   Storage<T, N> data;
   size_t len{};
 
 public:
-  constexpr TinyVector(){};
+  constexpr TinyVector() = default;
   constexpr TinyVector(const std::initializer_list<T> &list) {
     invariant(list.size() <= N);
     len = list.size();
