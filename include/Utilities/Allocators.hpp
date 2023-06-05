@@ -322,7 +322,7 @@ private:
   /// stores a slab so we can free it later
   constexpr void pushOldSlab(void *old) {
     if (slabs && (!slabs->isFull())) slabs->pushHasCapacity(old);
-    else slabs = create<containers::UList<void>>(old, slabs);
+    else slabs = create<containers::UList<void *>>(old, slabs);
   }
   // updates SlabCur and returns the allocated pointer
   [[gnu::returns_nonnull]] constexpr auto allocCore(size_t Size, size_t Align)
@@ -385,7 +385,7 @@ private:
 
   void *slab{nullptr};
   void *sEnd{nullptr};
-  containers::UList<void> *slabs{nullptr};
+  containers::UList<void *> *slabs{nullptr};
 };
 static_assert(sizeof(BumpAlloc<>) == 24);
 static_assert(!std::is_trivially_copyable_v<BumpAlloc<>>);

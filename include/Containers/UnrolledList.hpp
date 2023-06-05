@@ -4,14 +4,14 @@
 namespace poly::containers {
 using utils::invariant;
 template <typename T> class UList {
-  T *data[6]; // NOLINT(modernize-avoid-c-arrays)
+  T data[6]; // NOLINT(modernize-avoid-c-arrays)
   size_t count{0};
   UList<T> *next{nullptr};
 
 public:
   constexpr UList() = default;
-  constexpr UList(T *t) : count(1) { data[0] = t; }
-  constexpr UList(T *t, UList *n) : count(1), next(n) { data[0] = t; }
+  constexpr UList(T t) : count(1) { data[0] = t; }
+  constexpr UList(T t, UList *n) : count(1), next(n) { data[0] = t; }
   constexpr void forEach(const auto &f) {
     invariant(count <= std::size(data));
     for (size_t i = 0; i < count; i++) f(data[i]);
@@ -40,13 +40,13 @@ public:
     invariant(count <= std::size(data));
     for (size_t i = 0; i < count; i++) f(data[i]);
   }
-  constexpr void pushHasCapacity(T *t) {
+  constexpr void pushHasCapacity(T t) {
     invariant(count < std::size(data));
     data[count++] = t;
   }
   /// unordered push
   template <class A>
-  [[nodiscard]] constexpr auto push(A &alloc, T *t) -> UList * {
+  [[nodiscard]] constexpr auto push(A &alloc, T t) -> UList * {
     invariant(count <= std::size(data));
     if (!isFull()) {
       data[count++] = t;
@@ -57,7 +57,7 @@ public:
     return other;
   }
   /// ordered push
-  template <class A> constexpr void push_ordered(A &alloc, T *t) {
+  template <class A> constexpr void push_ordered(A &alloc, T t) {
     invariant(count <= std::size(data));
     if (!isFull()) {
       data[count++] = t;
@@ -68,12 +68,12 @@ public:
       std::construct_at(next, t);
     } else next->push_ordered(alloc, t);
   }
-  [[nodiscard]] constexpr auto push(T *t) -> UList * {
+  [[nodiscard]] constexpr auto push(T t) -> UList * {
     std::allocator<UList<T>> alloc;
     return push(alloc, t);
   }
   /// ordered push
-  constexpr void push_ordered(T *t) {
+  constexpr void push_ordered(T t) {
     std::allocator<UList<T>> alloc;
     push_ordered(alloc, t);
   }
@@ -88,19 +88,19 @@ public:
   }
   constexpr auto front() -> T & {
     invariant(count > 0);
-    return *data[0];
+    return data[0];
   }
   constexpr auto only() -> T & {
     invariant(count == 1);
-    return *data[0];
+    return data[0];
   }
   constexpr auto front() const -> const T & {
     invariant(count > 0);
-    return *data[0];
+    return data[0];
   }
   constexpr auto only() const -> const T & {
     invariant(count == 1);
-    return *data[0];
+    return data[0];
   }
 };
 } // namespace poly::containers

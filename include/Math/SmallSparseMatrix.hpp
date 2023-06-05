@@ -37,7 +37,7 @@ public:
   }
   // [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
   constexpr SmallSparseMatrix(Row numRows, Col numCols)
-    : rows(unsigned(numRows)), col{numCols} {
+    : rows(unsigned(numRows), 0), col{numCols} {
     invariant(size_t(col) <= maxElemPerRow);
   }
   constexpr auto get(Row i, Col j) const -> T {
