@@ -86,5 +86,13 @@ public:
     count = 0;
     next = nullptr;
   }
+  constexpr auto front() -> T & {
+    invariant(count > 0);
+    return *data[0];
+  }
+  constexpr auto only() -> T & {
+    invariant(count == 1);
+    return *data[0];
+  }
 };
 } // namespace poly::containers
