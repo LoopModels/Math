@@ -40,6 +40,20 @@ public:
     invariant(count <= std::size(data));
     for (size_t i = 0; i < count; i++) f(data[i]);
   }
+  constexpr auto reduce(auto init, const auto &f) const {
+    invariant(count <= std::size(data));
+    auto acc = init;
+    for (size_t i = 0; i < count; i++) acc = f(acc, data[i]);
+    if (next != nullptr) acc = next->reduce(f, acc);
+    return acc;
+  }
+  constexpr auto transform_reduce(auto init, const auto &f) {
+    invariant(count <= std::size(data));
+    auto acc = init;
+    for (size_t i = 0; i < count; i++) acc = f(acc, data[i]);
+    if (next != nullptr) acc = next->reduce(f, acc);
+    return acc;
+  }
   constexpr void pushHasCapacity(T t) {
     invariant(count < std::size(data));
     data[count++] = t;

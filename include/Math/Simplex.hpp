@@ -9,11 +9,11 @@
 #include "Math/Rational.hpp"
 #include "Utilities/Allocators.hpp"
 #include "Utilities/Invariant.hpp"
-#include <bits/iterator_concepts.h>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <new>
+#include <ostream>
 #include <tuple>
 
 namespace poly::math {
