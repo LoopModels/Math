@@ -94,5 +94,13 @@ public:
     invariant(count == 1);
     return *data[0];
   }
+  constexpr auto front() const -> const T & {
+    invariant(count > 0);
+    return *data[0];
+  }
+  constexpr auto only() const -> const T & {
+    invariant(count == 1);
+    return *data[0];
+  }
 };
 } // namespace poly::containers
