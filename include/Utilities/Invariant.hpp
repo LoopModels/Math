@@ -3,6 +3,9 @@
 #ifndef NDEBUG
 #include <ostream>
 #include <source_location>
+
+namespace poly::utils {
+
 [[gnu::artificial]] constexpr inline void
 invariant(bool condition,
           std::source_location location = std::source_location::current()) {
@@ -26,7 +29,7 @@ invariant(const T &x, const T &y,
   }
 }
 // we want gdb-friendly builtin trap
-#define ASSERT(condition) invariant(condition)
+#define ASSERT(condition) poly::utils::invariant(condition)
 
 #else // ifdef NDEBUG
 #if __cplusplus >= 202202L
@@ -61,3 +64,4 @@ template <typename T>
 }
 #define ASSERT(condition) ((void)0)
 #endif // ifdef NDEBUG
+} // namespace poly::utils

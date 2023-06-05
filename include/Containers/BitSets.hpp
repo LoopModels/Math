@@ -13,6 +13,8 @@
 #include <ostream>
 #include <string>
 
+namespace poly::containers {
+
 struct EndSentinel {
   [[nodiscard]] constexpr auto operator-(auto it) -> ptrdiff_t {
     ptrdiff_t i = 0;
@@ -79,7 +81,7 @@ public:
 
 /// A set of `size_t` elements.
 /// Initially constructed
-template <typename T = Vector<uint64_t, 1>> struct BitSet {
+template <typename T = math::Vector<uint64_t, 1>> struct BitSet {
   [[no_unique_address]] T data{};
   // size_t operator[](size_t i) const {
   //     return data[i];
@@ -142,7 +144,7 @@ template <typename T = Vector<uint64_t, 1>> struct BitSet {
       if (data[i]) return 64 * i + std::countr_zero(data[i]);
     return std::numeric_limits<size_t>::max();
   }
-  static constexpr auto contains(PtrVector<uint64_t> data, size_t x)
+  static constexpr auto contains(math::PtrVector<uint64_t> data, size_t x)
     -> uint64_t {
     if (data.empty()) return 0;
     size_t d = x >> size_t(6);
@@ -193,18 +195,19 @@ template <typename T = Vector<uint64_t, 1>> struct BitSet {
     if (b) d |= mask;
     else d &= (~mask);
   }
-  static constexpr void set(MutPtrVector<uint64_t> data, size_t x, bool b) {
+  static constexpr void set(math::MutPtrVector<uint64_t> data, size_t x,
+                            bool b) {
     size_t d = x >> size_t(6);
     uint64_t r = uint64_t(x) & uint64_t(63);
     set(data[d], r, b);
   }
 
   class Reference {
-    [[no_unique_address]] MutPtrVector<uint64_t> data;
+    [[no_unique_address]] math::MutPtrVector<uint64_t> data;
     [[no_unique_address]] size_t i;
 
   public:
-    constexpr Reference(MutPtrVector<uint64_t> dd, size_t ii)
+    constexpr Reference(math::MutPtrVector<uint64_t> dd, size_t ii)
       : data(dd), i(ii) {}
     constexpr explicit operator bool() const { return contains(data, i); }
     constexpr auto operator=(bool b) -> Reference & {
@@ -218,7 +221,7 @@ template <typename T = Vector<uint64_t, 1>> struct BitSet {
   }
   constexpr auto operator[](size_t i) -> Reference {
     maybeResize(i + 1);
-    MutPtrVector<uint64_t> d{data};
+    math::MutPtrVector<uint64_t> d{data};
     return Reference{d, i};
   }
   [[nodiscard]] constexpr auto size() const -> size_t {
@@ -301,10 +304,10 @@ static_assert(std::is_trivially_destructible_v<FixedSizeBitSet<2>>);
 static_assert(std::ranges::range<FixedSizeBitSet<2>>);
 
 template <typename T, typename B = BitSet<>> struct BitSliceView {
-  [[no_unique_address]] MutPtrVector<T> a;
+  [[no_unique_address]] math::MutPtrVector<T> a;
   [[no_unique_address]] const B &i;
   struct Iterator {
-    [[no_unique_address]] MutPtrVector<T> a;
+    [[no_unique_address]] math::MutPtrVector<T> a;
     [[no_unique_address]] BitSetIterator it;
     constexpr auto operator==(EndSentinel) const -> bool {
       return it == EndSentinel{};
@@ -325,7 +328,7 @@ template <typename T, typename B = BitSet<>> struct BitSliceView {
   };
   constexpr auto begin() -> Iterator { return {a, i.begin()}; }
   struct ConstIterator {
-    [[no_unique_address]] PtrVector<T> a;
+    [[no_unique_address]] math::PtrVector<T> a;
     [[no_unique_address]] BitSetIterator it;
     constexpr auto operator==(EndSentinel) const -> bool {
       return it == EndSentinel{};
@@ -362,7 +365,8 @@ template <typename T, typename B = BitSet<>> struct BitSliceView {
   return EndSentinel{} - v.it;
 }
 template <typename T, typename B>
-BitSliceView(MutPtrVector<T>, const B &) -> BitSliceView<T, B>;
+BitSliceView(math::MutPtrVector<T>, const B &) -> BitSliceView<T, B>;
 
 static_assert(std::movable<BitSliceView<int64_t>::Iterator>);
 static_assert(std::movable<BitSliceView<int64_t>::ConstIterator>);
+} // namespace poly::containers

@@ -1,7 +1,8 @@
 #pragma once
 #include "Utilities/Invariant.hpp"
 #include <memory>
-
+namespace poly::containers {
+using utils::invariant;
 template <typename T> class UList {
   T *data[6]; // NOLINT(modernize-avoid-c-arrays)
   size_t count{0};
@@ -86,3 +87,4 @@ public:
     next = nullptr;
   }
 };
+} // namespace poly::containers

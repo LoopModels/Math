@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 #include <ostream>
 #include <random>
+using namespace poly::math;
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(LinearAlgebraTest, BasicAssertions) {
@@ -26,18 +27,18 @@ TEST(LinearAlgebraTest, BasicAssertions) {
   A(3, 2) = -2;
   A(3, 3) = 4;
 
-  auto LUFopt = LU::fact(A);
-  EXPECT_TRUE(LUFopt.has_value());
-  ASSERT(LUFopt.has_value());
-  auto &LUF = *LUFopt;
+  auto optLUF = LU::fact(A);
+  EXPECT_TRUE(optLUF.has_value());
+  ASSERT(optLUF.has_value());
+  auto &LUF = *optLUF;
   Matrix<Rational> B = A;
   std::cout << "A = \n" << A << "\nB = \n" << B << "\n";
   std::cout << LUF;
 
-  auto Bcopy = B;
-  EXPECT_FALSE(LUF.ldivrat(Bcopy));
-  std::cout << "LUF.ldiv(B) = \n" << Bcopy << "\n";
-  EXPECT_TRUE(Bcopy == identity);
+  auto copyB = B;
+  EXPECT_FALSE(LUF.ldivrat(copyB));
+  std::cout << "LUF.ldiv(B) = \n" << copyB << "\n";
+  EXPECT_TRUE(copyB == identity);
   std::cout << "I = " << identity << "\n";
 
   EXPECT_FALSE(LUF.rdivrat(B));

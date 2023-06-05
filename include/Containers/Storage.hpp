@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 
+namespace poly::containers {
 template <typename T, size_t N> struct Storage {
   alignas(T) char mem[N * sizeof(T)]; // NOLINT (modernize-avoid-c-style-arrays)
   constexpr T *data() {
@@ -15,3 +16,4 @@ template <typename T, size_t N> struct Storage {
 template <typename T> struct alignas(T) Storage<T, 0> {
   static constexpr T *data() { return nullptr; }
 };
+} // namespace poly::containers

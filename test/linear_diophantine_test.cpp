@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 #include <ostream>
 #include <random>
+using namespace poly::math;
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(LinearDiophantineTest, BasicAssertions) {

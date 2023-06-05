@@ -6,6 +6,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <ostream>
+
+namespace poly::math {
 
 template <class T, int Bits>
 concept is_int_v = std::signed_integral<T> && sizeof(T) == (Bits / 8);
@@ -220,3 +223,4 @@ constexpr auto gcd(Rational x, Rational y) -> std::optional<Rational> {
                   lcm(x.denominator, y.denominator)};
 }
 constexpr auto operator==(int64_t x, Rational y) -> bool { return y == x; }
+} // namespace poly::math

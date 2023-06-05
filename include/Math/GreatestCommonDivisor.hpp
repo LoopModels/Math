@@ -6,7 +6,8 @@
 #include <concepts>
 #include <cstdint>
 #include <limits>
-
+namespace poly::math {
+using utils::invariant;
 constexpr inline auto constexpr_abs(std::signed_integral auto x) noexcept {
   return x < 0 ? -x : x;
 }
@@ -85,3 +86,4 @@ constexpr auto divgcd(int64_t a, int64_t b) -> std::array<int64_t, 2> {
   auto [g, x, y, t, s] = dgcdx(a, b);
   return {t, s};
 }
+} // namespace poly::math

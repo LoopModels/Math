@@ -1,6 +1,6 @@
 #pragma once
 #include "Math/Math.hpp"
-#include "./NormalForm.hpp"
+#include "Math/NormalForm.hpp"
 #include <cstddef>
 #include <cstdint>
 
@@ -9,7 +9,7 @@
 //     (isdiag(H) && all(isone, @views H[diagind(H)])) || return nothing
 //     [A; Int.(inv(U' .// 1))[size(A, 1)+1:end, :]]
 // end
-
+namespace poly::math {
 // if `A` can be unimodularized, returns the inverse of the unimodularized `A`
 [[nodiscard]] inline auto unimodularize(IntMatrix A)
   -> std::optional<SquareMatrix<int64_t>> {
@@ -21,3 +21,4 @@
     if (H(m, m) != 1) return {};
   return std::move(U);
 }
+} // namespace poly::math

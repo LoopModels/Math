@@ -9,25 +9,26 @@
 #include <ostream>
 #include <sstream>
 #include <string>
-
+using namespace poly::math;
+using poly::utils::operator""_mat;
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(SparseIndexingTest, BasicAssertions) {
-  SmallSparseMatrix<int64_t> Asparse(Row{3}, Col{4});
-  std::cout << "&Asparse = " << &Asparse << "\n";
-  Asparse(0, 1) = 5;
-  Asparse(1, 3) = 3;
-  Asparse(2, 0) = -1;
-  Asparse(2, 1) = 4;
-  Asparse(2, 2) = -2;
-  IntMatrix A = Asparse;
+  SmallSparseMatrix<int64_t> sparseA(Row{3}, Col{4});
+  std::cout << "&Asparse = " << &sparseA << "\n";
+  sparseA(0, 1) = 5;
+  sparseA(1, 3) = 3;
+  sparseA(2, 0) = -1;
+  sparseA(2, 1) = 4;
+  sparseA(2, 2) = -2;
+  IntMatrix A = sparseA;
   {
     IntMatrix A2(DenseDims{3, 4});
     MutPtrMatrix<int64_t> MA2 = A2;
-    MA2 << Asparse;
+    MA2 << sparseA;
     EXPECT_EQ(A, A2);
   }
   for (size_t i = 0; i < 3; ++i)
-    for (size_t j = 0; j < 4; ++j) EXPECT_TRUE(A(i, j) == Asparse(i, j));
+    for (size_t j = 0; j < 4; ++j) EXPECT_TRUE(A(i, j) == sparseA(i, j));
   // EXPECT_EQ(A(i, j), Asparse(i, j));
   IntMatrix B(DenseDims{4, 5});
   EXPECT_FALSE(B.isSquare());

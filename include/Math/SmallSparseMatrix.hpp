@@ -6,7 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace LinAlg {
+namespace poly::math {
 // this file is not used at the moment
 template <typename T> class SmallSparseMatrix {
   // non-zeros
@@ -110,4 +110,4 @@ ArrayOps<T, S, P>::operator<<(const SmallSparseMatrix<T> &B) -> P & {
   return *static_cast<P *>(this);
 }
 
-}; // namespace LinAlg
+}; // namespace poly::math

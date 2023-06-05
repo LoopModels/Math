@@ -20,7 +20,7 @@
 #include <numeric>
 #include <utility>
 
-namespace NormalForm {
+namespace poly::math::NormalForm {
 
 constexpr auto gcdxScale(int64_t a, int64_t b) -> std::array<int64_t, 4> {
   if (constexpr_abs(a) == 1) return {a, 0, a, b};
@@ -100,8 +100,8 @@ constexpr auto pivotRowsPair(std::array<MutPtrMatrix<int64_t>, 2> AK, Col i,
   while (AK[0](piv, i) == 0)
     if (++piv == M) return true;
   if (j != piv) {
-    LinAlg::swap(AK[0], j, piv);
-    LinAlg::swap(AK[1], j, piv);
+    math::swap(AK[0], j, piv);
+    math::swap(AK[1], j, piv);
   }
   return false;
 }
@@ -623,10 +623,9 @@ constexpr void solveSystem(MutPtrMatrix<int64_t> A) {
   return {std::move(B), s};
 }
 // one row per null dim
-constexpr void nullSpace11(LinAlg::DenseMatrix<int64_t> &B,
-                           LinAlg::DenseMatrix<int64_t> &A) {
+constexpr void nullSpace11(DenseMatrix<int64_t> &B, DenseMatrix<int64_t> &A) {
   const Row M = A.numRow();
-  B.resizeForOverwrite(LinAlg::SquareDims{M});
+  B.resizeForOverwrite(math::SquareDims{M});
   B << 0;
   B.diag() << 1;
   solveSystem(A, B);
@@ -646,11 +645,11 @@ constexpr void nullSpace11(LinAlg::DenseMatrix<int64_t> &B,
   std::copy_n(B.data() + size_t(R * M), size_t(D * M), B.data());
   B.truncate(D);
 }
-[[nodiscard]] constexpr auto nullSpace(LinAlg::DenseMatrix<int64_t> A)
-  -> LinAlg::DenseMatrix<int64_t> {
-  LinAlg::DenseMatrix<int64_t> B;
+[[nodiscard]] constexpr auto nullSpace(DenseMatrix<int64_t> A)
+  -> DenseMatrix<int64_t> {
+  DenseMatrix<int64_t> B;
   nullSpace11(B, A);
   return B;
 }
 
-} // namespace NormalForm
+} // namespace poly::math::NormalForm

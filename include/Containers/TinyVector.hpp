@@ -4,6 +4,7 @@
 #include "Utilities/Invariant.hpp"
 #include <cstddef>
 #include <memory>
+namespace poly::containers {
 template <class T, size_t N> class TinyVector {
   static_assert(N > 0);
   Storage<T, N> data;
@@ -77,3 +78,4 @@ public:
   constexpr auto end() -> T * { return data.data() + size(); }
   constexpr auto end() const -> const T * { return data.data() + size(); }
 };
+} // namespace poly::containers

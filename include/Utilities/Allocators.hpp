@@ -51,6 +51,8 @@ void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 #define MATH_NO_SANITIZE_MEMORY_ATTRIBUTE
 #endif
 
+namespace poly::utils {
+
 template <typename T> struct AllocResult {
   T *ptr;
   size_t size;
@@ -320,7 +322,7 @@ private:
   /// stores a slab so we can free it later
   constexpr void pushOldSlab(void *old) {
     if (slabs && (!slabs->isFull())) slabs->pushHasCapacity(old);
-    else slabs = create<UList<void>>(old, slabs);
+    else slabs = create<containers::UList<void>>(old, slabs);
   }
   // updates SlabCur and returns the allocated pointer
   [[gnu::returns_nonnull]] constexpr auto allocCore(size_t Size, size_t Align)
@@ -383,7 +385,7 @@ private:
 
   void *slab{nullptr};
   void *sEnd{nullptr};
-  UList<void> *slabs{nullptr};
+  containers::UList<void> *slabs{nullptr};
 };
 static_assert(sizeof(BumpAlloc<>) == 24);
 static_assert(!std::is_trivially_copyable_v<BumpAlloc<>>);
@@ -430,15 +432,6 @@ static_assert(
 static_assert(std::is_trivially_copyable_v<NotNull<BumpAlloc<>>>);
 static_assert(std::is_trivially_copyable_v<WBumpAlloc<int64_t>>);
 
-template <size_t SlabSize, bool BumpUp, size_t MinAlignment>
-auto operator new(size_t Size, BumpAlloc<SlabSize, BumpUp, MinAlignment> &Alloc)
-  -> void * {
-  return Alloc.allocate(Size, alignof(std::max_align_t));
-}
-
-template <size_t SlabSize, bool BumpUp, size_t MinAlignment>
-void operator delete(void *, BumpAlloc<SlabSize, BumpUp, MinAlignment> &) {}
-
 template <typename A>
 concept Allocator = requires(A a) {
   typename A::value_type;
@@ -463,3 +456,15 @@ template <class T> constexpr void rollback(WBumpAlloc<T> alloc, auto p) {
   alloc.rollback(p);
 }
 constexpr void rollback(BumpAlloc<> &alloc, auto p) { alloc.rollback(p); }
+} // namespace poly::utils
+template <size_t SlabSize, bool BumpUp, size_t MinAlignment>
+auto operator new(size_t Size,
+                  poly::utils::BumpAlloc<SlabSize, BumpUp, MinAlignment> &Alloc)
+  -> void * {
+  return Alloc.allocate(Size, alignof(std::max_align_t));
+}
+
+template <size_t SlabSize, bool BumpUp, size_t MinAlignment>
+void operator delete(void *,
+                     poly::utils::BumpAlloc<SlabSize, BumpUp, MinAlignment> &) {
+}

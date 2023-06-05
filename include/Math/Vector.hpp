@@ -3,10 +3,10 @@
 #include <concepts>
 #include <cstddef>
 
-namespace LinAlg {
+namespace poly::math {
 template <typename T>
-concept AbstractVector = HasEltype<T> && requires(T t, size_t i) {
-  { t[i] } -> std::convertible_to<eltype_t<T>>;
+concept AbstractVector = utils::HasEltype<T> && requires(T t, size_t i) {
+  { t[i] } -> std::convertible_to<utils::eltype_t<T>>;
   { t.size() } -> std::convertible_to<size_t>;
   { t.view() };
   // {
@@ -43,9 +43,9 @@ template <class T> consteval auto PreAllocStorage() -> size_t {
 }
 
 constexpr auto selfDot(const auto &a) {
-  eltype_t<decltype(a)> sum = 0;
+  utils::eltype_t<decltype(a)> sum = 0;
   for (auto x : a) sum += x * x;
   return sum;
 }
 
-} // namespace LinAlg
+} // namespace poly::math

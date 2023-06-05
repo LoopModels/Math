@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace LinAlg {
+namespace poly::math {
 template <class R, class C> struct CartesianIndex {
   R row;
   C col;
@@ -203,6 +203,4 @@ struct Broadcast {
 template <class T, class U>
 concept SameOrBroadcast = std::same_as<T, U> || std::is_same_v<T, Broadcast>;
 
-} // namespace LinAlg
-// NOLINTNEXTLINE(misc-unused-using-decls);
-using LinAlg::StridedDims, LinAlg::DenseDims, LinAlg::SquareDims;
+} // namespace poly::math

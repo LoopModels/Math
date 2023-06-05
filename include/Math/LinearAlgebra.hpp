@@ -6,8 +6,7 @@
 #include "Rational.hpp"
 #include "Utilities/Invariant.hpp"
 #include <concepts>
-
-namespace LU {
+namespace poly::math::LU {
 [[nodiscard]] constexpr auto ldivrat(SquarePtrMatrix<Rational> F,
                                      PtrVector<unsigned> ipiv,
                                      MutPtrMatrix<Rational> rhs) -> bool {
@@ -271,4 +270,4 @@ constexpr void rdiv(MutSquarePtrMatrix<T> A, MutPtrMatrix<T> B) {
   rdiv(A, ipiv, B);
 }
 
-} // namespace LU
+} // namespace poly::math::LU

@@ -4,7 +4,7 @@
 #include <limits>
 #include <optional>
 #include <utility>
-
+namespace poly::utils {
 template <typename T> struct Optional {
   std::optional<T> opt;
   [[nodiscard]] constexpr auto hasValue() const -> bool {
@@ -110,3 +110,4 @@ template <typename T> struct Optional<T *> {
   constexpr Optional(T *v) : value(v) {}
   constexpr Optional(NotNull<T> v) : value(v) {}
 };
+} // namespace poly::utils

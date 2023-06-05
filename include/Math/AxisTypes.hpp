@@ -26,7 +26,8 @@
 /// All the PtrVector/PtrMatrix types are trivially destructible, copyable, etc
 /// Their lifetimes are governed by the BumpAlloc or RAII type used to back
 /// them.
-namespace LinAlg {
+namespace poly::math {
+using utils::invariant, utils::OStream;
 enum class AxisType {
   Row,
   Column,
@@ -134,7 +135,7 @@ template <AxisType T> struct AxisInt {
     return *this;
   }
   constexpr auto operator*() const -> V { return value; }
-  template <OStream OS>
+  template <utils::OStream OS>
   friend inline auto operator<<(OS &os, AxisInt<T> x) -> OS & {
     return os << T << "{" << *x << "}";
   }
@@ -261,9 +262,5 @@ constexpr auto unwrapRow(Row x) -> size_t { return size_t(x); }
 constexpr auto unwrapCol(Col x) -> size_t { return size_t(x); }
 constexpr auto unwrapRow(auto x) { return x; }
 constexpr auto unwrapCol(auto x) { return x; }
-
-} // namespace LinAlg
-
-constexpr auto standardizeRangeBound(LinAlg::RowOrCol auto x) {
-  return size_t(x);
-}
+constexpr auto standardizeRangeBound(RowOrCol auto x) { return size_t(x); }
+} // namespace poly::math

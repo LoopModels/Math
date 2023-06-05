@@ -1,7 +1,7 @@
 #pragma once
 #include "Math/Array.hpp"
 
-namespace LinAlg {
+namespace poly::math {
 
 static_assert(
   AbstractSimilar<PtrVector<int64_t>, std::integral_constant<unsigned int, 4>>);
@@ -198,5 +198,4 @@ template <class T, size_t N>
 using SVector = StaticArray<T, std::integral_constant<size_t, N>>;
 
 static_assert(AbstractVector<SVector<int64_t, 3>>);
-}; // namespace LinAlg
-using LinAlg::SVector;
+}; // namespace poly::math

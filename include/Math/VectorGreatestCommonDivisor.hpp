@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 
-using LinAlg::PtrVector, LinAlg::MutPtrVector;
+namespace poly::math {
 
 constexpr auto gcd(PtrVector<int64_t> x) -> int64_t {
   const size_t N = x.size();
@@ -48,3 +48,4 @@ constexpr auto lcmSkipZero(AbstractVector auto x) -> int64_t {
     if (xi) l = lcm(l, xi);
   return l;
 }
+} // namespace poly::math

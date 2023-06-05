@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <cstdint>
 
+namespace poly::math {
 template <OStream OS>
 inline auto printConstraint(OS &os, PtrVector<int64_t> a, size_t numSyms,
                             bool inequality) {
@@ -256,10 +257,10 @@ inline constexpr auto orderedCmp(auto x) -> size_t {
   return (x < 0) | (2 * (x > 0));
 }
 /// returns three bitsets, indicating indices that are 0, negative, and positive
-template <class T, LinAlg::VectorDimension S>
-constexpr auto indsZeroNegPos(LinAlg::Array<T, S> a)
-  -> std::array<BitSet64, 3> {
-  std::array<BitSet64, 3> ret;
+template <class T, VectorDimension S>
+constexpr auto indsZeroNegPos(Array<T, S> a)
+  -> std::array<containers::FixedSizeBitSet<1>, 3> {
+  std::array<containers::FixedSizeBitSet<1>, 3> ret;
   for (size_t j = 0; j < a.size(); ++j) ret[orderedCmp(a[j])].insert(j);
   return ret;
 }
@@ -267,9 +268,11 @@ constexpr auto indsZeroNegPos(LinAlg::Array<T, S> a)
 static_assert(sizeof(std::array<Vector<unsigned, 4>, 2>) == 64);
 
 template <bool NonNegative>
-constexpr auto fourierMotzkinCore(MutDensePtrMatrix<int64_t> B,
-                                  DensePtrMatrix<int64_t> A, size_t v,
-                                  const std::array<BitSet64, 3> &znp) -> Row {
+constexpr auto
+fourierMotzkinCore(MutDensePtrMatrix<int64_t> B, DensePtrMatrix<int64_t> A,
+                   size_t v,
+                   const std::array<containers::FixedSizeBitSet<1>, 3> &znp)
+  -> Row {
   const auto &[zero, neg, pos] = znp;
   // we have the additional v >= 0
   if constexpr (NonNegative)
@@ -309,7 +312,7 @@ constexpr auto fourierMotzkinCore(MutDensePtrMatrix<int64_t> B,
 }
 
 template <bool NonNegative>
-constexpr auto fourierMotzkin(LinAlg::Alloc<int64_t> auto &alloc,
+constexpr auto fourierMotzkin(Alloc<int64_t> auto &alloc,
                               DensePtrMatrix<int64_t> A, size_t v)
   -> MutDensePtrMatrix<int64_t> {
 
@@ -442,3 +445,4 @@ constexpr void deleteBounds(MutDensePtrMatrix<int64_t> &A, size_t i) {
   for (Row j = A.numRow(); j != 0;)
     if (A(--j, i)) eraseConstraint(A, j);
 }
+} // namespace poly::math

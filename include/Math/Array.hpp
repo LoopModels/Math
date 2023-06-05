@@ -24,9 +24,7 @@
 #include <ostream>
 #include <type_traits>
 #include <utility>
-
-namespace LinAlg {
-
+namespace poly::math {
 template <class T, class S, size_t N = PreAllocStorage<T>(),
           class A = std::allocator<T>,
           std::unsigned_integral U = default_capacity_type_t<S>>
@@ -38,11 +36,12 @@ concept Printable = requires(std::ostream &os, T x) {
   { os << x } -> std::convertible_to<std::ostream &>;
 };
 static_assert(Printable<int64_t>);
-void print_obj(OStream auto &os, Printable auto x) { os << x; };
+void print_obj(utils::OStream auto &os, Printable auto x) { os << x; };
 template <typename F, typename S>
-void print_obj(OStream auto &os, const std::pair<F, S> &x) {
+void print_obj(utils::OStream auto &os, const std::pair<F, S> &x) {
   os << "(" << x.first << ", " << x.second << ")";
 };
+using utils::NotNull, utils::Optional;
 
 /// Constant Array
 template <class T, class S> struct Array {
@@ -200,7 +199,7 @@ template <class T, class S> struct Array {
     ManagedArray<T, decltype(newDim)> A(newDim);
     for (size_t m = 0; m < numRow(); ++m) {
       A(m, _(0, c)) = (*this)(m, _(0, c));
-      A(m, _(c, LinAlg::end)) = (*this)(m, _(c + 1, LinAlg::end));
+      A(m, _(c, math::end)) = (*this)(m, _(c + 1, math::end));
     }
     return A;
   }
@@ -1120,7 +1119,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     : BaseT{memory.data(), b.dim(), U(N), b.get_allocator()} {
     if (b.isSmall()) { // copy
       std::copy_n(b.data(), size_t(b.dim()), this->data());
-    } else { // steal
+    } else {           // steal
       this->ptr = b.data();
       this->capacity = b.getCapacity();
     }
@@ -1131,7 +1130,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     if constexpr (N > 0) {
       if (b.isSmall()) { // copy
         std::copy_n(b.data(), size_t(b.dim()), this->data());
-      } else { // steal
+      } else {           // steal
         this->ptr = b.data();
         this->capacity = b.getCapacity();
       }
@@ -1146,7 +1145,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     : BaseT{memory.data(), s, U(N), b.get_allocator()} {
     if (b.isSmall()) { // copy
       std::copy_n(b.data(), size_t(b.dim()), this->data());
-    } else { // steal
+    } else {           // steal
       this->ptr = b.data();
       this->capacity = b.getCapacity();
     }
@@ -1264,7 +1263,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
   }
 
 private:
-  [[no_unique_address]] Storage<T, N> memory;
+  [[no_unique_address]] containers::Storage<T, N> memory;
 };
 
 static_assert(std::move_constructible<ManagedArray<intptr_t, unsigned>>);
@@ -1403,7 +1402,7 @@ using IntMatrix = Matrix<int64_t>;
 static_assert(std::same_as<IntMatrix::value_type, int64_t>);
 static_assert(AbstractMatrix<IntMatrix>);
 static_assert(std::copyable<IntMatrix>);
-static_assert(std::same_as<eltype_t<Matrix<int64_t>>, int64_t>);
+static_assert(std::same_as<utils::eltype_t<Matrix<int64_t>>, int64_t>);
 
 static_assert(
   std::convertible_to<Array<int64_t, SquareDims>, Array<int64_t, StridedDims>>);
@@ -1440,7 +1439,7 @@ inline auto operator<<(std::ostream &os, PtrVector<T> const &A)
 }
 inline auto operator<<(std::ostream &os, const AbstractVector auto &A)
   -> std::ostream & {
-  Vector<eltype_t<decltype(A)>> B(A.size());
+  Vector<utils::eltype_t<decltype(A)>> B(A.size());
   B << A;
   return printVector(os, B);
 }
@@ -1625,8 +1624,4 @@ inline auto operator<<(std::ostream &os, Array<T, DenseDims> A)
   -> std::ostream & {
   return printMatrix(os, PtrMatrix<T>{A});
 }
-
-} // namespace LinAlg
-using LinAlg::AbstractVector, LinAlg::AbstractMatrix, LinAlg::PtrVector,
-  LinAlg::MutPtrVector, LinAlg::Vector, LinAlg::Matrix, LinAlg::SquareMatrix,
-  LinAlg::IntMatrix, LinAlg::PtrMatrix, LinAlg::MutPtrMatrix;
+} // namespace poly::math

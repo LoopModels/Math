@@ -1,6 +1,6 @@
-#include "Math/LinearAlgebra.hpp"
 #include "Math/Array.hpp"
 #include "Math/Comparisons.hpp"
+#include "Math/LinearAlgebra.hpp"
 #include "Math/Math.hpp"
 #include "Math/MatrixDimensions.hpp"
 #include "Math/NormalForm.hpp"
@@ -10,6 +10,8 @@
 #include <gtest/gtest.h>
 #include <numeric>
 #include <random>
+using namespace poly::math;
+using poly::utils::operator""_mat;
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(OrthogonalizationTest, BasicAssertions) {
@@ -45,7 +47,7 @@ TEST(OrthogonalizationTest, BasicAssertions) {
       EXPECT_TRUE(K * A == I4);
     } else {
       // std::cout << "K= " << K << "\nB= " << B << "\n";
-      // LinAlg::printVector(std::cout << "included = ", included)
+      // printVector(std::cout << "included = ", included)
       // << "\n";
       if (auto optlu = LU::fact(K)) {
         if (auto optA2 = (*optlu).inv()) {
@@ -102,7 +104,7 @@ TEST(OrthogonalizationTest, BasicAssertions) {
   B(3, 5) = 1;
   std::cout << "B_orth_motivating_example = " << B << "\n";
   auto [K, included] = NormalForm::orthogonalize(B);
-  // LinAlg::printVector(std::cout << "K = " << K << "\nincluded = ",
+  // printVector(std::cout << "K = " << K << "\nincluded = ",
   //                            included)
   //   << "\n";
   EXPECT_EQ(included.size(), 4);
@@ -256,7 +258,7 @@ TEST(NullSpaceTests, BasicAssertions) {
     IntMatrix B(DenseDims{8, numCol});
     size_t nullDim = 0;
     IntMatrix Z;
-    LinAlg::DenseMatrix<int64_t> NS;
+    DenseMatrix<int64_t> NS;
     for (size_t i = 0; i < numIters; ++i) {
       for (auto &&b : B) {
         b = distrib(gen);

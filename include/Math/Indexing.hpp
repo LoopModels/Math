@@ -6,7 +6,7 @@
 #include <Utilities/Show.hpp>
 #include <cstddef>
 
-namespace LinAlg {
+namespace poly::math {
 
 static inline constexpr struct Begin {
   template <OStream O> friend inline auto operator<<(O &os, Begin) -> O & {
@@ -285,4 +285,4 @@ constexpr auto calcNewDim(SquareDims d, CartesianIndex<B, Colon> i) {
   return DenseDims{Row{rowDims}, Col{d}};
 }
 
-} // namespace LinAlg
+} // namespace poly::math

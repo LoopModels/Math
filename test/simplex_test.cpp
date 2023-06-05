@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <gtest/gtest.h>
 #include <numeric>
+using namespace poly::math;
+using poly::utils::operator""_mat;
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(SimplexTest, BasicAssertions) {
@@ -1041,7 +1043,7 @@ TEST(LexMinSimplexTest, BasicAssertions) {
     EXPECT_EQ(sum, 3);
     EXPECT_EQ(rsum, 3);
     // std::cout << "sol2: " << sol2 << "\n";
-    LinAlg::printVectorImpl(std::cout << "sol2: ", sol2) << "\n";
+    printVectorImpl(std::cout << "sol2: ", sol2) << "\n";
     for (size_t i = 0; i < 37; ++i) {
       std::cout << "sol2[last-" << i << "] = " << sol2[last - i] << "\n";
       EXPECT_EQ(sol2[last - i], (i == 28) || (i == 30) || (i == 33));

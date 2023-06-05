@@ -1,12 +1,12 @@
 #pragma once
-#include "./Constraints.hpp"
-#include "./NormalForm.hpp"
-#include "./Rational.hpp"
 #include "Math/Array.hpp"
 #include "Math/Comparisons.hpp"
+#include "Math/Constraints.hpp"
 #include "Math/Indexing.hpp"
 #include "Math/Math.hpp"
 #include "Math/MatrixDimensions.hpp"
+#include "Math/NormalForm.hpp"
+#include "Math/Rational.hpp"
 #include "Utilities/Allocators.hpp"
 #include "Utilities/Invariant.hpp"
 #include <bits/iterator_concepts.h>
@@ -16,6 +16,7 @@
 #include <new>
 #include <tuple>
 
+namespace poly::math {
 // #define VERBOSESIMPLEX
 
 /// Tableau for the Simplex algorithm.
@@ -315,21 +316,20 @@ public:
       PtrMatrix<int64_t> constraints = simplex->getConstraints();
       return Rational::create(constraints(j, 0), constraints(j, i + 1));
     }
-    [[nodiscard]] constexpr auto operator[](LinAlg::OffsetEnd k) const
-      -> Rational {
+    [[nodiscard]] constexpr auto operator[](OffsetEnd k) const -> Rational {
       size_t i = size_t(simplex->numVars) - k.offset;
       int64_t j = simplex->getBasicConstraint(i);
       if (j < 0) return 0;
       PtrMatrix<int64_t> constraints = simplex->getConstraints();
       return Rational::create(constraints(j, 0), constraints(j, i + 1));
     }
-    [[nodiscard]] constexpr auto operator[](LinAlg::RelativeOffset auto i) const
+    [[nodiscard]] constexpr auto operator[](RelativeOffset auto i) const
       -> Rational {
-      return (*this)[LinAlg::calcOffset(size(), i)];
+      return (*this)[calcOffset(size(), i)];
     }
     template <typename B, typename E>
     constexpr auto operator[](Range<B, E> r) const -> Solution {
-      return (*this)[LinAlg::canonicalizeRange(r, size())];
+      return (*this)[canonicalizeRange(r, size())];
     }
     constexpr auto operator[](Range<size_t, size_t> r) const -> Solution {
       return {simplex, skippedVars + r.b, skippedVars + r.e};
@@ -738,7 +738,7 @@ public:
     if (basicConstraints[i] < 0) makeBasic(C, 0, index_type(i));
     size_t ind = basicConstraints[i];
     size_t lastRow = size_t(C.numRow() - 1);
-    if (lastRow != ind) LinAlg::swap(C, Row{ind}, Row{lastRow});
+    if (lastRow != ind) swap(C, Row{ind}, Row{lastRow});
     truncateConstraints(lastRow);
   }
   constexpr void removeExtraVariables(size_t i) {
@@ -930,8 +930,9 @@ public:
 static_assert(AbstractVector<Simplex::Solution>);
 
 static_assert(AbstractVector<PtrVector<Rational>>);
-static_assert(AbstractVector<LinAlg::ElementwiseVectorBinaryOp<
-                LinAlg::Sub, PtrVector<Rational>, PtrVector<Rational>>>);
+static_assert(AbstractVector<ElementwiseVectorBinaryOp<Sub, PtrVector<Rational>,
+                                                       PtrVector<Rational>>>);
 static_assert(std::movable<Simplex::Solution::iterator>);
 static_assert(std::indirectly_readable<Simplex::Solution::iterator>);
 static_assert(std::forward_iterator<Simplex::Solution::iterator>);
+} // namespace poly::math

@@ -2,6 +2,8 @@
 #include <concepts>
 #include <type_traits>
 
+namespace poly::utils {
+
 template <typename T>
 concept HasEltype = requires(T) {
   std::is_scalar_v<typename std::remove_reference_t<T>::value_type>;
@@ -90,3 +92,4 @@ template <std::integral I> struct PromoteType<I, Rational> {
 template <std::integral I> struct PromoteType<Rational, I> {
   using value_type = Rational;
 };
+} // namespace poly::utils

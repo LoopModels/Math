@@ -5,6 +5,7 @@
 #include "Math/Math.hpp"
 #include <cstdint>
 
+namespace poly::math {
 [[nodiscard]] constexpr auto orthogonalize(DenseMatrix<int64_t> A)
   -> DenseMatrix<int64_t> {
   if ((A.numCol() < 2) || (A.numRow() == 0)) return A;
@@ -36,3 +37,4 @@
   -> DenseMatrix<int64_t> {
   return orthogonalize(NormalForm::nullSpace(std::move(A)));
 }
+} // namespace poly::math

@@ -2,6 +2,7 @@
 #include "Utilities/Show.hpp"
 #include <concepts>
 #include <type_traits>
+namespace poly::math {
 template <typename B, typename E> struct Range {
   [[no_unique_address]] B b;
   [[no_unique_address]] E e;
@@ -160,3 +161,4 @@ static_assert(std::totally_ordered<StridedIterator<int64_t>>,
               "failed random access iterator");
 static_assert(std::random_access_iterator<StridedIterator<int64_t>>,
               "failed random access iterator");
+} // namespace poly::math

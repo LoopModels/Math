@@ -5,6 +5,8 @@
 #include <gtest/gtest.h>
 #include <ostream>
 #include <random>
+using namespace poly::math;
+using poly::utils::operator""_mat;
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(UnimodularizationTest, BasicAssertions) {

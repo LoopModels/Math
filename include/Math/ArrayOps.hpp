@@ -3,12 +3,12 @@
 #include "Math/Indexing.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/MatrixDimensions.hpp"
+#include "Math/UniformScaling.hpp"
 #include "Math/Vector.hpp"
 #include <algorithm>
 #include <type_traits>
 
-namespace LinAlg {
-
+namespace poly::math {
 template <typename T> class SmallSparseMatrix;
 template <class T, class S, class P> class ArrayOps {
   [[gnu::returns_nonnull]] constexpr auto data_() -> T * {
@@ -178,4 +178,4 @@ public:
     return *static_cast<P *>(this);
   }
 };
-} // namespace LinAlg
+} // namespace poly::math

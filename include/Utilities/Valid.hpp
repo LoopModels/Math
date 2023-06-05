@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <type_traits>
 
+namespace poly::utils {
 // TODO: communicate not-null to the compiler somehow?
 template <typename T> class NotNull {
   [[no_unique_address]] T *value;
@@ -132,3 +133,4 @@ template <typename T> NotNull(T &) -> NotNull<T>;
 template <typename T> NotNull(T *) -> NotNull<T *>;
 static_assert(std::is_trivially_destructible_v<NotNull<size_t>>);
 static_assert(std::is_trivially_copy_constructible_v<NotNull<size_t>>);
+} // namespace poly::utils
