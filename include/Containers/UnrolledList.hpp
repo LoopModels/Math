@@ -1,6 +1,12 @@
 #pragma once
 #include "Utilities/Invariant.hpp"
 #include <memory>
+namespace poly::utils {
+template <size_t SlabSize = 16384, bool BumpUp = false,
+          size_t MinAlignment = alignof(std::max_align_t)>
+class BumpAlloc; // forward declaration
+} // namespace poly::utils
+
 namespace poly::containers {
 using utils::invariant;
 template <typename T> class UList {
@@ -51,7 +57,7 @@ public:
     invariant(count <= std::size(data));
     auto acc = init;
     for (size_t i = 0; i < count; i++) acc = f(acc, data[i]);
-    if (next != nullptr) acc = next->reduce(f, acc);
+    if (next != nullptr) acc = next->transform_reduce(acc, f);
     return acc;
   }
   constexpr void pushHasCapacity(T t) {
@@ -91,6 +97,20 @@ public:
     std::allocator<UList<T>> alloc;
     push_ordered(alloc, t);
   }
+  [[nodiscard]] constexpr auto push(utils::BumpAlloc<> &alloc, T t) -> UList *;
+  constexpr void push_ordered(utils::BumpAlloc<> &alloc, T t);
+  /// erase
+  /// behavior is undefined if `x` doesn't point to this node
+  constexpr void erase(T *x) {
+    invariant(count <= std::size(data));
+    for (auto i = x, e = data + --count; i != e; ++i) *i = *(i + 1);
+  }
+  /// eraseUnordered
+  /// behavior is undefined if `x` doesn't point to this node
+  constexpr void eraseUnordered(T *x) {
+    invariant(count <= std::size(data));
+    *x = data[--count];
+  }
   [[nodiscard]] constexpr auto isFull() const -> bool {
     return count == std::size(data);
   }
@@ -116,5 +136,20 @@ public:
     invariant(count == 1);
     return data[0];
   }
+  [[nodiscard]] constexpr auto empty() const -> bool { return count == 0; }
+  [[nodiscard]] constexpr auto operator==(const UList &other) const -> bool {
+    if (count != other.count) return false;
+    for (size_t i = 0; i < count; i++)
+      if (data[i] != other.data[i]) return false;
+    if (next == nullptr && other.getNext() == nullptr) return true;
+    if (next == nullptr || other.getNext() == nullptr) return false;
+    return *next == *other.getNext();
+  }
+  constexpr auto operator[](size_t i) -> T & {
+    return (i < count) ? data[i] : next->operator[](i - count);
+  }
+  constexpr auto operator=(const UList &other) -> UList & = default;
+  constexpr auto begin() -> T * { return data; }
+  constexpr auto localEnd() -> T * { return data + count; }
 };
 } // namespace poly::containers

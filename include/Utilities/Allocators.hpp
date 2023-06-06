@@ -63,9 +63,7 @@ constexpr void deallocate(A &&alloc, AllocResult<T> r) {
   alloc.deallocate(r.ptr, r.size);
 }
 
-template <size_t SlabSize = 16384, bool BumpUp = false,
-          size_t MinAlignment = alignof(std::max_align_t)>
-struct BumpAlloc {
+template <size_t SlabSize, bool BumpUp, size_t MinAlignment> class BumpAlloc {
   static_assert(std::has_single_bit(MinAlignment));
 
 public:
@@ -468,3 +466,27 @@ template <size_t SlabSize, bool BumpUp, size_t MinAlignment>
 void operator delete(void *,
                      poly::utils::BumpAlloc<SlabSize, BumpUp, MinAlignment> &) {
 }
+namespace poly::containers {
+template <typename T>
+[[nodiscard]] constexpr auto UList<T>::push(utils::BumpAlloc<> &alloc, T t)
+  -> UList * {
+  invariant(count <= std::size(data));
+  if (!isFull()) {
+    data[count++] = t;
+    return this;
+  }
+  return alloc.create<UList<T>>(t, this);
+}
+/// ordered push
+template <typename T>
+constexpr void UList<T>::push_ordered(utils::BumpAlloc<> &alloc, T t) {
+  invariant(count <= std::size(data));
+  if (!isFull()) {
+    data[count++] = t;
+    return;
+  }
+  if (next == nullptr) next = alloc.create<UList<T>>(t);
+  else next->push_ordered(alloc, t);
+}
+
+} // namespace poly::containers
