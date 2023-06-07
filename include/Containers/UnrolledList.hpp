@@ -18,6 +18,7 @@ public:
   constexpr UList() = default;
   constexpr UList(T t) : count(1) { data[0] = t; }
   constexpr UList(T t, UList *n) : count(1), next(n) { data[0] = t; }
+  constexpr UList(const UList &other) = default;
   constexpr void forEach(const auto &f) {
     invariant(count <= std::size(data));
     for (size_t i = 0; i < count; i++) f(data[i]);
@@ -99,6 +100,7 @@ public:
   }
   [[nodiscard]] constexpr auto push(utils::BumpAlloc<> &alloc, T t) -> UList *;
   constexpr void push_ordered(utils::BumpAlloc<> &alloc, T t);
+  constexpr auto copy(utils::BumpAlloc<> &alloc) const -> UList;
   /// erase
   /// behavior is undefined if `x` doesn't point to this node
   constexpr void erase(T *x) {

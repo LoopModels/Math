@@ -30,7 +30,6 @@ template <class T, class S, size_t N = PreAllocStorage<T>(),
           std::unsigned_integral U = default_capacity_type_t<S>>
 struct ManagedArray;
 
-// inline auto adaptOStream(std::ostream &os, const auto &x) -> std::ostream &;
 template <typename T>
 concept Printable = requires(std::ostream &os, T x) {
   { os << x } -> std::convertible_to<std::ostream &>;
@@ -240,20 +239,7 @@ template <class T, class S> struct Array {
   [[nodiscard]] constexpr auto sum() const noexcept -> value_type {
     return std::reduce(begin(), end());
   }
-  // [[nodiscard]] constexpr auto norm() const noexcept -> double {
-  //   return std::sqrt(norm2());
-  // }
-  // constexpr auto operator!=(const Array &other) const noexcept -> bool {
-  //   return !(*this == other);
-  // }
-  // friend inline auto operator<<(std::ostream &os, const Array &x)
-  //   -> std::ostream & {
-  //   return adaptOStream(os, x);
-  // }
-  friend inline void PrintTo(const Array &x, ::std::ostream *os) {
-    *os << x;
-    // adaptOStream(*os, x);
-  }
+  friend inline void PrintTo(const Array &x, ::std::ostream *os) { *os << x; }
 #ifndef NDEBUG
   [[gnu::used]] void dump() const {
     if constexpr (Printable<T>) std::cout << "Size: " << sz << *this << "\n";
@@ -1426,11 +1412,6 @@ inline auto printVector(std::ostream &os, StridedVector<T> a)
   -> std::ostream & {
   return printVectorImpl(os, a);
 }
-// template <typename T>
-// inline auto printVector(std::ostream &os, const llvm::SmallVectorImpl<T> &a)
-//   -> std::ostream & {
-//   return printVector(os, PtrVector<T>{a.data(), a.size()});
-// }
 
 template <typename T>
 inline auto operator<<(std::ostream &os, PtrVector<T> const &A)

@@ -488,5 +488,12 @@ constexpr void UList<T>::push_ordered(utils::BumpAlloc<> &alloc, T t) {
   if (next == nullptr) next = alloc.create<UList<T>>(t);
   else next->push_ordered(alloc, t);
 }
+template <typename T>
+constexpr auto UList<T>::copy(utils::BumpAlloc<> &alloc) const -> UList<T> {
+  UList<T> *L = alloc.create<UList<T>>();
+  L->count = count;
+  std::copy(std::begin(data), std::end(data), std::begin(L->data));
+  if (next) L->next = next->copy(alloc);
+}
 
 } // namespace poly::containers
