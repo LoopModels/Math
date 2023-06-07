@@ -164,6 +164,11 @@ public:
       }
       return *this;
     }
+    constexpr auto operator*() -> T & {
+      invariant(list != nullptr);
+      return list->data[index];
+    }
+    constexpr auto operator->() -> T * { return &**this; }
   };
   constexpr auto begin() -> Iterator { return {this, 0}; }
   static constexpr auto end() -> End { return {}; }
