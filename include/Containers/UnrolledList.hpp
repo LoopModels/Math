@@ -151,7 +151,23 @@ public:
     return (i < count) ? data[i] : next->operator[](i - count);
   }
   constexpr auto operator=(const UList &other) -> UList & = default;
-  constexpr auto begin() -> T * { return data; }
-  constexpr auto localEnd() -> T * { return data + count; }
+  struct End {};
+  struct Iterator {
+    UList *list;
+    size_t index;
+    constexpr auto operator==(End) const -> bool { return list == nullptr; }
+    constexpr auto operator++() -> Iterator & {
+      invariant(list != nullptr);
+      if (++index == list->count) {
+        list = list->next;
+        index = 0;
+      }
+      return *this;
+    }
+  };
+  constexpr auto begin() -> Iterator { return {this, 0}; }
+  static constexpr auto end() -> End { return {}; }
+  constexpr auto dbegin() -> T * { return data; }
+  constexpr auto dend() -> T * { return data + count; }
 };
 } // namespace poly::containers
