@@ -106,10 +106,8 @@ static_assert(ScalarColIndex<OffsetEnd>);
 
 template <typename T>
 concept AbstractSlice = requires(T t, size_t M) {
-                          {
-                            canonicalizeRange(t, M)
-                            } -> std::same_as<Range<size_t, size_t>>;
-                        };
+  { canonicalizeRange(t, M) } -> std::same_as<Range<size_t, size_t>>;
+};
 static_assert(AbstractSlice<Range<size_t, size_t>>);
 static_assert(AbstractSlice<Colon>);
 
@@ -216,12 +214,12 @@ concept VectorDimension =
 
 // Concept for aligning array dimensions with indices.
 template <class I, class D>
-concept Index = (VectorDimension<D> && (ScalarIndex<I> || AbstractSlice<I>)) ||
-                (DenseLayout<D> && ScalarIndex<I>) ||
-                (MatrixDimension<D> && requires(I i) {
-                                         { i.row };
-                                         { i.col };
-                                       });
+concept Index =
+  (VectorDimension<D> && (ScalarIndex<I> || AbstractSlice<I>)) ||
+  (DenseLayout<D> && ScalarIndex<I>) || (MatrixDimension<D> && requires(I i) {
+    { i.row };
+    { i.col };
+  });
 
 struct Empty {};
 

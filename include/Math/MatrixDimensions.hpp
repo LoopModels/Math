@@ -177,8 +177,8 @@ constexpr auto DenseDims::operator=(const SquareDims &D) -> DenseDims & {
 }
 template <typename D>
 concept MatrixDimension = requires(D d) {
-                            { d } -> std::convertible_to<StridedDims>;
-                          };
+  { d } -> std::convertible_to<StridedDims>;
+};
 static_assert(MatrixDimension<SquareDims>);
 static_assert(MatrixDimension<DenseDims>);
 static_assert(MatrixDimension<StridedDims>);

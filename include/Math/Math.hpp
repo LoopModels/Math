@@ -103,11 +103,9 @@ concept Trivial =
   std::is_trivially_destructible_v<T> && std::is_trivially_copyable_v<T>;
 
 template <typename T>
-concept HasConcreteSize =
-  requires(T) {
-    std::is_same_v<typename std::remove_reference_t<T>::concrete,
-                   std::true_type>;
-  };
+concept HasConcreteSize = requires(T) {
+  std::is_same_v<typename std::remove_reference_t<T>::concrete, std::true_type>;
+};
 
 static_assert(HasConcreteSize<DenseMatrix<int64_t>>);
 static_assert(!HasConcreteSize<int64_t>);

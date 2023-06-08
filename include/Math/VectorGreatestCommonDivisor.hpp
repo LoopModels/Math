@@ -16,11 +16,8 @@ constexpr auto gcd(PtrVector<int64_t> x) -> int64_t {
 constexpr void normalizeByGCD(MutPtrVector<int64_t> x) {
   size_t N = x.size();
   switch (N) {
-  case 0:
-    return;
-  case 1:
-    x[0] = 1;
-    return;
+  case 0: return;
+  case 1: x[0] = 1; return;
   default:
     int64_t g = gcd(x[0], x[1]);
     for (size_t n = 2; (n < N) & (g != 1); ++n) g = gcd(g, x[n]);
