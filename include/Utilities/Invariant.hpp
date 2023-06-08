@@ -1,6 +1,7 @@
 #pragma once
 
 #ifndef NDEBUG
+#include <iostream>
 #include <ostream>
 #include <source_location>
 

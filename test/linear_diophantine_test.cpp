@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <gtest/gtest.h>
-#include <ostream>
+#include <iostream>
 #include <random>
 using namespace poly::math;
 

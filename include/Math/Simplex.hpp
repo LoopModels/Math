@@ -11,9 +11,9 @@
 #include "Utilities/Invariant.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 #include <limits>
 #include <new>
-#include <ostream>
 #include <tuple>
 
 namespace poly::math {
