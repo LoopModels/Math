@@ -1,7 +1,6 @@
 #pragma once
 #include "Math/Array.hpp"
 #include "Utilities/Invariant.hpp"
-#include "Utilities/Show.hpp"
 #include <bits/ranges_base.h>
 #include <cstddef>
 #include <cstdint>
@@ -273,8 +272,8 @@ template <typename T = math::Vector<uint64_t, 1>> struct BitSet {
     return data == bs.data;
   }
 
-  template <utils::OStream O>
-  friend inline auto operator<<(O &os, BitSet const &x) -> O & {
+  friend inline auto operator<<(std::ostream &os, BitSet const &x)
+    -> std::ostream & {
     os << "BitSet[";
     auto it = x.begin();
     constexpr EndSentinel e = BitSet::end();

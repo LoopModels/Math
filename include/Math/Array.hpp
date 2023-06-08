@@ -32,12 +32,12 @@ struct ManagedArray;
 
 template <typename T>
 concept Printable = requires(std::ostream &os, T x) {
-  { os << x } -> std::convertible_to<std::ostream &>;
-};
+                      { os << x } -> std::convertible_to<std::ostream &>;
+                    };
 static_assert(Printable<int64_t>);
-void print_obj(utils::OStream auto &os, Printable auto x) { os << x; };
+void print_obj(std::ostream &os, Printable auto x) { os << x; };
 template <typename F, typename S>
-void print_obj(utils::OStream auto &os, const std::pair<F, S> &x) {
+void print_obj(std::ostream &os, const std::pair<F, S> &x) {
   os << "(" << x.first << ", " << x.second << ")";
 };
 using utils::NotNull, utils::Optional;
@@ -980,10 +980,10 @@ protected:
 };
 
 template <class T, class S>
-concept AbstractSimilar =
-  (MatrixDimension<S> && AbstractMatrix<T>) ||
-  ((std::integral<S> || std::is_same_v<S, StridedRange> ||
-    StaticInt<S>)&&AbstractVector<T>);
+concept AbstractSimilar = (MatrixDimension<S> && AbstractMatrix<T>) ||
+                          ((std::integral<S> ||
+                            std::is_same_v<S, StridedRange> || StaticInt<S>) &&
+                           AbstractVector<T>);
 
 /// Stores memory, then pointer.
 /// Thus struct's alignment determines initial alignment
@@ -1105,7 +1105,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     : BaseT{memory.data(), b.dim(), U(N), b.get_allocator()} {
     if (b.isSmall()) { // copy
       std::copy_n(b.data(), size_t(b.dim()), this->data());
-    } else {           // steal
+    } else { // steal
       this->ptr = b.data();
       this->capacity = b.getCapacity();
     }
@@ -1116,7 +1116,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     if constexpr (N > 0) {
       if (b.isSmall()) { // copy
         std::copy_n(b.data(), size_t(b.dim()), this->data());
-      } else {           // steal
+      } else { // steal
         this->ptr = b.data();
         this->capacity = b.getCapacity();
       }
@@ -1131,7 +1131,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     : BaseT{memory.data(), s, U(N), b.get_allocator()} {
     if (b.isSmall()) { // copy
       std::copy_n(b.data(), size_t(b.dim()), this->data());
-    } else {           // steal
+    } else { // steal
       this->ptr = b.data();
       this->capacity = b.getCapacity();
     }
@@ -1235,7 +1235,6 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
   }
   friend inline void PrintTo(const ManagedArray &x, ::std::ostream *os) {
     *os << x;
-    // adaptOStream(*os, x);
   }
   [[nodiscard]] auto getmemptr() const -> const T * { return memory.data(); }
   [[nodiscard]] constexpr auto newCapacity() const -> U {

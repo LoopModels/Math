@@ -2,7 +2,6 @@
 
 #include "Math/AxisTypes.hpp"
 #include "Utilities/Invariant.hpp"
-#include <Utilities/Show.hpp>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -65,8 +64,8 @@ struct StridedDims {
   [[nodiscard]] constexpr auto similar(Col c) const -> StridedDims {
     return {M, unsigned(c), strideM};
   }
-  template <OStream OS>
-  friend inline auto operator<<(OS &os, StridedDims x) -> OS & {
+  friend inline auto operator<<(std::ostream &os, StridedDims x)
+    -> std::ostream & {
     return os << x.M << " x " << x.N << " (stride " << x.strideM << ")";
   }
 };
@@ -112,8 +111,8 @@ struct DenseDims {
   [[nodiscard]] constexpr auto similar(Col c) const -> DenseDims {
     return {M, unsigned(c)};
   }
-  template <OStream OS>
-  friend inline auto operator<<(OS &os, DenseDims x) -> OS & {
+  friend inline auto operator<<(std::ostream &os, DenseDims x)
+    -> std::ostream & {
     return os << x.M << " x " << x.N;
   }
 };
@@ -148,8 +147,8 @@ struct SquareDims {
   [[nodiscard]] constexpr auto similar(Col c) const -> DenseDims {
     return {M, unsigned(c)};
   }
-  template <OStream OS>
-  friend inline auto operator<<(OS &os, SquareDims x) -> OS & {
+  friend inline auto operator<<(std::ostream &os, SquareDims x)
+    -> std::ostream & {
     return os << x.M << " x " << x.M;
   }
 };
@@ -178,8 +177,8 @@ constexpr auto DenseDims::operator=(const SquareDims &D) -> DenseDims & {
 }
 template <typename D>
 concept MatrixDimension = requires(D d) {
-  { d } -> std::convertible_to<StridedDims>;
-};
+                            { d } -> std::convertible_to<StridedDims>;
+                          };
 static_assert(MatrixDimension<SquareDims>);
 static_assert(MatrixDimension<DenseDims>);
 static_assert(MatrixDimension<StridedDims>);

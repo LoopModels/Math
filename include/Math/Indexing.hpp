@@ -3,25 +3,24 @@
 #include "Math/Iterators.hpp"
 #include "Math/MatrixDimensions.hpp"
 #include "Utilities/Invariant.hpp"
-#include <Utilities/Show.hpp>
 #include <cstddef>
 
 namespace poly::math {
 
 static inline constexpr struct Begin {
-  template <OStream O> friend inline auto operator<<(O &os, Begin) -> O & {
+  friend inline auto operator<<(std::ostream &os, Begin) -> std::ostream & {
     return os << 0;
   }
 } begin;
 static inline constexpr struct End {
-  template <OStream O> friend inline auto operator<<(O &os, End) -> O & {
+  friend inline auto operator<<(std::ostream &os, End) -> std::ostream & {
     return os << "end";
   }
 } end;
 struct OffsetBegin {
   [[no_unique_address]] size_t offset;
-  template <OStream O>
-  friend inline auto operator<<(O &os, OffsetBegin r) -> O & {
+  friend inline auto operator<<(std::ostream &os, OffsetBegin r)
+    -> std::ostream & {
     return os << r.offset;
   }
 };
@@ -48,8 +47,8 @@ constexpr auto operator+(OffsetBegin y, ScalarValueIndex auto x)
 }
 static constexpr inline struct OffsetEnd {
   [[no_unique_address]] size_t offset;
-  template <OStream O>
-  friend inline auto operator<<(O &os, OffsetEnd r) -> O & {
+  friend inline auto operator<<(std::ostream &os, OffsetEnd r)
+    -> std::ostream & {
     return os << "end - " << r.offset;
   }
 } last{1};
@@ -107,8 +106,10 @@ static_assert(ScalarColIndex<OffsetEnd>);
 
 template <typename T>
 concept AbstractSlice = requires(T t, size_t M) {
-  { canonicalizeRange(t, M) } -> std::same_as<Range<size_t, size_t>>;
-};
+                          {
+                            canonicalizeRange(t, M)
+                            } -> std::same_as<Range<size_t, size_t>>;
+                        };
 static_assert(AbstractSlice<Range<size_t, size_t>>);
 static_assert(AbstractSlice<Colon>);
 
@@ -188,8 +189,8 @@ struct StridedRange {
   [[no_unique_address]] unsigned stride;
   explicit constexpr operator unsigned() const { return len; }
   explicit constexpr operator size_t() const { return len; }
-  template <OStream OS>
-  friend inline auto operator<<(OS &os, StridedRange x) -> OS & {
+  friend inline auto operator<<(std::ostream &os, StridedRange x)
+    -> std::ostream & {
     return os << "Length: " << x.len << " (stride: " << x.stride << ")";
   }
 };
@@ -215,12 +216,12 @@ concept VectorDimension =
 
 // Concept for aligning array dimensions with indices.
 template <class I, class D>
-concept Index =
-  (VectorDimension<D> && (ScalarIndex<I> || AbstractSlice<I>)) ||
-  (DenseLayout<D> && ScalarIndex<I>) || (MatrixDimension<D> && requires(I i) {
-    { i.row };
-    { i.col };
-  });
+concept Index = (VectorDimension<D> && (ScalarIndex<I> || AbstractSlice<I>)) ||
+                (DenseLayout<D> && ScalarIndex<I>) ||
+                (MatrixDimension<D> && requires(I i) {
+                                         { i.row };
+                                         { i.col };
+                                       });
 
 struct Empty {};
 

@@ -1,6 +1,5 @@
 #pragma once
 #include "Utilities/Invariant.hpp"
-#include "Utilities/Show.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -27,26 +26,18 @@
 /// Their lifetimes are governed by the BumpAlloc or RAII type used to back
 /// them.
 namespace poly::math {
-using utils::invariant, utils::OStream;
+using utils::invariant;
 enum class AxisType {
   Row,
   Column,
   RowStride,
 };
-template <OStream OS> inline auto operator<<(OS &os, AxisType x) -> OS & {
+inline auto operator<<(std::ostream &os, AxisType x) -> std::ostream & {
   switch (x) {
-  case AxisType::Row:
-    os << "Row";
-    break;
-  case AxisType::Column:
-    os << "Column";
-    break;
-  case AxisType::RowStride:
-    os << "RowStride";
-    break;
-  default:
-    os << "invalid axis type";
-    __builtin_trap();
+  case AxisType::Row: os << "Row"; break;
+  case AxisType::Column: os << "Column"; break;
+  case AxisType::RowStride: os << "RowStride"; break;
+  default: os << "invalid axis type"; __builtin_trap();
   }
   return os;
 }
@@ -135,8 +126,8 @@ template <AxisType T> struct AxisInt {
     return *this;
   }
   constexpr auto operator*() const -> V { return value; }
-  template <utils::OStream OS>
-  friend inline auto operator<<(OS &os, AxisInt<T> x) -> OS & {
+  friend inline auto operator<<(std::ostream &os, AxisInt<T> x)
+    -> std::ostream & {
     return os << T << "{" << *x << "}";
   }
 };

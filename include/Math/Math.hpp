@@ -7,7 +7,6 @@
 #include "Math/Indexing.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/MatrixDimensions.hpp"
-#include "Utilities/Show.hpp"
 #include "Utilities/TypePromotion.hpp"
 #include <algorithm>
 #include <charconv>
@@ -104,9 +103,11 @@ concept Trivial =
   std::is_trivially_destructible_v<T> && std::is_trivially_copyable_v<T>;
 
 template <typename T>
-concept HasConcreteSize = requires(T) {
-  std::is_same_v<typename std::remove_reference_t<T>::concrete, std::true_type>;
-};
+concept HasConcreteSize =
+  requires(T) {
+    std::is_same_v<typename std::remove_reference_t<T>::concrete,
+                   std::true_type>;
+  };
 
 static_assert(HasConcreteSize<DenseMatrix<int64_t>>);
 static_assert(!HasConcreteSize<int64_t>);
@@ -377,8 +378,9 @@ inline constexpr auto view(const auto &x) { return x.view(); }
 
 constexpr auto bin2(std::integral auto x) { return (x * (x - 1)) >> 1; }
 
-template <OStream OS, typename T>
-inline auto operator<<(OS &os, SmallSparseMatrix<T> const &A) -> OS & {
+template <typename T>
+inline auto operator<<(std::ostream &os, SmallSparseMatrix<T> const &A)
+  -> std::ostream & {
   size_t k = 0;
   os << "[ ";
   for (size_t i = 0; i < A.numRow(); ++i) {
@@ -402,8 +404,8 @@ inline auto operator<<(OS &os, SmallSparseMatrix<T> const &A) -> OS & {
   invariant(k == A.nonZeros.size());
   return os;
 }
-template <OStream OS, AbstractMatrix T>
-inline auto operator<<(OS &os, const T &A) -> OS & {
+template <AbstractMatrix T>
+inline auto operator<<(std::ostream &os, const T &A) -> std::ostream & {
   Matrix<std::remove_const_t<typename T::value_type>> B{A};
   return printMatrix(os, PtrMatrix<typename T::value_type>(B));
 }
@@ -630,19 +632,6 @@ template <AbstractMatrix B> constexpr auto norm2(const B &A) {
 //   }
 
 // };
-
-// inline auto operator<<(std::ostream &os, const AbstractVector auto &x)
-//   -> std::ostream & {
-//   return adaptOStream(os, x);
-// }
-// inline auto operator<<(std::ostream &os, const AbstractMatrix auto &x)
-//   -> std::ostream & {
-//   return adaptOStream(os, x);
-// }
-// inline auto operator<<(std::ostream &os, const DenseMatrix<int64_t> &x)
-//   -> std::ostream & {
-//   return adaptOStream(os, x);
-// }
 
 // exports:
 // NOLINTNEXTLINE(bugprone-reserved-identifier)

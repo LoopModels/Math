@@ -1,5 +1,4 @@
 #pragma once
-#include "Utilities/Show.hpp"
 #include <concepts>
 #include <type_traits>
 namespace poly::math {
@@ -37,8 +36,8 @@ template <std::integral B, std::integral E> struct Range<B, E> {
     return std::reverse_iterator{begin()};
   }
   [[nodiscard]] constexpr auto size() const { return e - b; }
-  template <OStream O>
-  friend inline auto operator<<(O &os, Range<B, E> r) -> O & {
+  friend inline auto operator<<(std::ostream &os, Range<B, E> r)
+    -> std::ostream & {
     return os << "[" << r.b << ":" << r.e << ")";
   }
   template <std::integral BB, std::integral EE>

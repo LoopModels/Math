@@ -14,9 +14,8 @@
 #include <cstdint>
 
 namespace poly::math {
-template <OStream OS>
-inline auto printConstraint(OS &os, PtrVector<int64_t> a, size_t numSyms,
-                            bool inequality) {
+inline auto printConstraint(std::ostream &os, PtrVector<int64_t> a,
+                            size_t numSyms, bool inequality) {
   size_t numVar = a.size();
   bool hasPrinted = false, allVarNonNegative = allGEZero(a[_(numSyms, numVar)]);
   int64_t sign = allVarNonNegative ? 1 : -1;
@@ -48,9 +47,8 @@ inline auto printConstraint(OS &os, PtrVector<int64_t> a, size_t numSyms,
 /// in which case, we have to remove `currentToOriginalPerm`,
 /// which menas either change printing, or move prints `<<` into
 /// the derived classes.
-template <OStream OS>
-inline auto printConstraints(OS &os, DensePtrMatrix<int64_t> A,
-                             bool inequality = true) -> OS & {
+inline auto printConstraints(std::ostream &os, DensePtrMatrix<int64_t> A,
+                             bool inequality = true) -> std::ostream & {
   const Row numConstraints = A.numRow();
   for (Row c = 0; c < numConstraints; ++c) {
     printConstraint(os, A(c, _), 1, inequality);

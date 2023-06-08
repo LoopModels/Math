@@ -2,7 +2,6 @@
 
 #include "GreatestCommonDivisor.hpp"
 #include "Utilities/Invariant.hpp"
-#include "Utilities/Show.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -208,8 +207,8 @@ struct Rational {
   constexpr void negate() { numerator = -numerator; }
   constexpr explicit operator bool() const { return numerator != 0; }
 
-  template <OStream OS>
-  friend inline auto operator<<(OS &os, const Rational &x) -> OS & {
+  friend inline auto operator<<(std::ostream &os, const Rational &x)
+    -> std::ostream & {
     os << x.numerator;
     if (x.denominator != 1) os << " // " << x.denominator;
     return os;

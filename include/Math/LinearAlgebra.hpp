@@ -178,7 +178,7 @@ public:
     for (size_t m = 0; m < M; ++m) std::swap(perm[m], perm[ipiv[m]]);
     return perm;
   }
-  template <OStream O> friend auto operator<<(O &os, const Fact &lu) -> O & {
+  friend auto operator<<(std::ostream &os, const Fact &lu) -> std::ostream & {
     return os << "LU fact:\n" << lu.F << "\nperm = \n" << lu.ipiv << '\n';
   }
 };
