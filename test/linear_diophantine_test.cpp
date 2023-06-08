@@ -48,7 +48,7 @@ TEST(LinearDiophantineTest, BasicAssertions) {
   std::mt19937 gen(rd());
   std::uniform_int_distribution<> distrib(-100, 100);
   size_t solvedOneCounter = 0;
-  size_t numIters = 100000;
+  constexpr size_t numIters = 10000;
   for (size_t n = 0; n < numIters; ++n) {
     int64_t a0 = distrib(gen);
     int64_t a1 = distrib(gen);

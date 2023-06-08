@@ -34,7 +34,7 @@ TEST(OrthogonalizationTest, BasicAssertions) {
     // std::cout << "\nB = " << B << "\n";
     auto [K, included] = NormalForm::orthogonalize(B);
     orthCount += included.size();
-    orthAnyCount += (included.size() > 0);
+    orthAnyCount += (!included.empty());
     orthMaxCount += (included.size() == 4);
     // std::cout << "included.size() = " << included.size() << "\n";
     if (included.size() == 4) {
@@ -44,14 +44,15 @@ TEST(OrthogonalizationTest, BasicAssertions) {
       }
       std::cout << "K=\n" << K << "\n";
       std::cout << "A=\n" << A << "\n";
-      EXPECT_TRUE(K * A == I4);
+      EXPECT_EQ(K * A, I4);
+      EXPECT_EQ(K * A, I);
     } else {
       // std::cout << "K= " << K << "\nB= " << B << "\n";
       // printVector(std::cout << "included = ", included)
       // << "\n";
       if (auto optlu = LU::fact(K)) {
         if (auto optA2 = (*optlu).inv()) {
-          SquareMatrix<Rational> &A2 = *optA2;
+          auto &A2 = *optA2;
           for (size_t n = 0; n < 4; ++n) {
             for (size_t j = 0; j < included.size(); ++j) {
               // std::cout << "A2(" << n << ", " << j << ") = " << A2(n, j)
@@ -334,24 +335,24 @@ TEST(InvTest, BasicAssertions) {
   const size_t numIters = 1000;
   for (size_t dim = 1; dim < 5; ++dim) {
     SquareMatrix<int64_t> B(SquareDims{unsigned(dim)});
-    SquareMatrix<int64_t> D1 = SquareMatrix<int64_t>::identity(dim);
+    SquareMatrix<int64_t> Db = SquareMatrix<int64_t>::identity(dim);
     for (size_t i = 0; i < numIters; ++i) {
       while (true) {
         for (size_t n = 0; n < dim * dim; ++n) B.data()[n] = distrib(gen);
         if (NormalForm::rank(B) == dim) break;
       }
-      // D0 * B^{-1} = Binv0
-      // D0 = Binv0 * B
-      auto [D0, Binv0] = NormalForm::inv(B);
+      // Da * B^{-1} = Binv0
+      // Da = Binv0 * B
+      auto [Da, Binv0] = NormalForm::inv(B);
       auto [Binv1, s] = NormalForm::scaledInv(B);
-      EXPECT_TRUE(D0.isDiagonal());
-      EXPECT_EQ((Binv0 * B), D0);
-      D1.diag() << s;
-      if (B * Binv1 != D1) {
-        std::cout << "\nB = " << B << "\nD0 = " << D0 << "\nBinv0 = " << Binv0
+      EXPECT_TRUE(Da.isDiagonal());
+      EXPECT_EQ((Binv0 * B), Da);
+      Db.diag() << s;
+      if (B * Binv1 != Db) {
+        std::cout << "\nB = " << B << "\nDa = " << Da << "\nBinv0 = " << Binv0
                   << "\nBinv1 = " << Binv1 << "\ns = " << s << "\n";
       }
-      EXPECT_EQ(B * Binv1, D1);
+      EXPECT_EQ(B * Binv1, Db);
     }
   }
 }

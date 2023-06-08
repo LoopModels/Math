@@ -19,19 +19,26 @@ template <class T> struct UniformScaling {
       return UniformScaling<U>{x};
     else return UniformScaling<U>{value * x};
   }
-  constexpr auto operator==(const AbstractMatrix auto &A) const -> bool {
+  constexpr auto isEqual(const AbstractMatrix auto &A) const -> bool {
     auto R = size_t(A.numRow());
     if (R != A.numCol()) return false;
     for (size_t r = 0; r < R; ++r)
       for (size_t c = 0; c < R; ++c)
-        if (A(r, c) != (r == c ? value : T{})) return false;
+        if (A(r, c) != ((r == c) * value)) return false;
     return true;
+  }
+  constexpr auto operator==(const AbstractMatrix auto &A) const -> bool {
+    return isEqual(A);
+  }
+  friend inline auto operator<<(std::ostream &os, UniformScaling S)
+    -> std::ostream & {
+    return os << "UniformScaling(" << S.value << ")";
   }
 };
 template <class T>
 constexpr auto operator==(const AbstractMatrix auto &A,
                           const UniformScaling<T> &B) -> bool {
-  return B == A;
+  return B.isEqual(A);
 }
 template <class T, class U>
 constexpr auto operator*(const U &x, UniformScaling<T> d) {

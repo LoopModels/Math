@@ -1305,7 +1305,7 @@ template <class T, size_t L = 64>
 using DenseMatrix = ManagedArray<T, DenseDims, L>;
 template <class T> using SquarePtrMatrix = Array<T, SquareDims>;
 template <class T> using MutSquarePtrMatrix = MutArray<T, SquareDims>;
-template <class T, size_t L = 16>
+template <class T, size_t L = PreAllocSquareStorage<T>()>
 using SquareMatrix = ManagedArray<T, SquareDims, L>;
 
 static_assert(sizeof(PtrMatrix<int64_t>) ==
