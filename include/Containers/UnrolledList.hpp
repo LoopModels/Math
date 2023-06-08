@@ -100,7 +100,7 @@ public:
   }
   [[nodiscard]] constexpr auto push(utils::BumpAlloc<> &alloc, T t) -> UList *;
   constexpr void push_ordered(utils::BumpAlloc<> &alloc, T t);
-  constexpr auto copy(utils::BumpAlloc<> &alloc) const -> UList;
+  constexpr auto copy(utils::BumpAlloc<> &alloc) const -> UList *;
   /// erase
   /// behavior is undefined if `x` doesn't point to this node
   constexpr void erase(T *x) {
