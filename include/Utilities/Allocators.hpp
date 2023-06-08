@@ -69,8 +69,8 @@ template <size_t SlabSize, bool BumpUp, size_t MinAlignment> class BumpAlloc {
 public:
   static constexpr bool BumpDown = !BumpUp;
   using value_type = void;
-  [[gnu::returns_nonnull, gnu::alloc_size(2), gnu::alloc_align(3),
-    gnu::malloc]] constexpr auto
+  [[using gnu: returns_nonnull, alloc_size(2), alloc_align(3),
+    malloc]] constexpr auto
   allocate(size_t Size, size_t Align) -> void * {
     if (Size > SlabSize / 2) {
       void *p = std::aligned_alloc(Align, Size);
@@ -217,10 +217,8 @@ public:
     return static_cast<T *>(reallocate<ForOverwrite>(
       Ptr, OldSize * sizeof(T), NewSize * sizeof(T), alignof(T)));
   }
-  constexpr BumpAlloc() {
-    initSlab(std::aligned_alloc(MinAlignment, SlabSize));
-  }
-  constexpr BumpAlloc(BumpAlloc &&other) noexcept
+  constexpr explicit BumpAlloc() { initNewSlab(); }
+  constexpr explicit BumpAlloc(BumpAlloc &&other) noexcept
     : slab{other.slab}, sEnd{other.sEnd}, slabs{other.slabs} {
     other.slab = nullptr;
     other.sEnd = nullptr;
@@ -262,13 +260,13 @@ public:
     } else initSlab(sEnd);
   }
   /// RAII version of CheckPoint
-  struct ScopeLifetime {
-    constexpr ScopeLifetime(BumpAlloc &a) : alloc(a), p(a.checkpoint()) {}
-    constexpr ~ScopeLifetime() { alloc.rollback(p); }
-
-  private:
+  class ScopeLifetime {
     BumpAlloc &alloc;
     CheckPoint p;
+
+  public:
+    constexpr ScopeLifetime(BumpAlloc &a) : alloc(a), p(a.checkpoint()) {}
+    constexpr ~ScopeLifetime() { alloc.rollback(p); }
   };
   constexpr auto scope() -> ScopeLifetime { return *this; }
 
@@ -312,9 +310,14 @@ private:
       sEnd = p;
     } else sEnd = slab = p;
   }
+  constexpr void initNewSlab() {
+    if constexpr (MinAlignment <= alignof(std::max_align_t))
+      initSlab(std::malloc(SlabSize));
+    else initSlab(std::aligned_alloc(MinAlignment, SlabSize));
+  }
   constexpr void newSlab() {
     void *old = sEnd;
-    initSlab(std::aligned_alloc(MinAlignment, SlabSize));
+    initNewSlab();
     pushOldSlab(old);
   }
   /// stores a slab so we can free it later
@@ -405,11 +408,12 @@ public:
   template <typename U> struct rebind { // NOLINT(readability-identifier-naming)
     using other = WBumpAlloc<U, SlabSize, BumpUp, MinAlignment>;
   };
-  constexpr WBumpAlloc(Alloc &alloc) : A(&alloc) {}
-  constexpr WBumpAlloc(NotNull<Alloc> alloc) : A(alloc) {}
-  constexpr WBumpAlloc(const WBumpAlloc &other) = default;
+  constexpr explicit WBumpAlloc(Alloc &alloc) : A(&alloc) {}
+  constexpr explicit WBumpAlloc(NotNull<Alloc> alloc) : A(alloc) {}
+  constexpr explicit WBumpAlloc(const WBumpAlloc &other) = default;
   template <typename U>
-  constexpr WBumpAlloc(WBumpAlloc<U> other) : A(other.get_allocator()) {}
+  constexpr explicit WBumpAlloc(WBumpAlloc<U> other)
+    : A(other.get_allocator()) {}
   [[nodiscard]] constexpr auto get_allocator() const -> NotNull<Alloc> {
     return A;
   }

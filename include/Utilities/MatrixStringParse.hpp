@@ -31,14 +31,9 @@ constexpr auto cstoll(const char *s, size_t &cur) -> int64_t {
   size_t numRows = 1;
   while (s[cur] != ']') {
     switch (s[cur]) {
-    case ';':
-      ++numRows;
-      [[fallthrough]];
-    case ' ':
-      ++cur;
-      break;
-    default:
-      content.push_back(cstoll(s, cur));
+    case ';': ++numRows; [[fallthrough]];
+    case ' ': ++cur; break;
+    default: content.push_back(cstoll(s, cur));
     }
   }
   size_t numCols = content.size() / numRows;

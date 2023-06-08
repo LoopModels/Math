@@ -18,8 +18,7 @@ namespace poly::containers {
 struct EndSentinel {
   [[nodiscard]] constexpr auto operator-(auto it) -> ptrdiff_t {
     ptrdiff_t i = 0;
-    for (; it != EndSentinel{}; ++it, ++i) {
-    }
+    for (; it != EndSentinel{}; ++it, ++i) {}
     return i;
   }
   // overloaded operator== cannot be a static member function
@@ -37,8 +36,8 @@ class BitSetIterator {
   [[no_unique_address]] size_t cstate1{0};
 
 public:
-  constexpr BitSetIterator(const uint64_t *_it, const uint64_t *_end,
-                           uint64_t _istate)
+  constexpr explicit BitSetIterator(const uint64_t *_it, const uint64_t *_end,
+                                    uint64_t _istate)
     : it{_it}, end{_end}, istate{_istate} {}
   using value_type = size_t;
   using difference_type = ptrdiff_t;
@@ -86,11 +85,11 @@ template <typename T = math::Vector<uint64_t, 1>> struct BitSet {
   // size_t operator[](size_t i) const {
   //     return data[i];
   // } // allow `getindex` but not `setindex`
-  constexpr BitSet() = default;
+  constexpr explicit BitSet() = default;
   static constexpr auto numElementsNeeded(size_t N) -> unsigned {
     return unsigned(((N + 63) >> 6));
   }
-  constexpr BitSet(size_t N) : data{numElementsNeeded(N), 0} {}
+  constexpr explicit BitSet(size_t N) : data{numElementsNeeded(N), 0} {}
   constexpr void resize64(size_t N) {
     if constexpr (CanResize<T>) data.resize(N);
     else ASSERT(N <= data.size());
@@ -207,7 +206,7 @@ template <typename T = math::Vector<uint64_t, 1>> struct BitSet {
     [[no_unique_address]] size_t i;
 
   public:
-    constexpr Reference(math::MutPtrVector<uint64_t> dd, size_t ii)
+    constexpr explicit Reference(math::MutPtrVector<uint64_t> dd, size_t ii)
       : data(dd), i(ii) {}
     constexpr explicit operator bool() const { return contains(data, i); }
     constexpr auto operator=(bool b) -> Reference & {
