@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <memory>
 #include <numeric>
 #include <ostream>
@@ -1105,7 +1106,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     : BaseT{memory.data(), b.dim(), U(N), b.get_allocator()} {
     if (b.isSmall()) { // copy
       std::copy_n(b.data(), size_t(b.dim()), this->data());
-    } else {           // steal
+    } else { // steal
       this->ptr = b.data();
       this->capacity = b.getCapacity();
     }
@@ -1116,7 +1117,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     if constexpr (N > 0) {
       if (b.isSmall()) { // copy
         std::copy_n(b.data(), size_t(b.dim()), this->data());
-      } else {           // steal
+      } else { // steal
         this->ptr = b.data();
         this->capacity = b.getCapacity();
       }
@@ -1131,7 +1132,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     : BaseT{memory.data(), s, U(N), b.get_allocator()} {
     if (b.isSmall()) { // copy
       std::copy_n(b.data(), size_t(b.dim()), this->data());
-    } else {           // steal
+    } else { // steal
       this->ptr = b.data();
       this->capacity = b.getCapacity();
     }

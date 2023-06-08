@@ -21,27 +21,20 @@ public:
   constexpr UList(const UList &other) = default;
   constexpr void forEach(const auto &f) {
     invariant(count <= std::size(data));
-    for (size_t i = 0; i < count; i++) f(data[i]);
-    if (next != nullptr) next->forEach(f);
-  }
-  constexpr void forEachReverse(const auto &f) {
-    invariant(count <= std::size(data));
-    UList<T> *recurse = next;
-    for (size_t i = count; i--;) f(data[i]);
-    if (recurse != nullptr) recurse->forEachReverse(f);
+    for (auto *L = this; L != nullptr; L = L->next)
+      for (size_t i = 0, N = L->count; i < N; i++) f(L->data[i]);
   }
   constexpr void forEachStack(const auto &f) {
     invariant(count <= std::size(data));
     // the motivation of this implementation is that we use this to
     // deallocate the list, which may contain pointers that themselves
     // allocated this.
-    UList<T> copy = *this;
-    copy._forEachStack(f);
-  }
-  constexpr void _forEachStack(const auto &f) {
-    invariant(count <= std::size(data));
-    for (size_t i = 0; i < count; i++) f(data[i]);
-    if (next != nullptr) next->forEachStack(f);
+    UList<T> C{*this};
+    while (true) {
+      for (size_t i = 0, N = C.count; i < N; i++) f(C.data[i]);
+      if (C.next == nullptr) return;
+      C = *C.next;
+    }
   }
   constexpr void forEachNoRecurse(const auto &f) {
     invariant(count <= std::size(data));
@@ -49,16 +42,16 @@ public:
   }
   constexpr auto reduce(auto init, const auto &f) const {
     invariant(count <= std::size(data));
-    auto acc = init;
-    for (size_t i = 0; i < count; i++) acc = f(acc, data[i]);
-    if (next != nullptr) acc = next->reduce(f, acc);
+    decltype(f(init, std::declval<T>())) acc = init;
+    for (auto *L = this; L != nullptr; L = L->next)
+      for (size_t i = 0, N = L->count; i < N; i++) acc = f(acc, L->data[i]);
     return acc;
   }
   constexpr auto transform_reduce(auto init, const auto &f) {
     invariant(count <= std::size(data));
-    auto acc = init;
-    for (size_t i = 0; i < count; i++) acc = f(acc, data[i]);
-    if (next != nullptr) acc = next->transform_reduce(acc, f);
+    decltype(f(init, std::declval<T>())) acc = init;
+    for (auto *L = this; L != nullptr; L = L->next)
+      for (size_t i = 0, N = L->count; i < N; i++) acc = f(acc, L->data[i]);
     return acc;
   }
   constexpr void pushHasCapacity(T t) {
