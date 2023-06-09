@@ -19,6 +19,7 @@ public:
   constexpr UList(T t) : count(1) { data[0] = t; }
   constexpr UList(T t, UList *n) : count(1), next(n) { data[0] = t; }
   constexpr UList(const UList &other) = default;
+  [[nodiscard]] constexpr auto getHeadCount() const -> size_t { return count; }
   constexpr void forEach(const auto &f) {
     invariant(count <= std::size(data));
     for (auto *L = this; L != nullptr; L = L->next)
@@ -146,6 +147,9 @@ public:
     return *next == *other.getNext();
   }
   constexpr auto operator[](size_t i) -> T & {
+    return (i < count) ? data[i] : next->operator[](i - count);
+  }
+  constexpr auto operator[](size_t i) const -> const T & {
     return (i < count) ? data[i] : next->operator[](i - count);
   }
   constexpr auto operator=(const UList &other) -> UList & = default;
