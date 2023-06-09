@@ -15,7 +15,13 @@ TEST(UListTest, BasicAssertions) {
     int64_t s = i * (i + 1) / 2;
     EXPECT_EQ(list->reduce(0, [](int64_t a, int64_t b) { return a + b; }), s);
     int64_t s2 = i * (i + 1) * (2 * i + 1) / 6;
-    EXPECT_EQ(list->reduce(0, [](int64_t a, int64_t b) { return a + b * b; }),
-              s2);
+    EXPECT_EQ(list->transform_reduce(0,
+                                     [](int64_t a, int64_t &b) {
+                                       b *= 2;
+                                       return a + b * b;
+                                     }),
+              s2 * 4);
+    // undo the *2;
+    list->forEachRev([](int64_t &a) { a /= 2; });
   }
 }

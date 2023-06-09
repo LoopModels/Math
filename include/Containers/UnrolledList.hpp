@@ -24,6 +24,11 @@ public:
     for (auto *L = this; L != nullptr; L = L->next)
       for (size_t i = 0, N = L->count; i < N; i++) f(L->data[i]);
   }
+  constexpr void forEachRev(const auto &f) {
+    invariant(count <= std::size(data));
+    for (auto *L = this; L != nullptr; L = L->next)
+      for (size_t i = L->count; i;) f(L->data[--i]);
+  }
   constexpr void forEachStack(const auto &f) {
     invariant(count <= std::size(data));
     // the motivation of this implementation is that we use this to
@@ -49,7 +54,7 @@ public:
   }
   constexpr auto transform_reduce(auto init, const auto &f) {
     invariant(count <= std::size(data));
-    decltype(f(init, std::declval<T>())) acc = init;
+    decltype(f(init, std::declval<T &>())) acc = init;
     for (auto *L = this; L != nullptr; L = L->next)
       for (size_t i = 0, N = L->count; i < N; i++) acc = f(acc, L->data[i]);
     return acc;
