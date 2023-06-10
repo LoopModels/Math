@@ -137,6 +137,11 @@ public:
     invariant(count == 1);
     return data[0];
   }
+  constexpr void append(UList *L) {
+    UList *N = this;
+    while (N->next != nullptr) N = N->next;
+    N->next = L;
+  }
   [[nodiscard]] constexpr auto empty() const -> bool { return count == 0; }
   [[nodiscard]] constexpr auto operator==(const UList &other) const -> bool {
     if (count != other.count) return false;
