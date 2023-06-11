@@ -76,6 +76,7 @@ public:
     std::construct_at(other, t, this);
     return other;
   }
+
   /// ordered push
   template <class A> constexpr void push_ordered(A &alloc, T t) {
     invariant(count <= std::size(data));
@@ -88,15 +89,31 @@ public:
       std::construct_at(next, t);
     } else next->push_ordered(alloc, t);
   }
-  [[nodiscard]] constexpr auto push(T t) -> UList * {
-    std::allocator<UList<T>> alloc;
+  constexpr auto contains(T t) const -> bool {
+    invariant(count <= std::size(data));
+    for (UList *L = this; L; L = L->getNext())
+      for (size_t i = 0, N = L->getHeadCount(); i < N; ++i)
+        if (data[i] == t) return true;
+    return false;
+  }
+  /// pushUnique(allocator, t)
+  /// pushes `t` if it is unique
+  template <class A>
+  [[nodiscard]] constexpr auto pushUnique(A &alloc, T t) -> UList * {
+    if (contains(t)) return this;
     return push(alloc, t);
   }
-  /// ordered push
-  constexpr void push_ordered(T t) {
-    std::allocator<UList<T>> alloc;
-    push_ordered(alloc, t);
-  }
+
+  // too dangerous
+  // [[nodiscard]] constexpr auto push(T t) -> UList * {
+  //   std::allocator<UList<T>> alloc;
+  //   return push(alloc, t);
+  // }
+  // /// ordered push
+  // constexpr void push_ordered(T t) {
+  //   std::allocator<UList<T>> alloc;
+  //   push_ordered(alloc, t);
+  // }
   [[nodiscard]] constexpr auto push(utils::BumpAlloc<> &alloc, T t) -> UList *;
   constexpr void push_ordered(utils::BumpAlloc<> &alloc, T t);
   constexpr auto copy(utils::BumpAlloc<> &alloc) const -> UList *;
@@ -111,6 +128,30 @@ public:
   constexpr void eraseUnordered(T *x) {
     invariant(count <= std::size(data));
     *x = data[--count];
+  }
+  constexpr auto searchHead(T x) -> T * {
+    for (auto *d = data, *e = d + count; d != e; ++d)
+      if (*d == x) return d;
+    return nullptr;
+  }
+  //
+  constexpr void eraseUnordered(T x) {
+    invariant(count || next != nullptr);
+    if (!count) next->eraseUnordered(x);
+    if (T *p = searchHead(x)) return eraseUnordered(p);
+    // not in head -> search next until we find it;
+    // move last here there.
+    invariant(next != nullptr);
+    next->swapWWith(x, std::move(data[--count]));
+  }
+  // search for `x`, swap with `y`.
+  void swapWith(T x, T y) {
+    for (UList *L = this; L; L->getNext()) {
+      if (T *p = searchHead(x)) {
+        *p = y;
+        return;
+      }
+    }
   }
   [[nodiscard]] constexpr auto isFull() const -> bool {
     return count == std::size(data);
