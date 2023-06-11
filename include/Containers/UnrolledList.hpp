@@ -91,7 +91,7 @@ public:
   }
   constexpr auto contains(T t) const -> bool {
     invariant(count <= std::size(data));
-    for (UList *L = this; L; L = L->getNext())
+    for (const UList *L = this; L; L = L->getNext())
       for (size_t i = 0, N = L->getHeadCount(); i < N; ++i)
         if (data[i] == t) return true;
     return false;
@@ -142,7 +142,7 @@ public:
     // not in head -> search next until we find it;
     // move last here there.
     invariant(next != nullptr);
-    next->swapWWith(x, std::move(data[--count]));
+    next->swapWith(x, std::move(data[--count]));
   }
   // search for `x`, swap with `y`.
   void swapWith(T x, T y) {
