@@ -92,7 +92,7 @@ public:
     } else next->push_ordered(alloc, t);
   }
   constexpr auto contains(T t) const -> bool {
-    invariant(count <= std::size(data));
+    invariant(count <= std::ssize(data));
     for (const UList *L = this; L; L = L->getNext())
       for (size_t i = 0, N = L->getHeadCount(); i < N; ++i)
         if (data[i] == t) return true;
