@@ -22,8 +22,8 @@ public:
 
   constexpr auto operator=(const std::initializer_list<T> &list)
     -> TinyVector & {
-    invariant(list.size() <= N);
-    len = list.size();
+    invariant(list.size() <= ptrdiff_t(N));
+    len = ptrdiff_t(list.size());
     std::copy(list.begin(), list.end(), data.data());
     return *this;
   }
@@ -52,15 +52,15 @@ public:
     return data.data()[0];
   }
   constexpr void push_back(const T &t) {
-    invariant(len < N);
+    invariant(len < ptrdiff_t(N));
     data.data()[len++] = t;
   }
   constexpr void push_back(T &&t) {
-    invariant(len < N);
+    invariant(len < ptrdiff_t(N));
     data.data()[len++] = std::move(t);
   }
   template <class... Args> constexpr void emplace_back(Args &&...args) {
-    invariant(len < N);
+    invariant(len < ptrdiff_t(N));
     data.data()[len++] = T(std::forward<Args>(args)...);
   }
   constexpr void pop_back() {
@@ -68,7 +68,7 @@ public:
     --len;
   }
   [[nodiscard]] constexpr auto size() const -> ptrdiff_t {
-    invariant(len <= N);
+    invariant(len <= ptrdiff_t(N));
     return len;
   }
   [[nodiscard]] constexpr auto empty() const -> bool { return len == 0; }
