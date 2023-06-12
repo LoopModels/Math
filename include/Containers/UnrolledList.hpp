@@ -202,11 +202,11 @@ public:
   }
   constexpr auto operator=(const UList &other) -> UList & = default;
   struct End {};
-  struct Iterator {
-    const UList *list;
+  struct MutIterator {
+    UList *list;
     ptrdiff_t index;
     constexpr auto operator==(End) const -> bool { return list == nullptr; }
-    constexpr auto operator++() -> Iterator & {
+    constexpr auto operator++() -> MutIterator & {
       invariant(list != nullptr);
       if (++index == list->count) {
         list = list->next;
@@ -220,8 +220,27 @@ public:
     }
     constexpr auto operator->() -> T * { return &**this; }
   };
-  static constexpr auto end() -> End { return {}; }
+  struct Iterator {
+    const UList *list;
+    ptrdiff_t index;
+    constexpr auto operator==(End) const -> bool { return list == nullptr; }
+    constexpr auto operator++() -> Iterator & {
+      invariant(list != nullptr);
+      if (++index == list->count) {
+        list = list->next;
+        index = 0;
+      }
+      return *this;
+    }
+    constexpr auto operator*() -> const T & {
+      invariant(list != nullptr);
+      return list->data[index];
+    }
+    constexpr auto operator->() -> const T * { return &**this; }
+  };
   [[nodiscard]] constexpr auto begin() const -> Iterator { return {this, 0}; }
+  [[nodiscard]] constexpr auto begin() -> MutIterator { return {this, 0}; }
+  static constexpr auto end() -> End { return {}; }
   constexpr auto dbegin() -> T * { return data; }
   constexpr auto dend() -> T * { return data + count; }
 };

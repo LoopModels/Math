@@ -23,5 +23,12 @@ TEST(UListTest, BasicAssertions) {
               s2 * 4);
     // undo the *2;
     list->forEachRev([](int64_t &a) { a /= 2; });
+    const auto *constList = list;
+    int64_t c = 0;
+    for (auto j : *constList) c += j;
+    EXPECT_EQ(c, s);
+    c = 0;
+    for (auto j : *list) c += j;
+    EXPECT_EQ(c, s);
   }
 }
