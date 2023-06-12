@@ -20,9 +20,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <iostream>
 #include <memory>
 #include <numeric>
-#include <ostream>
 #include <type_traits>
 #include <utility>
 namespace poly::math {
@@ -90,7 +90,7 @@ template <class T, class S> struct Array {
     else return p;
   }
   [[nodiscard]] constexpr auto end() const noexcept {
-    return begin() + size_t(sz);
+    return begin() + ptrdiff_t(sz);
   }
   [[nodiscard]] constexpr auto rbegin() const noexcept {
     return std::reverse_iterator(end());
@@ -123,10 +123,10 @@ template <class T, class S> struct Array {
   constexpr auto operator()(R r, C c) const noexcept -> decltype(auto) {
     if constexpr (MatrixDimension<S>)
       return (*this)[CartesianIndex<R, C>{r, c}];
-    else return (*this)[size_t(r)];
+    else return (*this)[ptrdiff_t(r)];
   }
-  [[nodiscard]] constexpr auto minRowCol() const -> size_t {
-    return std::min(size_t(numRow()), size_t(numCol()));
+  [[nodiscard]] constexpr auto minRowCol() const -> ptrdiff_t {
+    return std::min(ptrdiff_t(numRow()), ptrdiff_t(numCol()));
   }
 
   [[nodiscard]] constexpr auto diag() const noexcept {
@@ -137,14 +137,14 @@ template <class T, class S> struct Array {
   [[nodiscard]] constexpr auto antiDiag() const noexcept {
     StridedRange r{minRowCol(), unsigned(RowStride{sz}) - 1};
     invariant(ptr != nullptr);
-    return Array<T, StridedRange>{ptr + size_t(Col{sz}) - 1, r};
+    return Array<T, StridedRange>{ptr + ptrdiff_t(Col{sz}) - 1, r};
   }
   [[nodiscard]] constexpr auto isSquare() const noexcept -> bool {
     return Row{sz} == Col{sz};
   }
-  [[nodiscard]] constexpr auto checkSquare() const -> Optional<size_t> {
-    size_t N = size_t(numRow());
-    if (N != size_t(numCol())) return {};
+  [[nodiscard]] constexpr auto checkSquare() const -> Optional<ptrdiff_t> {
+    ptrdiff_t N = ptrdiff_t(numRow());
+    if (N != ptrdiff_t(numCol())) return {};
     return N;
   }
 
@@ -161,17 +161,17 @@ template <class T, class S> struct Array {
   [[nodiscard]] constexpr auto size() const noexcept {
     if constexpr (StaticInt<S>) return S{};
     else if constexpr (std::integral<S>) return sz;
-    else if constexpr (std::is_same_v<S, StridedRange>) return size_t(sz);
+    else if constexpr (std::is_same_v<S, StridedRange>) return ptrdiff_t(sz);
     else return CartesianIndex{Row{sz}, Col{sz}};
   }
   [[nodiscard]] constexpr auto dim() const noexcept -> S { return sz; }
   constexpr void clear() { sz = S{}; }
   [[nodiscard]] constexpr auto transpose() const { return Transpose{*this}; }
   [[nodiscard]] constexpr auto isExchangeMatrix() const -> bool {
-    size_t N = size_t(numRow());
-    if (N != size_t(numCol())) return false;
-    for (size_t i = 0; i < N; ++i) {
-      for (size_t j = 0; j < N; ++j)
+    ptrdiff_t N = ptrdiff_t(numRow());
+    if (N != ptrdiff_t(numCol())) return false;
+    for (ptrdiff_t i = 0; i < N; ++i) {
+      for (ptrdiff_t j = 0; j < N; ++j)
         if ((*this)(i, j) != (i + j == N - 1)) return false;
     }
   }
@@ -193,11 +193,12 @@ template <class T, class S> struct Array {
   static constexpr void extendOrAssertSize(Row, Col) {}
 #endif
 
-  [[nodiscard]] constexpr auto deleteCol(size_t c) const -> ManagedArray<T, S> {
+  [[nodiscard]] constexpr auto deleteCol(ptrdiff_t c) const
+    -> ManagedArray<T, S> {
     static_assert(MatrixDimension<S>);
     auto newDim = dim().similar(numRow() - 1);
     ManagedArray<T, decltype(newDim)> A(newDim);
-    for (size_t m = 0; m < numRow(); ++m) {
+    for (ptrdiff_t m = 0; m < numRow(); ++m) {
       A(m, _(0, c)) = (*this)(m, _(0, c));
       A(m, _(c, math::end)) = (*this)(m, _(c + 1, math::end));
     }
@@ -251,15 +252,15 @@ template <class T, class S> struct Array {
       if (f == nullptr) return;
       (void)std::fprintf(f, "C= [");
       if constexpr (MatrixDimension<S>) {
-        for (size_t i = 0; i < Row{sz}; ++i) {
+        for (ptrdiff_t i = 0; i < Row{sz}; ++i) {
           if (i) (void)std::fprintf(f, "\n");
           (void)std::fprintf(f, "%ld", int64_t((*this)(i, 0)));
-          for (size_t j = 1; j < Col{sz}; ++j)
+          for (ptrdiff_t j = 1; j < Col{sz}; ++j)
             (void)std::fprintf(f, " %ld", int64_t((*this)(i, j)));
         }
       } else {
         (void)std::fprintf(f, "%ld", int64_t((*this)[0]));
-        for (size_t i = 1; (i < size_t(sz)); ++i)
+        for (ptrdiff_t i = 1; (i < ptrdiff_t(sz)); ++i)
           (void)std::fprintf(f, ", %ld", int64_t((*this)[i]));
       }
       (void)std::fprintf(f, "]");
@@ -292,7 +293,7 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
     S oz = this->sz;
     this->sz = nz;
     if constexpr (std::integral<S>) {
-      invariant(size_t(nz) <= size_t(oz));
+      invariant(ptrdiff_t(nz) <= ptrdiff_t(oz));
     } else if constexpr (std::is_same_v<S, StridedDims>) {
       invariant(nz.row() <= oz.row());
       invariant(nz.col() <= oz.col());
@@ -373,7 +374,7 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
     else return p;
   }
   [[nodiscard]] constexpr auto end() noexcept {
-    return begin() + size_t(this->sz);
+    return begin() + ptrdiff_t(this->sz);
   }
   // [[nodiscard, gnu::returns_nonnull]] constexpr auto begin() noexcept -> T
   // *
@@ -382,7 +383,7 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
   // }
   // [[nodiscard, gnu::returns_nonnull]] constexpr auto end() noexcept -> T *
   // {
-  //   return this->ptr + size_t(this->sz);
+  //   return this->ptr + ptrdiff_t(this->sz);
   // }
   [[nodiscard]] constexpr auto rbegin() noexcept {
     return std::reverse_iterator(end());
@@ -404,10 +405,10 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
   constexpr auto operator()(R r, C c) noexcept -> decltype(auto) {
     if constexpr (MatrixDimension<S>)
       return (*this)[CartesianIndex<R, C>{r, c}];
-    else return (*this)[size_t(r)];
+    else return (*this)[ptrdiff_t(r)];
   }
   constexpr void fill(T value) {
-    std::fill_n(this->data(), size_t(this->dim()), value);
+    std::fill_n(this->data(), ptrdiff_t(this->dim()), value);
   }
   [[nodiscard]] constexpr auto diag() noexcept {
     StridedRange r{unsigned(min(Row{this->sz}, Col{this->sz})),
@@ -418,7 +419,7 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
     Col c = Col{this->sz};
     StridedRange r{unsigned(min(Row{this->sz}, c)),
                    unsigned(RowStride{this->sz}) - 1};
-    return MutArray<T, StridedRange>{this->ptr + size_t(c) - 1, r};
+    return MutArray<T, StridedRange>{this->ptr + ptrdiff_t(c) - 1, r};
   }
   constexpr void erase(S i) {
     static_assert(std::integral<S>, "erase requires integral size");
@@ -438,7 +439,7 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
       invariant(col <= stride);
       if ((col + (512 / (sizeof(T)))) <= stride) {
         T *dst = this->ptr + r * stride;
-        for (size_t m = *r; m < newRow; ++m) {
+        for (ptrdiff_t m = *r; m < newRow; ++m) {
           T *src = dst + stride;
           std::copy_n(src, col, dst);
           dst = src;
@@ -467,7 +468,7 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
       unsigned colsToCopy = newCol - unsigned(c);
       if ((colsToCopy == 0) || (row == 0)) return;
       // we only need to copy if memory shifts position
-      for (size_t m = 0; m < row; ++m) {
+      for (ptrdiff_t m = 0; m < row; ++m) {
         T *dst = this->ptr + m * stride + unsigned(c);
         std::copy_n(dst + 1, colsToCopy, dst);
       }
@@ -480,7 +481,7 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
       unsigned colsToCopy = newCol - unsigned(c);
       if ((colsToCopy == 0) || (row == 0)) return;
       // we only need to copy if memory shifts position
-      for (size_t m = 0; m < row; ++m) {
+      for (ptrdiff_t m = 0; m < row; ++m) {
         T *dst = this->ptr + m * newCol + unsigned(c);
         T *src = this->ptr + m * oldCol + unsigned(c) + 1;
         std::copy_n(src, colsToCopy, dst);
@@ -491,7 +492,7 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
     static_assert(MatrixDimension<S>);
     if (j == this->numCol()) return;
     Col Nd = this->numCol() - 1;
-    for (size_t m = 0; m < this->numRow(); ++m) {
+    for (ptrdiff_t m = 0; m < this->numRow(); ++m) {
       auto x = (*this)(m, j);
       for (Col n = j; n < Nd;) {
         Col o = n++;
@@ -608,7 +609,7 @@ struct ResizeableView : MutArray<T, S> {
         }
       }
       // zero init remaining rows
-      for (size_t m = oldM; m < newM; ++m)
+      for (ptrdiff_t m = oldM; m < newM; ++m)
         std::fill_n(npt + m * newX, newN, T{});
     }
   }
@@ -808,7 +809,7 @@ struct ReallocView : ResizeableView<T, S, U> {
         }
       }
       // zero init remaining rows
-      for (size_t m = oldM; m < newM; ++m)
+      for (ptrdiff_t m = oldM; m < newM; ++m)
         std::fill_n(npt + m * newX, newN, T{});
       if (newAlloc) maybeDeallocate(npt, len);
     }
@@ -920,7 +921,7 @@ struct ReallocView : ResizeableView<T, S, U> {
     static_assert(MatrixDimension<S>);
     if (j == this->numCol()) return;
     Col Nd = this->numCol() - 1;
-    for (size_t m = 0; m < this->numRow(); ++m) {
+    for (ptrdiff_t m = 0; m < this->numRow(); ++m) {
       auto x = (*this)(m, j);
       for (Col n = j; n < Nd;) {
         Col o = n++;
@@ -1050,19 +1051,19 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     } else if constexpr (MatrixDimension<D> && MatrixDimension<S>) {
       invariant(b.numRow() == this->numRow());
       invariant(b.numCol() == this->numCol());
-      for (size_t m = 0; m < this->numRow(); ++m)
-        for (size_t n = 0; n < this->numCol(); ++n) (*this)(m, n) = b(m, n);
+      for (ptrdiff_t m = 0; m < this->numRow(); ++m)
+        for (ptrdiff_t n = 0; n < this->numCol(); ++n) (*this)(m, n) = b(m, n);
     } else if constexpr (MatrixDimension<D>) {
-      size_t j = 0;
-      for (size_t m = 0; m < b.numRow(); ++m)
-        for (size_t n = 0; n < b.numCol(); ++n) (*this)(j++) = b(m, n);
+      ptrdiff_t j = 0;
+      for (ptrdiff_t m = 0; m < b.numRow(); ++m)
+        for (ptrdiff_t n = 0; n < b.numCol(); ++n) (*this)(j++) = b(m, n);
     } else if constexpr (MatrixDimension<S>) {
-      size_t j = 0;
-      for (size_t m = 0; m < this->numRow(); ++m)
-        for (size_t n = 0; n < this->numCol(); ++n) (*this)(m, n) = b(j++);
+      ptrdiff_t j = 0;
+      for (ptrdiff_t m = 0; m < this->numRow(); ++m)
+        for (ptrdiff_t n = 0; n < this->numCol(); ++n) (*this)(m, n) = b(j++);
     } else {
       T *p = this->data();
-      for (size_t i = 0; i < len; ++i) p[i] = b[i];
+      for (ptrdiff_t i = 0; i < len; ++i) p[i] = b[i];
     }
   }
   template <std::convertible_to<T> Y>
@@ -1080,7 +1081,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     invariant(len == U(b.size()));
     this->growUndef(len);
     T *p = this->data();
-    for (size_t i = 0; i < len; ++i) p[i] = b[i];
+    for (ptrdiff_t i = 0; i < len; ++i) p[i] = b[i];
   }
   constexpr ManagedArray(const ManagedArray &b) noexcept
     : BaseT{memory.data(), S(b.dim()), U(N), b.get_allocator()} {
@@ -1105,8 +1106,8 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
   constexpr ManagedArray(ManagedArray<T, D, N, A, I> &&b) noexcept
     : BaseT{memory.data(), b.dim(), U(N), b.get_allocator()} {
     if (b.isSmall()) { // copy
-      std::copy_n(b.data(), size_t(b.dim()), this->data());
-    } else { // steal
+      std::copy_n(b.data(), ptrdiff_t(b.dim()), this->data());
+    } else {           // steal
       this->ptr = b.data();
       this->capacity = b.getCapacity();
     }
@@ -1116,8 +1117,8 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     : BaseT{memory.data(), b.dim(), U(N), b.get_allocator()} {
     if constexpr (N > 0) {
       if (b.isSmall()) { // copy
-        std::copy_n(b.data(), size_t(b.dim()), this->data());
-      } else { // steal
+        std::copy_n(b.data(), ptrdiff_t(b.dim()), this->data());
+      } else {           // steal
         this->ptr = b.data();
         this->capacity = b.getCapacity();
       }
@@ -1131,8 +1132,8 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
   constexpr ManagedArray(ManagedArray<T, D, N, A, I> &&b, S s) noexcept
     : BaseT{memory.data(), s, U(N), b.get_allocator()} {
     if (b.isSmall()) { // copy
-      std::copy_n(b.data(), size_t(b.dim()), this->data());
-    } else { // steal
+      std::copy_n(b.data(), ptrdiff_t(b.dim()), this->data());
+    } else {           // steal
       this->ptr = b.data();
       this->capacity = b.getCapacity();
     }
@@ -1144,10 +1145,10 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     U len = U(this->sz);
     this->growUndef(len);
     this->fill(0);
-    size_t k = 0;
-    for (size_t i = 0; i < this->numRow(); ++i) {
+    ptrdiff_t k = 0;
+    for (ptrdiff_t i = 0; i < this->numRow(); ++i) {
       uint32_t m = B.getRows()[i] & 0x00ffffff;
-      size_t j = 0;
+      ptrdiff_t j = 0;
       while (m) {
         uint32_t tz = std::countr_zero(m);
         m >>= tz + 1;
@@ -1182,7 +1183,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     this->allocator = std::move(b.get_allocator());
     // if `b` is small, we need to copy memory
     // no need to shrink our capacity
-    if (b.isSmall()) std::copy_n(b.data(), size_t(this->sz), this->data());
+    if (b.isSmall()) std::copy_n(b.data(), ptrdiff_t(this->sz), this->data());
     else this->maybeDeallocate(b.data(), b.getCapacity());
     b.resetNoFree();
     return *this;
@@ -1203,7 +1204,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     if (b.isSmall()) {
       // if `b` is small, we need to copy memory
       // no need to shrink our capacity
-      std::copy_n(b.data(), size_t(this->sz), this->data());
+      std::copy_n(b.data(), ptrdiff_t(this->sz), this->data());
     } else { // otherwise, we take its pointer
       this->maybeDeallocate(b.data(), b.getCapacity());
     }
@@ -1317,9 +1318,9 @@ static_assert(sizeof(DensePtrMatrix<int64_t>) ==
 static_assert(sizeof(MutDensePtrMatrix<int64_t>) ==
               2 * sizeof(unsigned int) + sizeof(int64_t *));
 static_assert(sizeof(SquarePtrMatrix<int64_t>) ==
-              sizeof(size_t) + sizeof(int64_t *));
+              sizeof(ptrdiff_t) + sizeof(int64_t *));
 static_assert(sizeof(MutSquarePtrMatrix<int64_t>) ==
-              sizeof(size_t) + sizeof(int64_t *));
+              sizeof(ptrdiff_t) + sizeof(int64_t *));
 static_assert(std::is_trivially_copyable_v<PtrMatrix<int64_t>>,
               "PtrMatrix<int64_t> is not trivially copyable!");
 static_assert(std::is_trivially_copyable_v<PtrVector<int64_t>>,
@@ -1341,12 +1342,13 @@ static_assert(!AbstractVector<const PtrMatrix<int64_t>>,
 
 static_assert(AbstractMatrix<PtrMatrix<int64_t>>,
               "PtrMatrix<int64_t> isa AbstractMatrix failed");
-static_assert(std::same_as<std::remove_reference_t<decltype(PtrMatrix<int64_t>(
-                             nullptr, Row{0}, Col{0})(size_t(0), size_t(0)))>,
-                           int64_t>);
+static_assert(
+  std::same_as<std::remove_reference_t<decltype(PtrMatrix<int64_t>(
+                 nullptr, Row{0}, Col{0})(ptrdiff_t(0), ptrdiff_t(0)))>,
+               int64_t>);
 static_assert(
   std::same_as<std::remove_reference_t<decltype(MutPtrMatrix<int64_t>(
-                 nullptr, Row{0}, Col{0})(size_t(0), size_t(0)))>,
+                 nullptr, Row{0}, Col{0})(ptrdiff_t(0), ptrdiff_t(0)))>,
                int64_t>);
 
 static_assert(AbstractMatrix<MutPtrMatrix<int64_t>>,
@@ -1396,9 +1398,9 @@ static_assert(
 inline auto printVectorImpl(std::ostream &os, const AbstractVector auto &a)
   -> std::ostream & {
   os << "[ ";
-  if (size_t M = a.size()) {
+  if (ptrdiff_t M = a.size()) {
     print_obj(os, a[0]);
-    for (size_t m = 1; m < M; m++) print_obj(os << ", ", a[m]);
+    for (ptrdiff_t m = 1; m < M; m++) print_obj(os << ", ", a[m]);
   }
   os << " ]";
   return os;
@@ -1435,7 +1437,8 @@ template <std::unsigned_integral T> constexpr auto countDigits(T x) {
   std::array<T, MaxPow10<T>::value + 1> powers;
   powers[0] = 0;
   powers[1] = 10;
-  for (size_t i = 2; i < powers.size(); i++) powers[i] = powers[i - 1] * 10;
+  for (ptrdiff_t i = 2; i < std::ssize(powers); i++)
+    powers[i] = powers[i - 1] * 10;
   std::array<T, sizeof(T) * 8 + 1> bits;
   if constexpr (sizeof(T) == 8) {
     bits = {1,  1,  1,  1,  2,  2,  2,  3,  3,  3,  4,  4,  4,  4,  5,  5,  5,
@@ -1451,28 +1454,28 @@ template <std::unsigned_integral T> constexpr auto countDigits(T x) {
     bits = {1, 1, 1, 1, 2, 2, 2, 3, 3};
   }
   T digits = bits[8 * sizeof(T) - std::countl_zero(x)];
-  return digits - (x < powers[digits - 1]);
+  return std::make_signed_t<T>(digits - (x < powers[digits - 1]));
 }
 template <std::signed_integral T> constexpr auto countDigits(T x) {
   using U = std::make_unsigned_t<T>;
-  if (x == std::numeric_limits<T>::min()) return U{sizeof(T) == 8 ? 20 : 11};
-  return countDigits<U>(U(std::abs(x))) + U{x < 0};
+  if (x == std::numeric_limits<T>::min()) return T(sizeof(T) == 8 ? 20 : 11);
+  return countDigits<U>(U(std::abs(x))) + T{x < 0};
 }
-constexpr auto countDigits(Rational x) -> size_t {
-  size_t num = countDigits(x.numerator);
+constexpr auto countDigits(Rational x) -> ptrdiff_t {
+  ptrdiff_t num = countDigits(x.numerator);
   return (x.denominator == 1) ? num : num + countDigits(x.denominator) + 2;
 }
 /// \brief Returns the maximum number of digits per column of a matrix.
-constexpr auto getMaxDigits(PtrMatrix<Rational> A) -> Vector<size_t> {
-  size_t M = size_t(A.numRow());
-  size_t N = size_t(A.numCol());
-  Vector<size_t> maxDigits{unsigned(N), 0};
-  invariant(size_t(maxDigits.size()), N);
+constexpr auto getMaxDigits(PtrMatrix<Rational> A) -> Vector<ptrdiff_t> {
+  ptrdiff_t M = ptrdiff_t(A.numRow());
+  ptrdiff_t N = ptrdiff_t(A.numCol());
+  Vector<ptrdiff_t> maxDigits{unsigned(N), 0};
+  invariant(ptrdiff_t(maxDigits.size()), N);
   // this is slow, because we count the digits of every element
   // we could optimize this by reducing the number of calls to countDigits
   for (Row i = 0; i < M; i++) {
-    for (size_t j = 0; j < N; j++) {
-      size_t c = countDigits(A(i, j));
+    for (ptrdiff_t j = 0; j < N; j++) {
+      ptrdiff_t c = countDigits(A(i, j));
       maxDigits[j] = std::max(maxDigits[j], c);
     }
   }
@@ -1482,13 +1485,13 @@ constexpr auto getMaxDigits(PtrMatrix<Rational> A) -> Vector<size_t> {
 /// Returns the number of digits of the largest number in the matrix.
 template <std::integral T>
 constexpr auto getMaxDigits(PtrMatrix<T> A) -> Vector<T> {
-  size_t M = size_t(A.numRow());
-  size_t N = size_t(A.numCol());
+  ptrdiff_t M = ptrdiff_t(A.numRow());
+  ptrdiff_t N = ptrdiff_t(A.numCol());
   Vector<T> maxDigits{unsigned(N), T{}};
-  invariant(size_t(maxDigits.size()), N);
+  invariant(ptrdiff_t(maxDigits.size()), N);
   // first, we find the digits with the maximum value per column
   for (Row i = 0; i < M; i++) {
-    for (size_t j = 0; j < N; j++) {
+    for (ptrdiff_t j = 0; j < N; j++) {
       // negative numbers need one more digit
       // first, we find the maximum value per column,
       // dividing positive numbers by -10
@@ -1499,7 +1502,7 @@ constexpr auto getMaxDigits(PtrMatrix<T> A) -> Vector<T> {
     }
   }
   // then, we count the digits of the maximum value per column
-  for (size_t j = 0; j < maxDigits.size(); j++)
+  for (ptrdiff_t j = 0; j < maxDigits.size(); j++)
     maxDigits[j] = countDigits(maxDigits[j]);
   return maxDigits;
 }
@@ -1515,12 +1518,12 @@ inline auto printMatrix(std::ostream &os, PtrMatrix<T> A) -> std::ostream & {
   for (Row i = 0; i < M; i++) {
     if (i) os << "  ";
     else os << "\n[ ";
-    for (size_t j = 0; j < N; j++) {
+    for (ptrdiff_t j = 0; j < N; j++) {
       auto Aij = A(i, j);
       for (U k = 0; k < U(maxDigits[j]) - countDigits(Aij); k++) os << " ";
       os << Aij;
-      if (j != size_t(N) - 1) os << " ";
-      else if (i != size_t(M) - 1) os << "\n";
+      if (j != ptrdiff_t(N) - 1) os << " ";
+      else if (i != ptrdiff_t(M) - 1) os << "\n";
     }
   }
   return os << " ]";
@@ -1545,8 +1548,8 @@ inline auto printMatrix(std::ostream &os, PtrMatrix<double> A)
   DenseMatrix<uint8_t> numDigits{DenseDims{M, N}};
   char *ptr = digits.begin();
   char *pEnd = digits.end();
-  for (size_t m = 0; m < M; m++) {
-    for (size_t n = 0; n < N; n++) {
+  for (ptrdiff_t m = 0; m < M; m++) {
+    for (ptrdiff_t n = 0; n < N; n++) {
       auto Aij = A(m, n);
       while (true) {
         auto [p, ec] = std::to_chars(ptr, pEnd, Aij);
@@ -1556,11 +1559,12 @@ inline auto printMatrix(std::ostream &os, PtrMatrix<double> A)
           break;
         }
         // we need more space
-        size_t elemSoFar = m * size_t(N) + n;
-        size_t charSoFar = std::distance(digits.begin(), ptr);
+        ptrdiff_t elemSoFar = m * ptrdiff_t(N) + n;
+        ptrdiff_t charSoFar = std::distance(digits.begin(), ptr);
         // cld
-        size_t charPerElem = (charSoFar + elemSoFar - 1) / elemSoFar;
-        size_t newCapacity = (1 + charPerElem) * M * N; // +1 for good measure
+        ptrdiff_t charPerElem = (charSoFar + elemSoFar - 1) / elemSoFar;
+        ptrdiff_t newCapacity =
+          (1 + charPerElem) * M * N; // +1 for good measure
         digits.resize(newCapacity);
         ptr = digits.begin() + charSoFar;
         pEnd = digits.end();
@@ -1570,8 +1574,8 @@ inline auto printMatrix(std::ostream &os, PtrMatrix<double> A)
   Vector<uint8_t> maxDigits;
   maxDigits.resizeForOverwrite(N);
   maxDigits << numDigits(0, _);
-  for (size_t m = 0; m < M; m++)
-    for (size_t n = 0; n < N; n++)
+  for (ptrdiff_t m = 0; m < M; m++)
+    for (ptrdiff_t n = 0; n < N; n++)
       maxDigits[n] = std::max(maxDigits[n], numDigits(m, n));
 
   ptr = digits.begin();
@@ -1579,12 +1583,12 @@ inline auto printMatrix(std::ostream &os, PtrMatrix<double> A)
   for (Row i = 0; i < M; i++) {
     if (i) os << "  ";
     else os << "\n[ ";
-    for (size_t j = 0; j < N; j++) {
-      size_t nD = numDigits(i, j);
-      for (size_t k = 0; k < maxDigits[j] - nD; k++) os << " ";
+    for (ptrdiff_t j = 0; j < N; j++) {
+      ptrdiff_t nD = numDigits(i, j);
+      for (ptrdiff_t k = 0; k < maxDigits[j] - nD; k++) os << " ";
       os << std::string_view(ptr, nD);
-      if (j != size_t(N) - 1) os << " ";
-      else if (i != size_t(M) - 1) os << "\n";
+      if (j != ptrdiff_t(N) - 1) os << " ";
+      else if (i != ptrdiff_t(M) - 1) os << "\n";
       ptr += nD;
     }
   }

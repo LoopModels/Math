@@ -12,7 +12,7 @@ concept StaticSize = StaticInt<T>;
 
 template <class T, StaticSize S>
 class StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
-  static constexpr size_t capacity = size_t{S{}};
+  static constexpr ptrdiff_t capacity = ptrdiff_t{S{}};
   std::array<T, capacity> memory{};
 
 public:
@@ -87,10 +87,10 @@ public:
   constexpr auto operator()(R r, C c) const noexcept -> decltype(auto) {
     if constexpr (MatrixDimension<S>)
       return (*this)[CartesianIndex<R, C>{r, c}];
-    else return (*this)[size_t(r)];
+    else return (*this)[ptrdiff_t(r)];
   }
-  [[nodiscard]] constexpr auto minRowCol() const -> size_t {
-    return std::min(size_t(numRow()), size_t(numCol()));
+  [[nodiscard]] constexpr auto minRowCol() const -> ptrdiff_t {
+    return std::min(ptrdiff_t(numRow()), ptrdiff_t(numCol()));
   }
 
   [[nodiscard]] constexpr auto diag() const noexcept {
@@ -103,14 +103,14 @@ public:
     StridedRange r{minRowCol(), unsigned(RowStride{S{}}) - 1};
     auto ptr = data();
     invariant(ptr != nullptr);
-    return Array<T, StridedRange>{ptr + size_t(Col{S{}}) - 1, r};
+    return Array<T, StridedRange>{ptr + ptrdiff_t(Col{S{}}) - 1, r};
   }
   [[nodiscard]] static constexpr auto isSquare() noexcept -> bool {
     return Row{S{}} == Col{S{}};
   }
-  [[nodiscard]] constexpr auto checkSquare() const -> Optional<size_t> {
-    size_t N = size_t(numRow());
-    if (N != size_t(numCol())) return {};
+  [[nodiscard]] constexpr auto checkSquare() const -> Optional<ptrdiff_t> {
+    ptrdiff_t N = ptrdiff_t(numRow());
+    if (N != ptrdiff_t(numCol())) return {};
     return N;
   }
 
@@ -132,10 +132,10 @@ public:
   [[nodiscard]] static constexpr auto dim() noexcept -> S { return S{}; }
   [[nodiscard]] constexpr auto transpose() const { return Transpose{*this}; }
   [[nodiscard]] constexpr auto isExchangeMatrix() const -> bool {
-    size_t N = size_t(numRow());
-    if (N != size_t(numCol())) return false;
-    for (size_t i = 0; i < N; ++i) {
-      for (size_t j = 0; j < N; ++j)
+    ptrdiff_t N = ptrdiff_t(numRow());
+    if (N != ptrdiff_t(numCol())) return false;
+    for (ptrdiff_t i = 0; i < N; ++i) {
+      for (ptrdiff_t j = 0; j < N; ++j)
         if ((*this)(i, j) != (i + j == N - 1)) return false;
     }
   }
@@ -177,10 +177,10 @@ public:
   constexpr auto operator()(R r, C c) noexcept -> decltype(auto) {
     if constexpr (MatrixDimension<S>)
       return (*this)[CartesianIndex<R, C>{r, c}];
-    else return (*this)[size_t(r)];
+    else return (*this)[ptrdiff_t(r)];
   }
   constexpr void fill(T value) {
-    std::fill_n((T *)(data()), size_t(this->dim()), value);
+    std::fill_n((T *)(data()), ptrdiff_t(this->dim()), value);
   }
   [[nodiscard]] constexpr auto diag() noexcept {
     StridedRange r{unsigned(min(Row{S{}}, Col{S{}})),
@@ -190,12 +190,12 @@ public:
   [[nodiscard]] constexpr auto antiDiag() noexcept {
     Col c = Col{S{}};
     StridedRange r{unsigned(min(Row{S{}}, c)), unsigned(RowStride{S{}}) - 1};
-    return MutArray<T, StridedRange>{data() + size_t(c) - 1, r};
+    return MutArray<T, StridedRange>{data() + ptrdiff_t(c) - 1, r};
   }
 };
 
 template <class T, size_t N>
-using SVector = StaticArray<T, std::integral_constant<size_t, N>>;
+using SVector = StaticArray<T, std::integral_constant<ptrdiff_t, N>>;
 
 static_assert(AbstractVector<SVector<int64_t, 3>>);
 }; // namespace poly::math

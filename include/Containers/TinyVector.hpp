@@ -9,7 +9,7 @@ using utils::invariant;
 template <class T, size_t N> class TinyVector {
   static_assert(N > 0);
   Storage<T, N> data;
-  size_t len{};
+  ptrdiff_t len{};
 
 public:
   constexpr TinyVector() = default;
@@ -27,11 +27,11 @@ public:
     std::copy(list.begin(), list.end(), data.data());
     return *this;
   }
-  constexpr auto operator[](size_t i) -> T & {
+  constexpr auto operator[](ptrdiff_t i) -> T & {
     invariant(i < len);
     return data.data()[i];
   }
-  constexpr auto operator[](size_t i) const -> const T & {
+  constexpr auto operator[](ptrdiff_t i) const -> const T & {
     invariant(i < len);
     return data.data()[i];
   }
@@ -67,7 +67,7 @@ public:
     invariant(len > 0);
     --len;
   }
-  [[nodiscard]] constexpr auto size() const -> size_t {
+  [[nodiscard]] constexpr auto size() const -> ptrdiff_t {
     invariant(len <= N);
     return len;
   }

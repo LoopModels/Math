@@ -47,7 +47,7 @@ template <std::integral B, std::integral E> struct Range<B, E> {
 };
 constexpr auto standardizeRangeBound(auto x) { return x; }
 constexpr auto standardizeRangeBound(std::unsigned_integral auto x) {
-  return size_t(x);
+  return ptrdiff_t(x);
 }
 constexpr auto standardizeRangeBound(std::signed_integral auto x) {
   return ptrdiff_t(x);
@@ -58,11 +58,11 @@ Range(B b, E e) -> Range<decltype(standardizeRangeBound(b)),
                          decltype(standardizeRangeBound(e))>;
 
 template <typename B, typename E>
-constexpr auto operator+(Range<B, E> r, size_t x) {
+constexpr auto operator+(Range<B, E> r, ptrdiff_t x) {
   return Range{r.b + x, r.e + x};
 }
 template <typename B, typename E>
-constexpr auto operator-(Range<B, E> r, size_t x) {
+constexpr auto operator-(Range<B, E> r, ptrdiff_t x) {
   return Range{r.b - x, r.e - x};
 }
 constexpr auto skipFirst(const auto &x) {
@@ -73,7 +73,7 @@ constexpr auto skipFirst(const auto &x) {
 template <typename T> struct StridedIterator {
   using value_type = std::remove_cvref_t<T>;
   T *ptr;
-  size_t stride;
+  ptrdiff_t stride;
   constexpr auto operator==(const StridedIterator &other) const -> bool {
     return ptr == other.ptr;
   }
@@ -112,17 +112,17 @@ template <typename T> struct StridedIterator {
     ptr -= stride;
     return tmp;
   }
-  constexpr auto operator+(size_t x) const -> StridedIterator {
+  constexpr auto operator+(ptrdiff_t x) const -> StridedIterator {
     return StridedIterator{ptr + x * stride, stride};
   }
-  constexpr auto operator-(size_t x) const -> StridedIterator {
+  constexpr auto operator-(ptrdiff_t x) const -> StridedIterator {
     return StridedIterator{ptr - x * stride, stride};
   }
-  constexpr auto operator+=(size_t x) -> StridedIterator & {
+  constexpr auto operator+=(ptrdiff_t x) -> StridedIterator & {
     ptr += x * stride;
     return *this;
   }
-  constexpr auto operator-=(size_t x) -> StridedIterator & {
+  constexpr auto operator-=(ptrdiff_t x) -> StridedIterator & {
     ptr -= x * stride;
     return *this;
   }
@@ -134,20 +134,20 @@ template <typename T> struct StridedIterator {
     invariant(stride == other.stride);
     return (ptr + other.ptr) / stride;
   }
-  constexpr auto operator[](size_t x) const -> T & { return ptr[x * stride]; }
-  friend constexpr auto operator+(size_t x, const StridedIterator &it)
+  constexpr auto operator[](ptrdiff_t x) const -> T & { return ptr[x * stride]; }
+  friend constexpr auto operator+(ptrdiff_t x, const StridedIterator &it)
     -> StridedIterator {
     return it + x;
   }
 };
-template <class T> StridedIterator(T *, size_t) -> StridedIterator<T>;
+template <class T> StridedIterator(T *, ptrdiff_t) -> StridedIterator<T>;
 static_assert(std::weakly_incrementable<StridedIterator<int64_t>>);
 static_assert(std::input_or_output_iterator<StridedIterator<int64_t>>);
 static_assert(std::indirectly_readable<StridedIterator<int64_t>>,
               "failed indirectly readable");
 static_assert(std::indirectly_readable<StridedIterator<int64_t>>,
               "failed indirectly readable");
-static_assert(std::output_iterator<StridedIterator<int64_t>, size_t>,
+static_assert(std::output_iterator<StridedIterator<int64_t>, ptrdiff_t>,
               "failed output iterator");
 static_assert(std::forward_iterator<StridedIterator<int64_t>>,
               "failed forward iterator");

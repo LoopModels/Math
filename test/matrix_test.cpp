@@ -27,8 +27,8 @@ TEST(SparseIndexingTest, BasicAssertions) {
     MA2 << sparseA;
     EXPECT_EQ(A, A2);
   }
-  for (size_t i = 0; i < 3; ++i)
-    for (size_t j = 0; j < 4; ++j) EXPECT_TRUE(A(i, j) == sparseA(i, j));
+  for (ptrdiff_t i = 0; i < 3; ++i)
+    for (ptrdiff_t j = 0; j < 4; ++j) EXPECT_TRUE(A(i, j) == sparseA(i, j));
   // EXPECT_EQ(A(i, j), Asparse(i, j));
   IntMatrix B(DenseDims{4, 5});
   EXPECT_FALSE(B.isSquare());
@@ -103,8 +103,8 @@ TEST(ExpressionTemplateTest, BasicAssertions) {
   EXPECT_EQ(A4, B);
   EXPECT_EQ(A4, C);
   IntMatrix Z = A * 4 - A4;
-  for (size_t i = 0; i < Z.numRow(); ++i)
-    for (size_t j = 0; j < Z.numCol(); ++j) EXPECT_FALSE(Z(i, j));
+  for (ptrdiff_t i = 0; i < Z.numRow(); ++i)
+    for (ptrdiff_t j = 0; j < Z.numCol(); ++j) EXPECT_FALSE(Z(i, j));
   auto D{
     "[-5 6 -1 -4 7 -9 6; -3 -5 -1 -2 -9 -4 -1; -4 7 -6 10 -2 2 9; -4 -7 -1 "
     "-7 5 9 -10; 5 -7 -5 -1 -3 -8 -8; 3 -6 4 10 9 0 -5; 0 -1 4 -4 -9 -3 "
@@ -145,12 +145,12 @@ TEST(ExpressionTemplateTest, BasicAssertions) {
   EXPECT_EQ(A2x2(0, 1), 1);
   EXPECT_EQ(A2x2(1, 0), 1);
   EXPECT_EQ(A2x2(1, 1), 0);
-  for (size_t i = 1; i < 20; ++i) {
+  for (ptrdiff_t i = 1; i < 20; ++i) {
     IntMatrix F(DenseDims{i, i});
     F << 0;
     F.antiDiag() << 1;
-    for (size_t j = 0; j < i; ++j)
-      for (size_t k = 0; k < i; ++k) EXPECT_EQ(F(j, k), k + j == i - 1);
+    for (ptrdiff_t j = 0; j < i; ++j)
+      for (ptrdiff_t k = 0; k < i; ++k) EXPECT_EQ(F(j, k), k + j == i - 1);
   }
 }
 
@@ -181,15 +181,15 @@ TEST(ArrayPrint, BasicAssertions) {
 TEST(OffsetEnd, BasicAssertions) {
   auto A{"[3 3 3 3; 2 2 2 2; 1 1 1 1; 0 0 0 0]"_mat};
   auto B = IntMatrix{DenseDims{4, 4}};
-  for (size_t i = 0; i < 4; ++i) B(last - i, _) << i;
+  for (ptrdiff_t i = 0; i < 4; ++i) B(last - i, _) << i;
   EXPECT_EQ(A, B);
 }
 TEST(SquareMatrixTest, BasicAssertions) {
   SquareMatrix<int64_t> A{SquareDims{4}};
-  for (size_t i = 0; i < 4; ++i)
-    for (size_t j = 0; j < 4; ++j) A(i, j) = 4 * i + j;
+  for (ptrdiff_t i = 0; i < 4; ++i)
+    for (ptrdiff_t j = 0; j < 4; ++j) A(i, j) = 4 * i + j;
   DenseMatrix<int64_t> B{DenseDims{4, 2}};
   B << A(_(end - 2, end), _).transpose();
-  for (size_t j = 0; j < 4; ++j)
-    for (size_t i = 0; i < 2; ++i) EXPECT_EQ(B(j, i), 4 * (i + 2) + j);
+  for (ptrdiff_t j = 0; j < 4; ++j)
+    for (ptrdiff_t i = 0; i < 2; ++i) EXPECT_EQ(B(j, i), 4 * (i + 2) + j);
 }

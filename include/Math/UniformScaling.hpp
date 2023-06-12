@@ -20,10 +20,10 @@ template <class T> struct UniformScaling {
     else return UniformScaling<U>{value * x};
   }
   constexpr auto isEqual(const AbstractMatrix auto &A) const -> bool {
-    auto R = size_t(A.numRow());
+    auto R = ptrdiff_t(A.numRow());
     if (R != A.numCol()) return false;
-    for (size_t r = 0; r < R; ++r)
-      for (size_t c = 0; c < R; ++c)
+    for (ptrdiff_t r = 0; r < R; ++r)
+      for (ptrdiff_t c = 0; c < R; ++c)
         if (A(r, c) != ((r == c) * value)) return false;
     return true;
   }

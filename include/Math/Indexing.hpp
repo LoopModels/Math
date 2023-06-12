@@ -18,7 +18,7 @@ static inline constexpr struct End {
   }
 } end;
 struct OffsetBegin {
-  [[no_unique_address]] size_t offset;
+  [[no_unique_address]] ptrdiff_t offset;
   friend inline auto operator<<(std::ostream &os, OffsetBegin r)
     -> std::ostream & {
     return os << r.offset;
@@ -32,34 +32,34 @@ concept ScalarValueIndex =
   std::integral<T> || std::same_as<T, Row> || std::same_as<T, Col>;
 
 constexpr auto operator+(ScalarValueIndex auto x, Begin) -> OffsetBegin {
-  return OffsetBegin{size_t(x)};
+  return OffsetBegin{ptrdiff_t(x)};
 }
 constexpr auto operator+(Begin, ScalarValueIndex auto x) -> OffsetBegin {
-  return OffsetBegin{size_t(x)};
+  return OffsetBegin{ptrdiff_t(x)};
 }
 constexpr auto operator+(ScalarValueIndex auto x, OffsetBegin y)
   -> OffsetBegin {
-  return OffsetBegin{size_t(x) + y.offset};
+  return OffsetBegin{ptrdiff_t(x) + y.offset};
 }
 constexpr auto operator+(OffsetBegin y, ScalarValueIndex auto x)
   -> OffsetBegin {
-  return OffsetBegin{size_t(x) + y.offset};
+  return OffsetBegin{ptrdiff_t(x) + y.offset};
 }
 static constexpr inline struct OffsetEnd {
-  [[no_unique_address]] size_t offset;
+  [[no_unique_address]] ptrdiff_t offset;
   friend inline auto operator<<(std::ostream &os, OffsetEnd r)
     -> std::ostream & {
     return os << "end - " << r.offset;
   }
 } last{1};
 constexpr auto operator-(End, ScalarValueIndex auto x) -> OffsetEnd {
-  return OffsetEnd{size_t(x)};
+  return OffsetEnd{ptrdiff_t(x)};
 }
 constexpr auto operator-(OffsetEnd y, ScalarValueIndex auto x) -> OffsetEnd {
-  return OffsetEnd{y.offset + size_t(x)};
+  return OffsetEnd{y.offset + ptrdiff_t(x)};
 }
 constexpr auto operator+(OffsetEnd y, ScalarValueIndex auto x) -> OffsetEnd {
-  return OffsetEnd{y.offset - size_t(x)};
+  return OffsetEnd{y.offset - ptrdiff_t(x)};
 }
 template <typename T>
 concept RelativeOffset = std::same_as<T, End> || std::same_as<T, OffsetEnd> ||
@@ -79,22 +79,24 @@ static constexpr inline struct Colon {
     return Range{standardizeRangeBound(B), standardizeRangeBound(E)};
   }
 } _; // NOLINT(bugprone-reserved-identifier)
-constexpr auto canonicalize(size_t e, size_t) -> size_t { return e; }
-constexpr auto canonicalize(Begin, size_t) -> size_t { return 0; }
-constexpr auto canonicalize(OffsetBegin b, size_t) -> size_t {
+constexpr auto canonicalize(ptrdiff_t e, ptrdiff_t) -> ptrdiff_t { return e; }
+constexpr auto canonicalize(Begin, ptrdiff_t) -> ptrdiff_t { return 0; }
+constexpr auto canonicalize(OffsetBegin b, ptrdiff_t) -> ptrdiff_t {
   return b.offset;
 }
-constexpr auto canonicalize(End, size_t M) -> size_t { return M; }
-constexpr auto canonicalize(OffsetEnd e, size_t M) -> size_t {
+constexpr auto canonicalize(End, ptrdiff_t M) -> ptrdiff_t { return M; }
+constexpr auto canonicalize(OffsetEnd e, ptrdiff_t M) -> ptrdiff_t {
   return M - e.offset;
 }
 template <typename B, typename E>
-constexpr auto canonicalizeRange(Range<B, E> r, size_t M)
-  -> Range<size_t, size_t> {
-  return Range<size_t, size_t>{canonicalize(r.b, M), canonicalize(r.e, M)};
+constexpr auto canonicalizeRange(Range<B, E> r, ptrdiff_t M)
+  -> Range<ptrdiff_t, ptrdiff_t> {
+  return Range<ptrdiff_t, ptrdiff_t>{canonicalize(r.b, M),
+                                     canonicalize(r.e, M)};
 }
-constexpr auto canonicalizeRange(Colon, size_t M) -> Range<size_t, size_t> {
-  return Range<size_t, size_t>{0, M};
+constexpr auto canonicalizeRange(Colon, ptrdiff_t M)
+  -> Range<ptrdiff_t, ptrdiff_t> {
+  return Range<ptrdiff_t, ptrdiff_t>{0, M};
 }
 
 template <typename T>
@@ -105,80 +107,85 @@ concept ScalarColIndex = ScalarIndex<T> || std::same_as<T, Col>;
 static_assert(ScalarColIndex<OffsetEnd>);
 
 template <typename T>
-concept AbstractSlice = requires(T t, size_t M) {
-  { canonicalizeRange(t, M) } -> std::same_as<Range<size_t, size_t>>;
+concept AbstractSlice = requires(T t, ptrdiff_t M) {
+  { canonicalizeRange(t, M) } -> std::same_as<Range<ptrdiff_t, ptrdiff_t>>;
 };
-static_assert(AbstractSlice<Range<size_t, size_t>>);
+static_assert(AbstractSlice<Range<ptrdiff_t, ptrdiff_t>>);
 static_assert(AbstractSlice<Colon>);
 
-[[nodiscard]] inline constexpr auto calcOffset(size_t len, size_t i) -> size_t {
+[[nodiscard]] inline constexpr auto calcOffset(ptrdiff_t len, ptrdiff_t i)
+  -> ptrdiff_t {
   invariant(i < len);
   return i;
 }
-[[nodiscard]] inline constexpr auto calcOffset(size_t len, Col i) -> size_t {
+[[nodiscard]] inline constexpr auto calcOffset(ptrdiff_t len, Col i)
+  -> ptrdiff_t {
   invariant(*i < len);
   return *i;
 }
-[[nodiscard]] inline constexpr auto calcOffset(size_t len, Row i) -> size_t {
+[[nodiscard]] inline constexpr auto calcOffset(ptrdiff_t len, Row i)
+  -> ptrdiff_t {
   invariant(*i < len);
   return *i;
 }
-[[nodiscard]] inline constexpr auto calcOffset(size_t, Begin) -> size_t {
+[[nodiscard]] inline constexpr auto calcOffset(ptrdiff_t, Begin) -> ptrdiff_t {
   return 0;
 }
-[[nodiscard]] inline constexpr auto calcOffset(size_t len, OffsetBegin i)
-  -> size_t {
+[[nodiscard]] inline constexpr auto calcOffset(ptrdiff_t len, OffsetBegin i)
+  -> ptrdiff_t {
   return calcOffset(len, i.offset);
 }
-[[nodiscard]] inline constexpr auto calcOffset(size_t len, OffsetEnd i)
-  -> size_t {
+[[nodiscard]] inline constexpr auto calcOffset(ptrdiff_t len, OffsetEnd i)
+  -> ptrdiff_t {
   invariant(i.offset <= len);
   return len - i.offset;
 }
-[[nodiscard]] inline constexpr auto calcRangeOffset(size_t len, size_t i)
-  -> size_t {
+[[nodiscard]] inline constexpr auto calcRangeOffset(ptrdiff_t len, ptrdiff_t i)
+  -> ptrdiff_t {
   invariant(i <= len);
   return i;
 }
-[[nodiscard]] inline constexpr auto calcRangeOffset(size_t len, Col i)
-  -> size_t {
+[[nodiscard]] inline constexpr auto calcRangeOffset(ptrdiff_t len, Col i)
+  -> ptrdiff_t {
   invariant(*i <= len);
   return *i;
 }
-[[nodiscard]] inline constexpr auto calcRangeOffset(size_t len, Row i)
-  -> size_t {
+[[nodiscard]] inline constexpr auto calcRangeOffset(ptrdiff_t len, Row i)
+  -> ptrdiff_t {
   invariant(*i <= len);
   return *i;
 }
-[[nodiscard]] inline constexpr auto calcRangeOffset(size_t, Begin) -> size_t {
+[[nodiscard]] inline constexpr auto calcRangeOffset(ptrdiff_t, Begin)
+  -> ptrdiff_t {
   return 0;
 }
-[[nodiscard]] inline constexpr auto calcRangeOffset(size_t len, OffsetBegin i)
-  -> size_t {
+[[nodiscard]] inline constexpr auto calcRangeOffset(ptrdiff_t len,
+                                                    OffsetBegin i)
+  -> ptrdiff_t {
   return calcRangeOffset(len, i.offset);
 }
-[[nodiscard]] inline constexpr auto calcRangeOffset(size_t len, OffsetEnd i)
-  -> size_t {
+[[nodiscard]] inline constexpr auto calcRangeOffset(ptrdiff_t len, OffsetEnd i)
+  -> ptrdiff_t {
   invariant(i.offset <= len);
   return len - i.offset;
 }
 // note that we don't check i.b < len because we want to allow
 // empty ranges, and r.b <= r.e <= len is checked in calcNewDim.
 template <class B, class E>
-constexpr auto calcOffset(size_t len, Range<B, E> i) -> size_t {
+constexpr auto calcOffset(ptrdiff_t len, Range<B, E> i) -> ptrdiff_t {
   return calcRangeOffset(len, i.b);
 }
-constexpr auto calcOffset(size_t, Colon) -> size_t { return 0; }
+constexpr auto calcOffset(ptrdiff_t, Colon) -> ptrdiff_t { return 0; }
 
-constexpr auto calcOffset(SquareDims, size_t i) -> size_t { return i; }
-constexpr auto calcOffset(DenseDims, size_t i) -> size_t { return i; }
+constexpr auto calcOffset(SquareDims, ptrdiff_t i) -> ptrdiff_t { return i; }
+constexpr auto calcOffset(DenseDims, ptrdiff_t i) -> ptrdiff_t { return i; }
 
 template <class R, class C>
 [[nodiscard]] inline constexpr auto calcOffset(StridedDims d,
                                                CartesianIndex<R, C> i)
-  -> size_t {
-  size_t r = size_t(RowStride{d} * calcOffset(size_t(Row{d}), i.row));
-  size_t c = calcOffset(size_t(Col{d}), i.col);
+  -> ptrdiff_t {
+  ptrdiff_t r = ptrdiff_t(RowStride{d} * calcOffset(ptrdiff_t(Row{d}), i.row));
+  ptrdiff_t c = calcOffset(ptrdiff_t(Col{d}), i.col);
   return r + c;
 }
 
@@ -186,7 +193,7 @@ struct StridedRange {
   [[no_unique_address]] unsigned len;
   [[no_unique_address]] unsigned stride;
   explicit constexpr operator unsigned() const { return len; }
-  explicit constexpr operator size_t() const { return len; }
+  explicit constexpr operator ptrdiff_t() const { return len; }
   friend inline auto operator<<(std::ostream &os, StridedRange x)
     -> std::ostream & {
     return os << "Length: " << x.len << " (stride: " << x.stride << ")";
@@ -226,21 +233,22 @@ struct Empty {};
 constexpr auto calcNewDim(VectorDimension auto, ScalarIndex auto) -> Empty {
   return {};
 }
-constexpr auto calcNewDim(SquareDims, size_t) -> Empty { return {}; }
-constexpr auto calcNewDim(DenseDims, size_t) -> Empty { return {}; }
+constexpr auto calcNewDim(SquareDims, ptrdiff_t) -> Empty { return {}; }
+constexpr auto calcNewDim(DenseDims, ptrdiff_t) -> Empty { return {}; }
 
-constexpr auto calcNewDim(size_t len, Range<size_t, size_t> r) -> unsigned {
+constexpr auto calcNewDim(ptrdiff_t len, Range<ptrdiff_t, ptrdiff_t> r)
+  -> unsigned {
   invariant(r.e <= len);
   invariant(r.b <= r.e);
   return unsigned(r.e - r.b);
 }
-constexpr auto calcNewDim(StridedRange len, Range<size_t, size_t> r)
-  -> unsigned {
-  return calcNewDim(len.len, r);
-}
 template <class B, class E>
-constexpr auto calcNewDim(size_t len, Range<B, E> r) -> unsigned {
+constexpr auto calcNewDim(ptrdiff_t len, Range<B, E> r) -> unsigned {
   return calcNewDim(len, canonicalizeRange(r, len));
+}
+constexpr auto calcNewDim(StridedRange len, Range<ptrdiff_t, ptrdiff_t> r)
+  -> StridedRange {
+  return StridedRange{unsigned(calcNewDim(len.len, r)), len.stride};
 }
 template <class B, class E>
 constexpr auto calcNewDim(StridedRange len, Range<B, E> r) -> StridedRange {
@@ -258,29 +266,29 @@ constexpr auto calcNewDim(StridedRange len, Colon) { return len; };
 
 template <AbstractSlice B, ScalarColIndex C>
 constexpr auto calcNewDim(StridedDims d, CartesianIndex<B, C> i) {
-  unsigned rowDims = unsigned(calcNewDim(size_t(Row{d}), i.row));
+  unsigned rowDims = unsigned(calcNewDim(ptrdiff_t(Row{d}), i.row));
   return StridedRange{rowDims, unsigned(RowStride{d})};
 }
 
 template <ScalarRowIndex R, AbstractSlice C>
 constexpr auto calcNewDim(StridedDims d, CartesianIndex<R, C> i) {
-  return calcNewDim(size_t(Col{d}), i.col);
+  return calcNewDim(ptrdiff_t(Col{d}), i.col);
 }
 
 template <AbstractSlice B, AbstractSlice C>
 constexpr auto calcNewDim(StridedDims d, CartesianIndex<B, C> i) {
-  auto rowDims = calcNewDim(size_t(Row{d}), i.row);
-  auto colDims = calcNewDim(size_t(Col{d}), i.col);
+  auto rowDims = calcNewDim(ptrdiff_t(Row{d}), i.row);
+  auto colDims = calcNewDim(ptrdiff_t(Col{d}), i.col);
   return StridedDims{Row{rowDims}, Col{colDims}, RowStride{d}};
 }
 template <AbstractSlice B>
 constexpr auto calcNewDim(DenseDims d, CartesianIndex<B, Colon> i) {
-  auto rowDims = calcNewDim(size_t(Row{d}), i.row);
+  auto rowDims = calcNewDim(ptrdiff_t(Row{d}), i.row);
   return DenseDims{Row{rowDims}, Col{d}};
 }
 template <AbstractSlice B>
 constexpr auto calcNewDim(SquareDims d, CartesianIndex<B, Colon> i) {
-  auto rowDims = calcNewDim(size_t(Row{d}), i.row);
+  auto rowDims = calcNewDim(ptrdiff_t(Row{d}), i.row);
   return DenseDims{Row{rowDims}, Col{d}};
 }
 

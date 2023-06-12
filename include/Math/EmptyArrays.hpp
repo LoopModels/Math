@@ -13,10 +13,10 @@ template <typename T> struct EmptyMatrix {
   static constexpr auto numRow() -> Row { return Row{0}; }
   static constexpr auto numCol() -> Col { return Col{0}; }
   static constexpr auto rowStride() -> RowStride { return RowStride{0}; }
-  static constexpr auto getConstCol() -> size_t { return 0; }
+  static constexpr auto getConstCol() -> ptrdiff_t { return 0; }
 
   static constexpr auto data() -> T * { return nullptr; }
-  constexpr auto operator()(size_t, size_t) -> T { return 0; }
+  constexpr auto operator()(ptrdiff_t, ptrdiff_t) -> T { return 0; }
   static constexpr auto size() -> CartesianIndex<Row, Col> {
     return {Row{0}, Col{0}};
   }
@@ -36,7 +36,7 @@ static_assert(AbstractMatrix<EmptyMatrix<ptrdiff_t>>);
 // }
 
 template <typename T> struct EmptyVector {
-  static constexpr auto size() -> size_t { return 0; };
+  static constexpr auto size() -> ptrdiff_t { return 0; };
   static constexpr auto begin() -> T * { return nullptr; }
   static constexpr auto end() -> T * { return nullptr; }
 };

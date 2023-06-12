@@ -20,17 +20,17 @@ TEST(OrthogonalizationTest, BasicAssertions) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<> distrib(-10, 10);
-  size_t orthAnyCount = 0;
-  size_t orthMaxCount = 0;
-  size_t orthCount = 0;
-  size_t luFailedCount = 0;
-  size_t invFailedCount = 0;
-  size_t numIters = 1000;
+  ptrdiff_t orthAnyCount = 0;
+  ptrdiff_t orthMaxCount = 0;
+  ptrdiff_t orthCount = 0;
+  ptrdiff_t luFailedCount = 0;
+  ptrdiff_t invFailedCount = 0;
+  ptrdiff_t numIters = 1000;
   IntMatrix B(DenseDims{4, 8});
   SquareMatrix<int64_t> I4 = SquareMatrix<int64_t>::identity(4);
-  for (size_t i = 0; i < numIters; ++i) {
-    for (size_t n = 0; n < 4; ++n)
-      for (size_t m = 0; m < 8; ++m) B(n, m) = distrib(gen);
+  for (ptrdiff_t i = 0; i < numIters; ++i) {
+    for (ptrdiff_t n = 0; n < 4; ++n)
+      for (ptrdiff_t m = 0; m < 8; ++m) B(n, m) = distrib(gen);
     // std::cout << "\nB = " << B << "\n";
     auto [K, included] = NormalForm::orthogonalize(B);
     orthCount += included.size();
@@ -38,8 +38,8 @@ TEST(OrthogonalizationTest, BasicAssertions) {
     orthMaxCount += (included.size() == 4);
     // std::cout << "included.size() = " << included.size() << "\n";
     if (included.size() == 4) {
-      for (size_t n = 0; n < 4; ++n) {
-        size_t m = 0;
+      for (ptrdiff_t n = 0; n < 4; ++n) {
+        ptrdiff_t m = 0;
         for (auto mb : included) A(n, m++) = B(n, mb);
       }
       std::cout << "K=\n" << K << "\n";
@@ -53,8 +53,8 @@ TEST(OrthogonalizationTest, BasicAssertions) {
       if (auto optlu = LU::fact(K)) {
         if (auto optA2 = (*optlu).inv()) {
           auto &A2 = *optA2;
-          for (size_t n = 0; n < 4; ++n) {
-            for (size_t j = 0; j < included.size(); ++j) {
+          for (ptrdiff_t n = 0; n < 4; ++n) {
+            for (ptrdiff_t j = 0; j < included.size(); ++j) {
               // std::cout << "A2(" << n << ", " << j << ") = " << A2(n, j)
               //              << "; B(" << n << ", " << included[j]
               //              << ") = " << B(n, included[j]) << "\n";
@@ -109,9 +109,9 @@ TEST(OrthogonalizationTest, BasicAssertions) {
   //                            included)
   //   << "\n";
   EXPECT_EQ(included.size(), 4);
-  for (size_t i = 0; i < 4; ++i) EXPECT_EQ(included[i], i);
-  for (size_t n = 0; n < 4; ++n) {
-    size_t m = 0;
+  for (ptrdiff_t i = 0; i < 4; ++i) EXPECT_EQ(included[i], i);
+  for (ptrdiff_t n = 0; n < 4; ++n) {
+    ptrdiff_t m = 0;
     for (auto mb : included) {
       A(n, m) = B(n, mb);
       ++m;
@@ -126,16 +126,16 @@ auto isHNF(PtrMatrix<int64_t> A) -> bool {
   const auto [M, N] = A.size();
   // l is lead
   Col l = 0;
-  for (size_t m = 0; m < M; ++m) {
+  for (ptrdiff_t m = 0; m < M; ++m) {
     // all entries must be 0
-    for (size_t n = 0; n < l; ++n)
+    for (ptrdiff_t n = 0; n < l; ++n)
       if (A(m, n)) return false;
     // now search for next lead
     while ((l < N) && A(m, l) == 0) ++l;
     if (l == N) continue;
     int64_t Aml = A(m, l);
     if (Aml < 0) return false;
-    for (size_t r = 0; r < m; ++r) {
+    for (ptrdiff_t r = 0; r < m; ++r) {
       int64_t Arl = A(r, l);
       if ((Arl >= Aml) || (Arl < 0)) return false;
     }
@@ -166,7 +166,7 @@ TEST(Hermite, BasicAssertions) {
     EXPECT_TRUE(isHNF(H));
     EXPECT_TRUE(H == U * A4x3);
 
-    for (size_t i = 0; i < 3; ++i) A4x3(2, i) = A4x3(0, i) + A4x3(1, i);
+    for (ptrdiff_t i = 0; i < 3; ++i) A4x3(2, i) = A4x3(0, i) + A4x3(1, i);
     std::cout << "\n\n\n=======\n\nA=\n" << A4x3 << "\n";
     auto [H2, U2] = NormalForm::hermite(A4x3);
     std::cout << "H=\n" << H2 << "\nU=\n" << U2 << "\n";
@@ -253,20 +253,20 @@ TEST(NullSpaceTests, BasicAssertions) {
   std::mt19937 gen(rd());
   std::uniform_int_distribution<> distrib(-10, 100);
 
-  // size_t numIters = 1000;
-  size_t numIters = 1;
-  for (size_t numCol = 2; numCol < 11; numCol += 2) {
+  // ptrdiff_t numIters = 1000;
+  ptrdiff_t numIters = 1;
+  for (ptrdiff_t numCol = 2; numCol < 11; numCol += 2) {
     IntMatrix B(DenseDims{8, numCol});
-    size_t nullDim = 0;
+    ptrdiff_t nullDim = 0;
     IntMatrix Z;
     DenseMatrix<int64_t> NS;
-    for (size_t i = 0; i < numIters; ++i) {
+    for (ptrdiff_t i = 0; i < numIters; ++i) {
       for (auto &&b : B) {
         b = distrib(gen);
         b = b > 10 ? 0 : b;
       }
       NS = NormalForm::nullSpace(B);
-      nullDim += size_t(NS.numRow());
+      nullDim += ptrdiff_t(NS.numRow());
       Z = NS * B;
       if (!allZero(Z)) {
         std::cout << "B = \n"
@@ -314,7 +314,7 @@ TEST(BareissTests, BasicAssertions) {
   IntMatrix B =
     "[-4 3 -2 2 -5; 0 11 -6 2 -5; 0 0 56 -37 32; 0 0 0 -278 136]"_mat;
   EXPECT_EQ(A, B);
-  Vector<size_t> truePiv{0, 1, 2, 3};
+  Vector<ptrdiff_t> truePiv{0, 1, 2, 3};
   EXPECT_EQ(piv, truePiv);
 
   IntMatrix C = "[-2 -2 -1 -2 -1; 1 1 2 2 -2; -2 2 2 -1 "
@@ -323,7 +323,7 @@ TEST(BareissTests, BasicAssertions) {
                 "20; 0 0 0 -28 52; 0 0 0 0 -142]"_mat;
   auto pivots = NormalForm::bareiss(C);
   EXPECT_EQ(C, D);
-  auto truePivots = Vector<size_t, 16>{0, 2, 2, 3, 4};
+  auto truePivots = Vector<ptrdiff_t, 16>{0, 2, 2, 3, 4};
   EXPECT_EQ(pivots, truePivots);
 }
 
@@ -332,13 +332,13 @@ TEST(InvTest, BasicAssertions) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<> distrib(-10, 10);
-  const size_t numIters = 1000;
-  for (size_t dim = 1; dim < 5; ++dim) {
+  const ptrdiff_t numIters = 1000;
+  for (ptrdiff_t dim = 1; dim < 5; ++dim) {
     SquareMatrix<int64_t> B(SquareDims{unsigned(dim)});
     SquareMatrix<int64_t> Db = SquareMatrix<int64_t>::identity(dim);
-    for (size_t i = 0; i < numIters; ++i) {
+    for (ptrdiff_t i = 0; i < numIters; ++i) {
       while (true) {
-        for (size_t n = 0; n < dim * dim; ++n) B.data()[n] = distrib(gen);
+        for (ptrdiff_t n = 0; n < dim * dim; ++n) B.data()[n] = distrib(gen);
         if (NormalForm::rank(B) == dim) break;
       }
       // Da * B^{-1} = Binv0

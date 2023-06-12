@@ -8,7 +8,7 @@
 
 namespace poly::utils {
 
-constexpr auto cstoll(const char *s, size_t &cur) -> int64_t {
+constexpr auto cstoll(const char *s, ptrdiff_t &cur) -> int64_t {
   int64_t res = 0;
   bool neg = false;
   while (s[cur] == ' ') ++cur;
@@ -27,8 +27,8 @@ constexpr auto cstoll(const char *s, size_t &cur) -> int64_t {
   -> math::DenseMatrix<int64_t, 0> {
   invariant(s[0] == '[');
   math::ManagedArray<int64_t, unsigned, 0> content;
-  size_t cur = 1;
-  size_t numRows = 1;
+  ptrdiff_t cur = 1;
+  ptrdiff_t numRows = 1;
   while (s[cur] != ']') {
     switch (s[cur]) {
     case ';': ++numRows; [[fallthrough]];
@@ -36,7 +36,7 @@ constexpr auto cstoll(const char *s, size_t &cur) -> int64_t {
     default: content.push_back(cstoll(s, cur));
     }
   }
-  size_t numCols = content.size() / numRows;
+  ptrdiff_t numCols = content.size() / numRows;
   if (content.size() % numRows != 0) __builtin_trap();
   math::DenseMatrix<int64_t, 0> A(
     std::move(content),

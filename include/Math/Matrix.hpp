@@ -9,7 +9,7 @@
 
 namespace poly::math {
 template <typename T>
-concept AbstractMatrixCore = utils::HasEltype<T> && requires(T t, size_t i) {
+concept AbstractMatrixCore = utils::HasEltype<T> && requires(T t, ptrdiff_t i) {
   { t(i, i) } -> std::convertible_to<utils::eltype_t<T>>;
   { t.numRow() } -> SameOrBroadcast<Row>;
   { t.numCol() } -> SameOrBroadcast<Col>;
@@ -21,7 +21,7 @@ concept AbstractMatrixCore = utils::HasEltype<T> && requires(T t, size_t i) {
   // {t.extendOrAssertSize(i, i)};
 };
 template <typename T>
-concept AbstractMatrix = AbstractMatrixCore<T> && requires(T t, size_t i) {
+concept AbstractMatrix = AbstractMatrixCore<T> && requires(T t, ptrdiff_t i) {
   { t.view() } -> AbstractMatrixCore;
 };
 template <typename T>
@@ -45,12 +45,12 @@ template <typename A> struct Transpose {
 
   using value_type = utils::eltype_t<A>;
   [[no_unique_address]] A a;
-  constexpr auto operator()(size_t i, size_t j) const { return a(j, i); }
+  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const { return a(j, i); }
   [[nodiscard]] constexpr auto numRow() const -> Row {
-    return Row{size_t{a.numCol()}};
+    return Row{ptrdiff_t{a.numCol()}};
   }
   [[nodiscard]] constexpr auto numCol() const -> Col {
-    return Col{size_t{a.numRow()}};
+    return Col{ptrdiff_t{a.numRow()}};
   }
   [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
   [[nodiscard]] constexpr auto size() const -> CartesianIndex<Row, Col> {

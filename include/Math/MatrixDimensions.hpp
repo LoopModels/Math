@@ -30,6 +30,8 @@ struct StridedDims {
   constexpr StridedDims(Row m, Col n, RowStride x) : M(m), N(n), strideM(x) {}
   constexpr StridedDims(CartesianIndex<Row, Col> ind)
     : M(unsigned(ind.row)), N(unsigned(ind.col)), strideM(unsigned(ind.col)) {}
+  constexpr explicit operator int32_t() const { return int32_t(M * strideM); }
+  constexpr explicit operator int64_t() const { return int64_t(M) * strideM; }
   constexpr explicit operator uint32_t() const { return uint32_t(M * strideM); }
   constexpr explicit operator uint64_t() const { return uint64_t(M) * strideM; }
   constexpr auto operator=(const DenseDims &D) -> StridedDims &;
@@ -76,6 +78,8 @@ struct StridedDims {
 struct DenseDims {
   unsigned int M{};
   unsigned int N{};
+  constexpr explicit operator int32_t() const { return int32_t(M * N); }
+  constexpr explicit operator int64_t() const { return int64_t(M) * N; }
   constexpr explicit operator uint32_t() const { return uint32_t(M * N); }
   constexpr explicit operator uint64_t() const { return uint64_t(M) * N; }
   constexpr DenseDims() = default;
@@ -118,6 +122,8 @@ struct DenseDims {
 };
 struct SquareDims {
   unsigned int M{};
+  constexpr explicit operator int32_t() const { return int32_t(M * M); }
+  constexpr explicit operator int64_t() const { return int64_t(M) * M; }
   constexpr explicit operator uint32_t() const { return uint32_t(M * M); }
   constexpr explicit operator uint64_t() const { return uint64_t(M) * M; }
   constexpr SquareDims() = default;
@@ -125,7 +131,7 @@ struct SquareDims {
   constexpr SquareDims(Row d) : M{unsigned(d)} {}
   constexpr SquareDims(Col d) : M{unsigned(d)} {}
   constexpr SquareDims(CartesianIndex<Row, Col> ind) : M(unsigned(ind.row)) {
-    invariant(size_t(ind.row), size_t(ind.col));
+    invariant(ptrdiff_t(ind.row), ptrdiff_t(ind.col));
   }
   constexpr operator StridedDims() const { return {M, M, M}; }
   constexpr operator DenseDims() const { return {M, M}; }

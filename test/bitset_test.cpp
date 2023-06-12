@@ -20,7 +20,7 @@ TEST(BitSetTest, BasicAssertions) {
   // EXPECT_EQ(std::ranges::begin(bs), bs.begin());
   // EXPECT_EQ(std::ranges::end(bs), bs.end());
   Vector<size_t> bsc{0, 4, 10, 87, 117, 200, 991};
-  size_t j = 0;
+  ptrdiff_t j = 0;
   for (auto J = bs.begin(); J != decltype(bs)::end(); ++J) {
     EXPECT_EQ(*J, bsc[j++]);
     EXPECT_TRUE(bs[*J]);
@@ -35,7 +35,7 @@ TEST(BitSetTest, BasicAssertions) {
   EXPECT_EQ(j, bsc.size());
   EXPECT_EQ(j, bs.size());
   BitSet empty;
-  size_t c = 0, d = 0;
+  ptrdiff_t c = 0, d = 0;
   for (auto b : empty) {
     ++c;
     d += b;

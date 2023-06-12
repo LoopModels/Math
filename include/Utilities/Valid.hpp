@@ -44,27 +44,27 @@ public:
     invariant(value != nullptr);
     return *value;
   }
-  constexpr auto operator[](size_t index) -> T & {
+  constexpr auto operator[](ptrdiff_t index) -> T & {
     invariant(value != nullptr);
     return value[index];
   }
-  constexpr auto operator[](size_t index) const -> const T & {
+  constexpr auto operator[](ptrdiff_t index) const -> const T & {
     invariant(value != nullptr);
     return value[index];
   }
-  constexpr auto operator+(size_t offset) -> NotNull<T> {
+  constexpr auto operator+(ptrdiff_t offset) -> NotNull<T> {
     invariant(value != nullptr);
     return value + offset;
   }
-  constexpr auto operator-(size_t offset) -> NotNull<T> {
+  constexpr auto operator-(ptrdiff_t offset) -> NotNull<T> {
     invariant(value != nullptr);
     return value - offset;
   }
-  constexpr auto operator+(size_t offset) const -> NotNull<T> {
+  constexpr auto operator+(ptrdiff_t offset) const -> NotNull<T> {
     invariant(value != nullptr);
     return value + offset;
   }
-  constexpr auto operator-(size_t offset) const -> NotNull<T> {
+  constexpr auto operator-(ptrdiff_t offset) const -> NotNull<T> {
     invariant(value != nullptr);
     return value - offset;
   }
@@ -86,12 +86,12 @@ public:
     invariant(value != nullptr);
     return value--;
   }
-  constexpr auto operator+=(size_t offset) -> NotNull<T> & {
+  constexpr auto operator+=(ptrdiff_t offset) -> NotNull<T> & {
     invariant(value != nullptr);
     value += offset;
     return *this;
   }
-  constexpr auto operator-=(size_t offset) -> NotNull<T> & {
+  constexpr auto operator-=(ptrdiff_t offset) -> NotNull<T> & {
     invariant(value != nullptr);
     value -= offset;
     return *this;
@@ -124,13 +124,13 @@ public:
     invariant(value != nullptr);
     return value - other.value;
   }
-  [[nodiscard]] constexpr auto isAligned(size_t x) const -> bool {
+  [[nodiscard]] constexpr auto isAligned(ptrdiff_t x) const -> bool {
     invariant(value != nullptr);
-    return (reinterpret_cast<size_t>(value) % x) == 0;
+    return (reinterpret_cast<ptrdiff_t>(value) % x) == 0;
   }
 };
 template <typename T> NotNull(T &) -> NotNull<T>;
 template <typename T> NotNull(T *) -> NotNull<T *>;
-static_assert(std::is_trivially_destructible_v<NotNull<size_t>>);
-static_assert(std::is_trivially_copy_constructible_v<NotNull<size_t>>);
+static_assert(std::is_trivially_destructible_v<NotNull<ptrdiff_t>>);
+static_assert(std::is_trivially_copy_constructible_v<NotNull<ptrdiff_t>>);
 } // namespace poly::utils

@@ -15,11 +15,11 @@
 
 namespace poly::math {
 inline auto printConstraint(std::ostream &os, PtrVector<int64_t> a,
-                            size_t numSyms, bool inequality) {
-  size_t numVar = a.size();
+                            ptrdiff_t numSyms, bool inequality) {
+  ptrdiff_t numVar = a.size();
   bool hasPrinted = false, allVarNonNegative = allGEZero(a[_(numSyms, numVar)]);
   int64_t sign = allVarNonNegative ? 1 : -1;
-  for (size_t v = numSyms; v < numVar; ++v) {
+  for (ptrdiff_t v = numSyms; v < numVar; ++v) {
     if (int64_t Acv = sign * a[v]) {
       if (hasPrinted) {
         if (Acv > 0) {
@@ -66,8 +66,8 @@ constexpr void eraseConstraint(MutDensePtrMatrix<int64_t> &A, Row i) {
   eraseConstraintImpl(A, i);
   A.truncate(A.numRow() - 1);
 }
-constexpr void eraseConstraintImpl(MutDensePtrMatrix<int64_t> A, size_t _i,
-                                   size_t _j) {
+constexpr void eraseConstraintImpl(MutDensePtrMatrix<int64_t> A, ptrdiff_t _i,
+                                   ptrdiff_t _j) {
   invariant(_i != _j);
   Row i = std::min(_i, _j), j = std::max(_i, _j);
   const auto [M, N] = A.size();
@@ -79,26 +79,26 @@ constexpr void eraseConstraintImpl(MutDensePtrMatrix<int64_t> A, size_t _i,
   } else if ((i != penuRow) && (i != lastRow)) {
     // if i == penuCol, then j == lastCol
     // and we thus don't need to copy
-    for (size_t n = 0; n < N; ++n) {
+    for (ptrdiff_t n = 0; n < N; ++n) {
       A(i, n) = A(penuRow, n);
       A(j, n) = A(lastRow, n);
     }
   }
 }
-constexpr void eraseConstraint(MutDensePtrMatrix<int64_t> &A, size_t i,
-                               size_t j) {
+constexpr void eraseConstraint(MutDensePtrMatrix<int64_t> &A, ptrdiff_t i,
+                               ptrdiff_t j) {
   eraseConstraintImpl(A, i, j);
   A.truncate(A.numRow() - 2);
 }
 
 constexpr auto substituteEqualityImpl(MutDensePtrMatrix<int64_t> E,
-                                      const size_t i) -> Row {
+                                      const ptrdiff_t i) -> Row {
   const auto [numConstraints, numVar] = E.size();
   Col minNonZero = numVar + 1;
   Row rowMinNonZero = numConstraints;
   for (Row j = 0; j < numConstraints; ++j)
     if (E(j, i)) {
-      size_t nonZero = 0;
+      ptrdiff_t nonZero = 0;
 
       for (Col v = 0; v < numVar; ++v) nonZero += (E(j, v) != 0);
       if (nonZero < minNonZero) {
@@ -127,7 +127,7 @@ constexpr auto substituteEqualityImpl(MutDensePtrMatrix<int64_t> E,
   }
   return rowMinNonZero;
 }
-constexpr auto substituteEquality(DenseMatrix<int64_t> &E, const size_t i)
+constexpr auto substituteEquality(DenseMatrix<int64_t> &E, const ptrdiff_t i)
   -> bool {
   Row minNonZero = substituteEqualityImpl(E, i);
   if (minNonZero == E.numRow()) return true;
@@ -137,14 +137,14 @@ constexpr auto substituteEquality(DenseMatrix<int64_t> &E, const size_t i)
 
 constexpr auto
 substituteEqualityPairImpl(std::array<MutDensePtrMatrix<int64_t>, 2> AE,
-                           const size_t i) -> Row {
+                           const ptrdiff_t i) -> Row {
   auto [A, E] = AE;
   const auto [numConstraints, numVar] = E.size();
   Col minNonZero = numVar + 1;
   Row rowMinNonZero = numConstraints;
   for (Row j = 0; j < numConstraints; ++j) {
     if (E(j, i)) {
-      size_t nonZero = 0;
+      ptrdiff_t nonZero = 0;
       for (Col v = 0; v < numVar; ++v) nonZero += (E(j, v) != 0);
       if (nonZero < minNonZero) {
         minNonZero = nonZero;
@@ -185,12 +185,12 @@ substituteEqualityPairImpl(std::array<MutDensePtrMatrix<int64_t>, 2> AE,
   return rowMinNonZero;
 }
 constexpr auto substituteEquality(MutDensePtrMatrix<int64_t> &,
-                                  EmptyMatrix<int64_t>, size_t) -> bool {
+                                  EmptyMatrix<int64_t>, ptrdiff_t) -> bool {
   return false;
 }
 
 constexpr auto substituteEquality(MutDensePtrMatrix<int64_t> &A,
-                                  MutDensePtrMatrix<int64_t> &E, const size_t i)
+                                  MutDensePtrMatrix<int64_t> &E, const ptrdiff_t i)
   -> bool {
 
   Row minNonZero = substituteEqualityPairImpl({A, E}, i);
@@ -208,10 +208,10 @@ constexpr void slackEqualityConstraints(MutPtrMatrix<int64_t> C,
   invariant(numVar, B.numCol());
   const Row numSlack = A.numRow(), numStrict = B.numRow();
   invariant(C.numRow(), numSlack + numStrict);
-  size_t slackAndVar = size_t(numSlack) + size_t(numVar);
-  invariant(size_t(C.numCol()), slackAndVar);
+  ptrdiff_t slackAndVar = ptrdiff_t(numSlack) + ptrdiff_t(numVar);
+  invariant(ptrdiff_t(C.numCol()), slackAndVar);
   // [I A]
-  for (size_t s = 0; s < numSlack; ++s) {
+  for (ptrdiff_t s = 0; s < numSlack; ++s) {
     C(s, _(begin, numSlack)) << 0;
     C(s, s) = 1;
     C(s, _(numSlack, slackAndVar)) << A(s, _(begin, numVar));
@@ -226,10 +226,10 @@ constexpr void slackEqualityConstraints(MutPtrMatrix<int64_t> C,
                                         PtrMatrix<int64_t> A) {
   const Col numVar = A.numCol();
   const Row numSlack = A.numRow();
-  size_t slackAndVar = size_t(numSlack) + size_t(numVar);
-  invariant(size_t(C.numCol()), slackAndVar);
+  ptrdiff_t slackAndVar = ptrdiff_t(numSlack) + ptrdiff_t(numVar);
+  invariant(ptrdiff_t(C.numCol()), slackAndVar);
   // [I A]
-  for (size_t s = 0; s < numSlack; ++s) {
+  for (ptrdiff_t s = 0; s < numSlack; ++s) {
     C(s, _(begin, numSlack)) << 0;
     C(s, s) = 1;
     C(s, _(numSlack, slackAndVar)) << A(s, _(begin, numVar));
@@ -237,10 +237,10 @@ constexpr void slackEqualityConstraints(MutPtrMatrix<int64_t> C,
 }
 // counts how many negative and positive elements there are in row `i`.
 // A row corresponds to a particular variable in `A'x <= b`.
-constexpr auto countNonZeroSign(DensePtrMatrix<int64_t> A, size_t i)
-  -> std::array<size_t, 2> {
-  size_t numNeg = 0;
-  size_t numPos = 0;
+constexpr auto countNonZeroSign(DensePtrMatrix<int64_t> A, ptrdiff_t i)
+  -> std::array<ptrdiff_t, 2> {
+  ptrdiff_t numNeg = 0;
+  ptrdiff_t numPos = 0;
   Row numRow = A.numRow();
   for (Row j = 0; j < numRow; ++j) {
     int64_t Aij = A(j, i);
@@ -251,7 +251,7 @@ constexpr auto countNonZeroSign(DensePtrMatrix<int64_t> A, size_t i)
 }
 
 /// x == 0 -> 0, x < 0 -> 1, x > 0 -> 2
-inline constexpr auto orderedCmp(auto x) -> size_t {
+inline constexpr auto orderedCmp(auto x) -> ptrdiff_t {
   return (x < 0) | (2 * (x > 0));
 }
 /// returns three bitsets, indicating indices that are 0, negative, and positive
@@ -259,7 +259,7 @@ template <class T, VectorDimension S>
 constexpr auto indsZeroNegPos(Array<T, S> a)
   -> std::array<containers::FixedSizeBitSet<1>, 3> {
   std::array<containers::FixedSizeBitSet<1>, 3> ret;
-  for (size_t j = 0; j < a.size(); ++j) ret[orderedCmp(a[j])].insert(j);
+  for (ptrdiff_t j = 0; j < a.size(); ++j) ret[orderedCmp(a[j])].insert(j);
   return ret;
 }
 // 4*4 + 16 = 32
@@ -268,17 +268,17 @@ static_assert(sizeof(std::array<Vector<unsigned, 4>, 2>) == 64);
 template <bool NonNegative>
 constexpr auto
 fourierMotzkinCore(MutDensePtrMatrix<int64_t> B, DensePtrMatrix<int64_t> A,
-                   size_t v,
+                   ptrdiff_t v,
                    const std::array<containers::FixedSizeBitSet<1>, 3> &znp)
   -> Row {
   const auto &[zero, neg, pos] = znp;
   // we have the additional v >= 0
   if constexpr (NonNegative)
     invariant(B.numRow(),
-              A.numRow() - pos.size() + size_t(neg.size()) * pos.size());
+              A.numRow() - pos.size() + ptrdiff_t(neg.size()) * pos.size());
   else
     invariant(B.numRow(), A.numRow() - pos.size() - neg.size() +
-                            size_t(neg.size()) * pos.size());
+                            ptrdiff_t(neg.size()) * pos.size());
   invariant(B.numCol() + 1, A.numCol());
   Row r = 0;
   // x - v >= 0 -> x >= v
@@ -311,20 +311,20 @@ fourierMotzkinCore(MutDensePtrMatrix<int64_t> B, DensePtrMatrix<int64_t> A,
 
 template <bool NonNegative>
 constexpr auto fourierMotzkin(Alloc<int64_t> auto &alloc,
-                              DensePtrMatrix<int64_t> A, size_t v)
+                              DensePtrMatrix<int64_t> A, ptrdiff_t v)
   -> MutDensePtrMatrix<int64_t> {
 
   auto znp = indsZeroNegPos(A(_, v));
   auto &[zero, neg, pos] = znp;
-  Row r = A.numRow() - pos.size() + size_t(neg.size()) * pos.size();
+  Row r = A.numRow() - pos.size() + ptrdiff_t(neg.size()) * pos.size();
   if constexpr (!NonNegative) r -= neg.size();
   auto B = matrix(alloc, r, A.numCol() - 1);
   B.truncate(fourierMotzkinCore<NonNegative>(B, A, v, znp));
   return B;
 }
 
-constexpr void fourierMotzkinCore(DenseMatrix<int64_t> &A, size_t v,
-                                  std::array<size_t, 2> negPos) {
+constexpr void fourierMotzkinCore(DenseMatrix<int64_t> &A, ptrdiff_t v,
+                                  std::array<ptrdiff_t, 2> negPos) {
   auto [numNeg, numPos] = negPos;
   // we need one extra, as on the last overwrite, we still need to
   // read from two constraints we're deleting; we can't write into
@@ -334,18 +334,18 @@ constexpr void fourierMotzkinCore(DenseMatrix<int64_t> &A, size_t v,
   const Row numRowsNew = numRowsOld - numNeg - numPos + numNeg * numPos + 1;
   A.resize(numRowsNew);
   // plan is to replace
-  for (size_t i = 0, numRows = size_t(numRowsOld), posCount = numPos; posCount;
+  for (ptrdiff_t i = 0, numRows = ptrdiff_t(numRowsOld), posCount = numPos; posCount;
        ++i) {
     int64_t Aiv = A(i, v);
     if (Aiv <= 0) continue;
     --posCount;
-    for (size_t negCount = numNeg, j = 0; negCount; ++j) {
+    for (ptrdiff_t negCount = numNeg, j = 0; negCount; ++j) {
       int64_t Ajv = A(j, v);
       if (Ajv >= 0) continue;
       // for the last `negCount`, we overwrite `A(i, k)`
       // last posCount does not get overwritten
       --negCount;
-      size_t c = posCount ? (negCount ? numRows++ : size_t(i)) : j;
+      ptrdiff_t c = posCount ? (negCount ? numRows++ : ptrdiff_t(i)) : j;
       int64_t Ai = Aiv, Aj = Ajv;
       int64_t g = gcd(Aiv, Ajv);
       if (g != 1) {
@@ -353,7 +353,7 @@ constexpr void fourierMotzkinCore(DenseMatrix<int64_t> &A, size_t v,
         Aj /= g;
       }
       bool allZero = true;
-      for (size_t k = 0; k < A.numCol(); ++k) {
+      for (ptrdiff_t k = 0; k < A.numCol(); ++k) {
         int64_t Ack = Ai * A(j, k) - Aj * A(i, k);
         A(c, k) = Ack;
         allZero &= (Ack == 0);
@@ -370,7 +370,7 @@ constexpr void fourierMotzkinCore(DenseMatrix<int64_t> &A, size_t v,
       eraseConstraint(A, i);
   }
 }
-constexpr void fourierMotzkin(DenseMatrix<int64_t> &A, size_t v) {
+constexpr void fourierMotzkin(DenseMatrix<int64_t> &A, ptrdiff_t v) {
   invariant(v < A.numCol());
   const auto [numNeg, numPos] = countNonZeroSign(A, v);
   const Row numRowsOld = A.numRow();
@@ -404,7 +404,7 @@ constexpr auto uniqueConstraint(DensePtrMatrix<int64_t> A, Row r) -> bool {
                                                  MutDensePtrMatrix<int64_t> B)
   -> std::array<Row, 2> {
   auto [M, N] = B.size();
-  for (size_t r = 0, c = 0; c++ < N && r < M;)
+  for (ptrdiff_t r = 0, c = 0; c++ < N && r < M;)
     if (!NormalForm::pivotRows(B, c == N ? 0 : c, M, r))
       NormalForm::reduceColumnStack(A, B, c == N ? 0 : c, r++);
   // scan duplicate rows in `A`
@@ -418,20 +418,20 @@ constexpr void dropEmptyConstraints(MutDensePtrMatrix<int64_t> &A) {
     if (allZero(A(--c, _))) eraseConstraint(A, c);
 }
 
-constexpr auto uniqueConstraint(DensePtrMatrix<int64_t> A, size_t C) -> bool {
-  for (size_t c = 0; c < C; ++c) {
+constexpr auto uniqueConstraint(DensePtrMatrix<int64_t> A, ptrdiff_t C) -> bool {
+  for (ptrdiff_t c = 0; c < C; ++c) {
     bool allEqual = true;
-    for (size_t r = 0; r < A.numCol(); ++r) allEqual &= (A(c, r) == A(C, r));
+    for (ptrdiff_t r = 0; r < A.numCol(); ++r) allEqual &= (A(c, r) == A(C, r));
     if (allEqual) return false;
   }
   return true;
 }
 
-constexpr auto countSigns(DensePtrMatrix<int64_t> A, size_t i)
-  -> std::array<size_t, 2> {
-  size_t numNeg = 0;
-  size_t numPos = 0;
-  for (size_t j = 0; j < A.numRow(); ++j) {
+constexpr auto countSigns(DensePtrMatrix<int64_t> A, ptrdiff_t i)
+  -> std::array<ptrdiff_t, 2> {
+  ptrdiff_t numNeg = 0;
+  ptrdiff_t numPos = 0;
+  for (ptrdiff_t j = 0; j < A.numRow(); ++j) {
     int64_t Aij = A(j, i);
     numNeg += (Aij < 0);
     numPos += (Aij > 0);
@@ -439,7 +439,7 @@ constexpr auto countSigns(DensePtrMatrix<int64_t> A, size_t i)
   return {numNeg, numPos};
 }
 
-constexpr void deleteBounds(MutDensePtrMatrix<int64_t> &A, size_t i) {
+constexpr void deleteBounds(MutDensePtrMatrix<int64_t> &A, ptrdiff_t i) {
   for (Row j = A.numRow(); j != 0;)
     if (A(--j, i)) eraseConstraint(A, j);
 }

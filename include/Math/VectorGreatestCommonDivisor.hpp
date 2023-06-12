@@ -7,20 +7,20 @@
 namespace poly::math {
 
 constexpr auto gcd(PtrVector<int64_t> x) -> int64_t {
-  const size_t N = x.size();
+  const ptrdiff_t N = x.size();
   if (!N) return 0;
   int64_t g = constexpr_abs(x[0]);
-  for (size_t n = 1; (n < N) & (g != 1); ++n) g = gcd(g, x[n]);
+  for (ptrdiff_t n = 1; (n < N) & (g != 1); ++n) g = gcd(g, x[n]);
   return g;
 }
 constexpr void normalizeByGCD(MutPtrVector<int64_t> x) {
-  size_t N = x.size();
+  ptrdiff_t N = x.size();
   switch (N) {
   case 0: return;
   case 1: x[0] = 1; return;
   default:
     int64_t g = gcd(x[0], x[1]);
-    for (size_t n = 2; (n < N) & (g != 1); ++n) g = gcd(g, x[n]);
+    for (ptrdiff_t n = 2; (n < N) & (g != 1); ++n) g = gcd(g, x[n]);
     if (g > 1) x /= g;
   }
 }

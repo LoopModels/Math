@@ -7,9 +7,9 @@
 
 namespace poly::math {
 template <typename T>
-concept AbstractVector = utils::HasEltype<T> && requires(T t, size_t i) {
+concept AbstractVector = utils::HasEltype<T> && requires(T t, ptrdiff_t i) {
   { t[i] } -> std::convertible_to<utils::eltype_t<T>>;
-  { t.size() } -> std::convertible_to<size_t>;
+  { t.size() } -> std::convertible_to<ptrdiff_t>;
   { t.view() };
   // {
   //     std::remove_reference_t<T>::canResize
@@ -37,11 +37,11 @@ static_assert(std::is_same_v<default_capacity_type_t<uint32_t>, uint32_t>);
 static_assert(std::is_same_v<default_capacity_type_t<uint64_t>, uint64_t>);
 
 template <class T> consteval auto PreAllocStorage() -> size_t {
-  constexpr size_t totalBytes = 128;
-  constexpr size_t remainingBytes =
+  constexpr ptrdiff_t totalBytes = 128;
+  constexpr ptrdiff_t remainingBytes =
     totalBytes - sizeof(T *) - 2 * sizeof(unsigned);
-  constexpr size_t N = remainingBytes / sizeof(T);
-  return std::max<size_t>(1, N);
+  constexpr ptrdiff_t N = remainingBytes / sizeof(T);
+  return std::max<ptrdiff_t>(1, N);
 }
 constexpr auto log2Floor(uint64_t x) -> uint64_t {
   return 63 - std::countl_zero(x);

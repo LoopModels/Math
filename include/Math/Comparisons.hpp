@@ -19,7 +19,7 @@ constexpr auto anyNEZero(const auto &x) -> bool {
   return std::any_of(x.begin(), x.end(), [](int64_t y) { return y != 0; });
 }
 
-constexpr auto countNonZero(const auto &x) -> size_t {
+constexpr auto countNonZero(const auto &x) -> ptrdiff_t {
   return std::count_if(x.begin(), x.end(), [](auto a) { return a != 0; });
   // return std::ranges::count_if(x, [](auto x) { return x != 0; });
 }

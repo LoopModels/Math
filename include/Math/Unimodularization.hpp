@@ -17,7 +17,7 @@ namespace poly::math {
     NormalForm::hermite(std::move(A));
   if (!OHNF.has_value()) return {};
   auto &[H, U] = *OHNF;
-  for (size_t m = 0; m < H.numCol(); ++m)
+  for (ptrdiff_t m = 0; m < H.numCol(); ++m)
     if (H(m, m) != 1) return {};
   return std::move(U);
 }

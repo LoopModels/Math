@@ -53,16 +53,6 @@ void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 
 namespace poly::utils {
 
-template <typename T> struct AllocResult {
-  T *ptr;
-  size_t size;
-};
-template <typename T> AllocResult(T *ptr, size_t size) -> AllocResult<T>;
-template <class A, typename T>
-constexpr void deallocate(A &&alloc, AllocResult<T> r) {
-  alloc.deallocate(r.ptr, r.size);
-}
-
 template <size_t SlabSize, bool BumpUp, size_t MinAlignment> class BumpAlloc {
   static_assert(std::has_single_bit(MinAlignment));
 
@@ -115,20 +105,6 @@ public:
       slab = (char *)slab + align(Size);
       return;
     }
-#ifdef BUMP_ALLOC_TRY_FREE
-    if (size_t numCSlabs = customSlabs.size()) {
-      for (size_t i = 0; i < std::min<size_t>(8, customSlabs.size()); ++i) {
-        if (contains(customSlabs[customSlabs.size() - 1 - i], Ptr)) {
-          std::free(Ptr);
-          if (i)
-            std::swap(customSlabs[customSlabs.size() - 1],
-                      customSlabs[customSlabs.size() - 1 - i]);
-          customSlabs.pop_back();
-          return;
-        }
-      }
-    }
-#endif
   }
   template <typename T> constexpr void deallocate(T *Ptr, size_t N = 1) {
     deallocate((void *)Ptr, N * sizeof(T));
@@ -162,12 +138,13 @@ public:
     return static_cast<T *>(
       tryReallocate(Ptr, OldSize * sizeof(T), NewSize * sizeof(T), alignof(T)));
   }
-  /// reallocate<ForOverwrite>(void *Ptr, size_t OldSize, size_t NewSize,
+  /// reallocate<ForOverwrite>(void *Ptr, ptrdiff_t OldSize, ptrdiff_t NewSize,
   /// size_t Align) Should be safe with OldSize == 0, as it checks before
   /// copying
   template <bool ForOverwrite = false>
   [[gnu::returns_nonnull, nodiscard]] constexpr auto
-  reallocate(void *Ptr, size_t szOld, size_t szNew, size_t Align) -> void * {
+  reallocate(void *Ptr, ptrdiff_t szOld, ptrdiff_t szNew, size_t Align)
+    -> void * {
     invariant(std::has_single_bit(Align));
     if (szOld >= szNew) return Ptr;
     if (Ptr) {
@@ -187,7 +164,7 @@ public:
           }
         }
       } else if (Ptr == slab) {
-        size_t extraSize = align(szNew - szOld, Align);
+        ptrdiff_t extraSize = align(szNew - szOld, Align);
         slab = (char *)slab - extraSize;
         if (!outOfSlab()) {
           __asan_unpoison_memory_region(slab, extraSize);
@@ -213,7 +190,7 @@ public:
   }
   template <bool ForOverwrite = false, typename T>
   [[gnu::returns_nonnull, gnu::flatten, nodiscard]] constexpr auto
-  reallocate(T *Ptr, size_t OldSize, size_t NewSize) -> T * {
+  reallocate(T *Ptr, ptrdiff_t OldSize, ptrdiff_t NewSize) -> T * {
     return static_cast<T *>(reallocate<ForOverwrite>(
       Ptr, OldSize * sizeof(T), NewSize * sizeof(T), alignof(T)));
   }
@@ -271,10 +248,10 @@ public:
   constexpr auto scope() -> ScopeLifetime { return *this; }
 
 private:
-  static constexpr auto align(size_t x) -> size_t {
+  static constexpr auto align(ptrdiff_t x) -> ptrdiff_t {
     return (x + MinAlignment - 1) & ~(MinAlignment - 1);
   }
-  static constexpr auto align(size_t x, size_t alignment) -> size_t {
+  static constexpr auto align(ptrdiff_t x, ptrdiff_t alignment) -> ptrdiff_t {
     return (x + alignment - 1) & ~(alignment - 1);
   }
   static constexpr auto align(void *p) -> void * {
@@ -290,7 +267,7 @@ private:
     i &= ~(alignment - 1);
     return (char *)p + (i - j);
   }
-  static constexpr auto bump(void *ptr, size_t N) -> void * {
+  static constexpr auto bump(void *ptr, ptrdiff_t N) -> void * {
     if constexpr (BumpUp) return (char *)ptr + N;
     else return (char *)ptr - N;
   }
@@ -326,8 +303,8 @@ private:
     else slabs = create<containers::UList<void *>>(old, slabs);
   }
   // updates SlabCur and returns the allocated pointer
-  [[gnu::returns_nonnull]] constexpr auto allocCore(size_t Size, size_t Align)
-    -> void * {
+  [[gnu::returns_nonnull]] constexpr auto allocCore(ptrdiff_t Size,
+                                                    size_t Align) -> void * {
 #if MATH_ADDRESS_SANITIZER_BUILD
     slab = bump(slab, Align); // poisoned zone
 #endif
@@ -342,11 +319,11 @@ private:
     }
   }
   // updates SlabCur and returns the allocated pointer
-  [[gnu::returns_nonnull]] constexpr auto allocCore(size_t Size) -> void * {
+  [[gnu::returns_nonnull]] constexpr auto allocCore(ptrdiff_t Size) -> void * {
     // we know we already have MinAlignment
     // and we need to preserve it.
     // Thus, we align `Size` and offset it.
-    invariant((reinterpret_cast<size_t>(slab) % MinAlignment) == 0);
+    invariant((reinterpret_cast<ptrdiff_t>(slab) % MinAlignment) == 0);
 #if MATH_ADDRESS_SANITIZER_BUILD
     slab = bump(slab, MinAlignment); // poisoned zone
 #endif
@@ -360,8 +337,8 @@ private:
     }
   }
   //
-  [[gnu::returns_nonnull]] constexpr auto bumpAlloc(size_t Size, size_t Align)
-    -> void * {
+  [[gnu::returns_nonnull]] constexpr auto bumpAlloc(ptrdiff_t Size,
+                                                    size_t Align) -> void * {
     invariant(std::has_single_bit(Align));
     void *ret = allocCore(Size, Align);
     if (outOfSlab()) [[unlikely]] {
@@ -370,7 +347,7 @@ private:
     }
     return ret;
   }
-  [[gnu::returns_nonnull]] constexpr auto bumpAlloc(size_t Size) -> void * {
+  [[gnu::returns_nonnull]] constexpr auto bumpAlloc(ptrdiff_t Size) -> void * {
     void *ret = allocCore(Size);
     if (outOfSlab()) [[unlikely]] {
       newSlab();
@@ -398,7 +375,7 @@ static_assert(
 // with a specific value type, so that it can act more like a
 // `std::allocator`.
 template <typename T, size_t SlabSize = 16384, bool BumpUp = false,
-          size_t MinAlignment = alignof(std::max_align_t)>
+          ptrdiff_t MinAlignment = alignof(std::max_align_t)>
 class WBumpAlloc {
   using Alloc = BumpAlloc<SlabSize, BumpUp, MinAlignment>;
   [[no_unique_address]] NotNull<Alloc> A;
@@ -417,8 +394,8 @@ public:
   [[nodiscard]] constexpr auto get_allocator() const -> NotNull<Alloc> {
     return A;
   }
-  constexpr void deallocate(T *p, size_t n) { A->deallocate(p, n); }
-  [[gnu::returns_nonnull]] constexpr auto allocate(size_t n) -> T * {
+  constexpr void deallocate(T *p, ptrdiff_t n) { A->deallocate(p, n); }
+  [[gnu::returns_nonnull]] constexpr auto allocate(ptrdiff_t n) -> T * {
     return A->template allocate<T>(n);
   }
   constexpr auto checkpoint() -> typename Alloc::CheckPoint {
@@ -474,7 +451,7 @@ namespace poly::containers {
 template <typename T>
 [[nodiscard]] constexpr auto UList<T>::push(utils::BumpAlloc<> &alloc, T t)
   -> UList * {
-  invariant(count <= std::size(data));
+  invariant(count <= std::ssize(data));
   if (!isFull()) {
     data[count++] = t;
     return this;
@@ -484,7 +461,7 @@ template <typename T>
 /// ordered push
 template <typename T>
 constexpr void UList<T>::push_ordered(utils::BumpAlloc<> &alloc, T t) {
-  invariant(count <= std::size(data));
+  invariant(count <= std::ssize(data));
   if (!isFull()) {
     data[count++] = t;
     return;

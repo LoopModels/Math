@@ -21,7 +21,7 @@ TEST(SimplexTest, BasicAssertions) {
   EXPECT_TRUE(optS1.hasValue());
   ASSERT(optS0.hasValue());
   ASSERT(optS1.hasValue());
-  for (size_t i = 0; i < 2; ++i) {
+  for (ptrdiff_t i = 0; i < 2; ++i) {
     Simplex &S{i ? *optS1 : *optS0};
     auto C{S.getCost()};
     // minimize -2x - 3y - 4z
@@ -996,13 +996,13 @@ TEST(LexMinSimplexTest, BasicAssertions) {
   EXPECT_EQ(sol.size(), 37);
   EXPECT_FALSE(simp->initiateFeasible());
   simp->rLexMin(sol);
-  size_t solSum = 0;
+  ptrdiff_t solSum = 0;
   for (auto s : sol) {
     solSum += s.numerator;
     EXPECT_EQ(s.denominator, 1);
   }
   EXPECT_EQ(solSum, 3);
-  for (size_t i = 0; i < 37; ++i)
+  for (ptrdiff_t i = 0; i < 37; ++i)
     EXPECT_EQ(sol[last - i], (i == 28) || (i == 30) || (i == 33));
   {
     // test that we didn't invalidate the simplex
@@ -1012,15 +1012,15 @@ TEST(LexMinSimplexTest, BasicAssertions) {
     C[_(end - 36, end)] << 1;
     EXPECT_EQ(simp->run(), -3);
     Vector<Rational> sol2 = simp->getSolution();
-    size_t sum = 0;
-    for (size_t i = sol2.size() - 38; i < sol2.size(); ++i) {
+    ptrdiff_t sum = 0;
+    for (ptrdiff_t i = sol2.size() - 38; i < sol2.size(); ++i) {
       Rational r = sol2[i];
       sum += r.numerator;
       EXPECT_EQ(r.denominator, 1);
     }
     EXPECT_EQ(sum, 3);
     // std::cout << "sol2: " << sol2 << "\n";
-    for (size_t i = 0; i < 37; ++i)
+    for (ptrdiff_t i = 0; i < 37; ++i)
       EXPECT_EQ(sol2[last - i], (i == 28) || (i == 30) || (i == 33));
   }
   {
@@ -1032,9 +1032,9 @@ TEST(LexMinSimplexTest, BasicAssertions) {
     C[_(end - 36, end)] << 1;
     EXPECT_EQ(simp2->run(), -3);
     auto sol2 = simp2->getSolution();
-    size_t sum = 0;
+    ptrdiff_t sum = 0;
     Rational rsum = 0; // test summing rationals
-    for (size_t i = sol2.size() - 38; i < sol2.size(); ++i) {
+    for (ptrdiff_t i = sol2.size() - 38; i < sol2.size(); ++i) {
       Rational r = sol2[i];
       sum += r.numerator;
       EXPECT_EQ(r.denominator, 1);
@@ -1044,7 +1044,7 @@ TEST(LexMinSimplexTest, BasicAssertions) {
     EXPECT_EQ(rsum, 3);
     // std::cout << "sol2: " << sol2 << "\n";
     printVectorImpl(std::cout << "sol2: ", sol2) << "\n";
-    for (size_t i = 0; i < 37; ++i) {
+    for (ptrdiff_t i = 0; i < 37; ++i) {
       std::cout << "sol2[last-" << i << "] = " << sol2[last - i] << "\n";
       EXPECT_EQ(sol2[last - i], (i == 28) || (i == 30) || (i == 33));
     }
@@ -1279,7 +1279,7 @@ TEST(LexMinSimplexTest2, BasicAssertions) {
   EXPECT_FALSE(simp->initiateFeasible());
   auto s = simp->rLexMinLast(15);
   {
-    size_t solSum = 0, i = 0;
+    ptrdiff_t solSum = 0, i = 0;
     bool allNumerZero = true;
     for (auto x : s) {
       if (i++ < 5) {
@@ -1294,7 +1294,7 @@ TEST(LexMinSimplexTest2, BasicAssertions) {
     EXPECT_TRUE(allNumerZero);
   }
   {
-    size_t solSum = 0;
+    ptrdiff_t solSum = 0;
     for (auto x : s[_(0, 5)]) solSum += x != 0;
     EXPECT_EQ(solSum, 2);
   }
@@ -1307,8 +1307,8 @@ TEST(LexMinSimplexTest2, BasicAssertions) {
     EXPECT_TRUE(allNumerZero);
   }
   sol << simp->getSolution()[_(end - 15, end)];
-  size_t solSum = 0;
-  for (size_t i = 0; i < 5; ++i) {
+  ptrdiff_t solSum = 0;
+  for (ptrdiff_t i = 0; i < 5; ++i) {
     solSum += sol[i] != 0;
     // solSum += sol[i].numerator;
     // EXPECT_EQ(sol[i].denominator, 1);
@@ -1316,12 +1316,12 @@ TEST(LexMinSimplexTest2, BasicAssertions) {
   EXPECT_EQ(solSum, 2);
 
   solSum = 0;
-  for (size_t i = 5; i < sol.size(); ++i) {
+  for (ptrdiff_t i = 5; i < sol.size(); ++i) {
     solSum += sol[i].numerator;
     EXPECT_EQ(sol[i].denominator, 1);
   }
   EXPECT_FALSE(solSum);
-  // for (size_t i = 0; i < 37; ++i)
+  // for (ptrdiff_t i = 0; i < 37; ++i)
   //     EXPECT_EQ(sol(i), (i == 28) || (i == 30) || (i == 33));
   {
     // test that we didn't invalidate the simplex
@@ -1332,14 +1332,14 @@ TEST(LexMinSimplexTest2, BasicAssertions) {
     EXPECT_EQ(simp->run(), 0);
     Vector<Rational> sol2 = simp->getSolution();
     std::cout << "sol2 = " << sol2 << "\n";
-    size_t sum = 0;
-    for (size_t i = sol2.size() - 10; i < sol2.size(); ++i) {
+    ptrdiff_t sum = 0;
+    for (ptrdiff_t i = sol2.size() - 10; i < sol2.size(); ++i) {
       Rational r = sol2[i];
       sum += r.numerator;
       EXPECT_EQ(r.denominator, 1);
     }
     EXPECT_EQ(sum, 0);
-    // for (size_t i = 0; i < 37; ++i)
+    // for (ptrdiff_t i = 0; i < 37; ++i)
     //     EXPECT_EQ(sol2(i), (i == 29) || (i == 31) || (i == 34));
   }
 }
