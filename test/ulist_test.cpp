@@ -28,7 +28,8 @@ TEST(UListTest, BasicAssertions) {
     for (auto j : *constList) c += j;
     EXPECT_EQ(c, s);
     c = 0;
-    for (auto j : *list) c += j;
-    EXPECT_EQ(c, s);
+    for (auto &&j : *list) c += (j += 3);
+    EXPECT_EQ(c - (3 * (i + 1)), s);
+    list->forEach([](int64_t &a) { a -= 3; });
   }
 }

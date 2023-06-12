@@ -1,5 +1,6 @@
 #pragma once
 #include "Utilities/Invariant.hpp"
+#include <cstddef>
 #include <memory>
 namespace poly::utils {
 template <size_t SlabSize = 16384, bool BumpUp = false,
@@ -91,7 +92,7 @@ public:
       std::construct_at(next, t);
     } else next->push_ordered(alloc, t);
   }
-  constexpr auto contains(T t) const -> bool {
+  [[nodiscard]] constexpr auto contains(T t) const -> bool {
     invariant(count <= std::ssize(data));
     for (const UList *L = this; L; L = L->getNext())
       for (size_t i = 0, N = L->getHeadCount(); i < N; ++i)
@@ -158,7 +159,7 @@ public:
   [[nodiscard]] constexpr auto isFull() const -> bool {
     return count == std::ssize(data);
   }
-  constexpr auto getNext() const -> UList * { return next; }
+  [[nodiscard]] constexpr auto getNext() const -> UList * { return next; }
   constexpr void clear() {
     invariant(count <= std::ssize(data));
     count = 0;
@@ -172,11 +173,11 @@ public:
     invariant(count == 1);
     return data[0];
   }
-  constexpr auto front() const -> const T & {
+  [[nodiscard]] constexpr auto front() const -> const T & {
     invariant(count > 0);
     return data[0];
   }
-  constexpr auto only() const -> const T & {
+  [[nodiscard]] constexpr auto only() const -> const T & {
     invariant(count == 1);
     return data[0];
   }
@@ -203,9 +204,13 @@ public:
   constexpr auto operator=(const UList &other) -> UList & = default;
   struct End {};
   struct MutIterator {
+
     UList *list;
     ptrdiff_t index;
     constexpr auto operator==(End) const -> bool { return list == nullptr; }
+    constexpr auto operator==(MutIterator other) const -> bool {
+      return list == other.list && index == other.index;
+    }
     constexpr auto operator++() -> MutIterator & {
       invariant(list != nullptr);
       if (++index == list->count) {
@@ -213,6 +218,12 @@ public:
         index = 0;
       }
       return *this;
+    }
+    constexpr auto operator++(int) -> MutIterator {
+      invariant(list != nullptr);
+      auto ret = *this;
+      ++*this;
+      return ret;
     }
     constexpr auto operator*() -> T & {
       invariant(list != nullptr);
@@ -224,6 +235,9 @@ public:
     const UList *list;
     ptrdiff_t index;
     constexpr auto operator==(End) const -> bool { return list == nullptr; }
+    constexpr auto operator==(Iterator other) const -> bool {
+      return list == other.list && index == other.index;
+    }
     constexpr auto operator++() -> Iterator & {
       invariant(list != nullptr);
       if (++index == list->count) {
@@ -232,7 +246,13 @@ public:
       }
       return *this;
     }
-    constexpr auto operator*() -> const T & {
+    constexpr auto operator++(int) -> Iterator {
+      invariant(list != nullptr);
+      auto ret = *this;
+      ++*this;
+      return ret;
+    }
+    constexpr auto operator*() -> T {
       invariant(list != nullptr);
       return list->data[index];
     }
