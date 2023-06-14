@@ -689,6 +689,14 @@ struct ResizeableView : MutArray<T, S> {
     ++this->sz;
     return p;
   }
+  template <typename A> constexpr void reserve(A &alloc, U newCapacity) {
+    if (newCapacity <= capacity) return;
+    T *oldPtr =
+      std::exchange(this->ptr, alloc.template allocate<T>(newCapacity));
+    std::copy_n(oldPtr, U(this->sz), this->ptr);
+    alloc.deallocate(oldPtr, capacity);
+    capacity = newCapacity;
+  }
 
 protected:
   // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)

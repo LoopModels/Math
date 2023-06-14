@@ -2,6 +2,7 @@
 #include "Math/Math.hpp"
 #include "Math/MatrixDimensions.hpp"
 #include "Math/SmallSparseMatrix.hpp"
+#include "Utilities/Allocators.hpp"
 #include "Utilities/MatrixStringParse.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -192,4 +193,15 @@ TEST(SquareMatrixTest, BasicAssertions) {
   B << A(_(end - 2, end), _).transpose();
   for (ptrdiff_t j = 0; j < 4; ++j)
     for (ptrdiff_t i = 0; i < 2; ++i) EXPECT_EQ(B(j, i), 4 * (i + 2) + j);
+}
+TEST(VectorTest, BasicAssertions) {
+  poly::utils::BumpAlloc<> alloc;
+  ResizeableView<int64_t, unsigned> x;
+  for (size_t i = 0; i < 100; ++i) {
+    if (x.getCapacity() <= x.size())
+      x.reserve(alloc, std::max(unsigned(8), 2 * x.size()));
+    x.emplace_back(i);
+  }
+  EXPECT_EQ(x.size(), 100);
+  EXPECT_EQ(x.sum(), 100 * 99 / 2);
 }
