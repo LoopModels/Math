@@ -2,6 +2,7 @@
 #include "Math/Math.hpp"
 #include "Math/MatrixDimensions.hpp"
 #include "Math/SmallSparseMatrix.hpp"
+#include "Math/StaticArrays.hpp"
 #include "Utilities/Allocators.hpp"
 #include "Utilities/MatrixStringParse.hpp"
 #include <cstddef>
@@ -204,4 +205,27 @@ TEST(VectorTest, BasicAssertions) {
   }
   EXPECT_EQ(x.size(), 100);
   EXPECT_EQ(x.sum(), 100 * 99 / 2);
+}
+TEST(SVectorTest, BasicAssertions) {
+  SVector<int64_t, 3> x{1, 2, 3};
+  SVector<int64_t, 3> y{10, 20, 30};
+  SVector<int64_t, 3> z{11, 22, 33};
+  SVector<int64_t, 3> w = x + y;
+  EXPECT_EQ(w, z);
+  EXPECT_TRUE(w == z);
+  constexpr auto constCmp = [](auto const &a, auto const &b) {
+    return std::make_pair(a == b, std::is_constant_evaluated());
+  };
+  Vector<int64_t> v{1, 2, 3};
+  EXPECT_TRUE(constCmp(v.size(), unsigned(3)).first);
+  EXPECT_FALSE(constCmp(v.size(), unsigned(3)).second);
+  EXPECT_TRUE(constCmp(x.size(), unsigned(3)).first);
+  // EXPECT_TRUE(constCmp(v.size()).first);
+  // EXPECT_FALSE(constCmp(v.size()).second);
+  // EXPECT_TRUE(constCmp(x.size()).first);
+  static_assert(constCmp(x.size(), unsigned(3)).second);
+  static_assert(constCmp(x.size(), y.size()).second);
+  // EXPECT_TRUE(constCmp(x.size()).second);
+  // EXPECT_TRUE(constCmp(x.size(), unsigned(3)).second);
+  // EXPECT_TRUE(constCmp(x.size(), y.size()).second);
 }

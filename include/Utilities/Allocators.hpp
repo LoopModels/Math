@@ -186,7 +186,14 @@ public:
   }
   constexpr void reset() {
     resetSlabs();
+#ifdef NDEBUG
     initSlab(sEnd);
+#else
+    // we want to increase chance of dangling references getting caught, by
+    // freeing
+    std::free(sEnd);
+    initNewSlab();
+#endif
   }
   template <bool ForOverwrite = false, typename T>
   [[gnu::returns_nonnull, gnu::flatten, nodiscard]] constexpr auto
@@ -358,7 +365,7 @@ private:
 
   constexpr void resetSlabs() {
     if (slabs) slabs->forEachStack([](auto *s) { std::free(s); });
-    slabs = ((void *)slabs == sEnd) ? slabs : nullptr;
+    slabs = nullptr; // ((void *)slabs == sEnd) ? slabs : nullptr;
   }
 
   void *slab{nullptr};

@@ -33,7 +33,7 @@ public:
   constexpr StaticArray(StaticArray const &) = default;
   constexpr StaticArray(StaticArray &&) noexcept = default;
   constexpr StaticArray(const std::initializer_list<T> &list) {
-    invariant(list.size(), capacity);
+    invariant(list.size(), size_t(capacity));
     std::copy(list.begin(), list.end(), data());
   }
   template <AbstractSimilar<S> V> constexpr StaticArray(const V &b) noexcept {
@@ -47,11 +47,7 @@ public:
   constexpr auto operator=(StaticArray const &) -> StaticArray & = default;
   constexpr auto operator=(StaticArray &&) noexcept -> StaticArray & = default;
 
-  [[nodiscard]] constexpr auto begin() const noexcept {
-    if constexpr (std::is_same_v<S, StridedRange>)
-      return StridedIterator{data(), S{}.stride};
-    else return data();
-  }
+  [[nodiscard]] constexpr auto begin() const noexcept { return data(); }
   [[nodiscard]] constexpr auto end() const noexcept {
     return begin() + capacity;
   }
@@ -126,7 +122,6 @@ public:
   [[nodiscard]] static constexpr auto empty() -> bool { return capacity == 0; }
   [[nodiscard]] static constexpr auto size() noexcept {
     if constexpr (StaticInt<S>) return S{};
-    else if constexpr (std::is_same_v<S, StridedRange>) return capacity;
     else return CartesianIndex{Row{S{}}, Col{S{}}};
   }
   [[nodiscard]] static constexpr auto dim() noexcept -> S { return S{}; }
@@ -191,6 +186,9 @@ public:
     Col c = Col{S{}};
     StridedRange r{unsigned(min(Row{S{}}, c)), unsigned(RowStride{S{}}) - 1};
     return MutArray<T, StridedRange>{data() + ptrdiff_t(c) - 1, r};
+  }
+  constexpr auto operator==(const StaticArray &rhs) const noexcept -> bool {
+    return std::equal(begin(), end(), rhs.begin());
   }
 };
 
