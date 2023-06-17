@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.25)
 
 # ---- Project ----
 
@@ -26,6 +26,16 @@ include(cmake/CPM.cmake)
 # PackageProject.cmake will be used to make our target installable
 CPMAddPackage("gh:TheLartians/PackageProject.cmake@1.8.0")
 
+# FetchContent_Declare( eve URL https://github.com/jfalcou/eve/archive/refs/tags/v2023.02.15.zip
+# VERSION 2023.02.15 SYSTEM ) FetchContent_MakeAvailable(eve)
+
+CPMAddPackage(
+  NAME eve
+  URL https://github.com/jfalcou/eve/archive/refs/tags/v2023.02.15.zip
+  VERSION 2023.02.15 SYSTEM YES
+  OPTIONS "EVE_BUILD_TEST OFF" "EVE_BUILD_BENCHMARKS OFF" "EVE_BUILD_DOCUMENTATION OFF"
+)
+
 # ---- Add source files ----
 
 # Note: globbing sources is considered bad practice as CMake's generators may not detect new files
@@ -38,6 +48,7 @@ file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include
 # target:
 add_library(${PROJECT_NAME} INTERFACE ${headers})
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
+target_link_libraries(Math INTERFACE eve::eve)
 
 # being a cross-platform target, we enforce standards conformance on MSVC
 target_compile_options(${PROJECT_NAME} INTERFACE "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")

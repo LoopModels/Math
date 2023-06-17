@@ -60,7 +60,11 @@ template <typename A> struct Transpose {
     return {numRow(), numCol()};
   }
   constexpr Transpose(A b) : a(b) {}
+  constexpr auto transpose() const -> A { return a; }
 };
 template <typename A> Transpose(A) -> Transpose<A>;
+// template <typename A> constexpr auto transpose(A a) { return Transpose{a}; }
+// template <typename A> constexpr auto transpose(Transpose<A> a) { return a.a;
+// }
 
 } // namespace poly::math

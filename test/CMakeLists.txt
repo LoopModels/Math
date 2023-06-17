@@ -22,7 +22,7 @@ CPMAddPackage(
   NAME googletest
   GITHUB_REPOSITORY google/googletest
   GIT_TAG v1.13.0
-  VERSION 1.13.0 SYSTEM TRUE
+  VERSION 1.13.0 SYSTEM YES
   OPTIONS "INSTALL_GTEST OFF" "BUILD_GMOCK OFF" "gtest_hide_internal_symbols ON"
 )
 CPMAddPackage("gh:TheLartians/Format.cmake@1.7.3")

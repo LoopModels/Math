@@ -3,9 +3,12 @@
 #include "Math/Indexing.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/MatrixDimensions.hpp"
+#include "Math/SIMD.hpp"
 #include "Math/UniformScaling.hpp"
 #include "Math/Vector.hpp"
 #include <algorithm>
+#include <cstddef>
+#include <eve/module/core.hpp>
 #include <type_traits>
 
 namespace poly::math {
@@ -51,12 +54,21 @@ public:
   [[gnu::flatten]] constexpr auto operator<<(const AbstractVector auto &B)
     -> P & {
     if constexpr (MatrixDimension<S>) {
-      ptrdiff_t M = nr(), N = nc();
+      ptrdiff_t M = nr();
       invariant(M, B.size());
-      for (ptrdiff_t i = 0; i < M; ++i) {
-        T Bi = B[i];
-        for (ptrdiff_t j = 0; j < N; ++j) index(i, j) = Bi;
-      }
+      for (ptrdiff_t i = 0; i < M; ++i) static_cast<P *>(this)(i, _) << B[i];
+    } else if constexpr (std::integral<T> || std::floating_point<T>) {
+      constexpr ptrdiff_t W = eve::wide<T>::size();
+      ptrdiff_t L = size_();
+      invariant(L, ptrdiff_t(B.size()));
+      ptrdiff_t i = 0, n = W;
+      for (; n <= L; i = n, n += W)
+        eve::store(B.data() + i, eve::load[eve::ignore_first(i)](data_()));
+      if (i < L)
+        for (; i < L; ++i) index(i) = B[i];
+      // if constexpr (StaticInt<S>){
+      // } else {
+      // }
     } else {
       ptrdiff_t L = size_();
       invariant(L, ptrdiff_t(B.size()));

@@ -199,7 +199,7 @@ struct StridedRange {
     return os << "Length: " << x.len << " (stride: " << x.stride << ")";
   }
 };
-template <class I> constexpr auto calcOffset(StridedRange d, I i) -> size_t {
+template <class I> constexpr auto calcOffset(StridedRange d, I i) -> ptrdiff_t {
   return d.stride * calcOffset(d.len, i);
 }
 constexpr auto is_integral_const(auto) -> bool { return false; }
