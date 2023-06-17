@@ -7,6 +7,7 @@
 #include "Math/Indexing.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/MatrixDimensions.hpp"
+#include "Math/SIMD.hpp"
 #include "Utilities/TypePromotion.hpp"
 #include <algorithm>
 #include <charconv>
@@ -84,11 +85,21 @@ template <typename Op, AbstractVector A> struct ElementwiseUnaryOp<Op, A> {
   [[nodiscard]] constexpr auto view() const { return *this; };
 };
 // scalars broadcast
-constexpr auto get(const auto &A, ptrdiff_t) { return A; }
-constexpr auto get(const auto &A, ptrdiff_t, ptrdiff_t) { return A; }
+constexpr auto get(const Scalar auto &A, ptrdiff_t) { return A; }
+constexpr auto get(const Scalar auto &A, ptrdiff_t, ptrdiff_t) { return A; }
 constexpr auto get(const AbstractVector auto &A, ptrdiff_t i) { return A[i]; }
 constexpr auto get(const AbstractMatrix auto &A, ptrdiff_t i, ptrdiff_t j) {
   return A(i, j);
+}
+// unroll index
+template <ptrdiff_t W, ptrdiff_t N, typename P>
+constexpr auto get(const AbstractVector auto &A, simd::Unroll<W, N, P> i) {
+  A[i];
+}
+// tile index
+template <ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P>
+constexpr auto get(const AbstractMatrix auto &A, simd::Tile<W, M, N, P> i) {
+  A[i];
 }
 
 constexpr auto size(const std::integral auto) -> ptrdiff_t { return 1; }
@@ -131,9 +142,7 @@ template <typename Op, Trivial A, Trivial B> struct ElementwiseVectorBinaryOp {
   [[no_unique_address]] B b;
   constexpr ElementwiseVectorBinaryOp(Op _op, A _a, B _b)
     : op(_op), a(_a), b(_b) {}
-  constexpr auto operator[](ptrdiff_t i) const {
-    return op(get(a, i), get(b, i));
-  }
+  constexpr auto operator[](auto i) const { return op(get(a, i), get(b, i)); }
   [[nodiscard]] constexpr auto size() const -> ptrdiff_t {
     if constexpr (AbstractVector<A> && AbstractVector<B>) {
       const ptrdiff_t N = a.size();
@@ -155,7 +164,7 @@ template <typename Op, Trivial A, Trivial B> struct ElementwiseMatrixBinaryOp {
   [[no_unique_address]] B b;
   constexpr ElementwiseMatrixBinaryOp(Op _op, A _a, B _b)
     : op(_op), a(_a), b(_b) {}
-  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const {
+  constexpr auto operator()(auto i, auto j) const {
     return op(get(a, i, j), get(b, i, j));
   }
   [[nodiscard]] constexpr auto numRow() const -> Row {

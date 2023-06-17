@@ -12,6 +12,10 @@
 #include <type_traits>
 
 namespace poly::math {
+
+template <typename T>
+concept Scalar = std::integral<T> || std::floating_point<T>;
+
 template <typename T> class SmallSparseMatrix;
 template <class T, class S, class P> class ArrayOps {
   [[gnu::returns_nonnull]] constexpr auto data_() -> T * {
@@ -41,6 +45,7 @@ template <class T, class S, class P> class ArrayOps {
   }
 
 public:
+  constexpr auto getThis() -> P & { return *static_cast<P *>(this); }
   template <std::convertible_to<T> Y>
   [[gnu::flatten]] constexpr auto operator<<(const UniformScaling<Y> &B)
     -> P & {
@@ -57,15 +62,20 @@ public:
       ptrdiff_t M = nr();
       invariant(M, B.size());
       for (ptrdiff_t i = 0; i < M; ++i) static_cast<P *>(this)(i, _) << B[i];
-    } else if constexpr (std::integral<T> || std::floating_point<T>) {
+    } else if constexpr (Scalar<T>) {
       constexpr ptrdiff_t W = eve::wide<T>::size();
       ptrdiff_t L = size_();
       invariant(L, ptrdiff_t(B.size()));
       ptrdiff_t i = 0, n = W;
-      for (; n <= L; i = n, n += W)
-        eve::store(B.data() + i, eve::load[eve::ignore_first(i)](data_()));
-      if (i < L)
-        for (; i < L; ++i) index(i) = B[i];
+      auto &A{getThis()};
+      for (; n <= L; i = n, n += W) {
+        auto j = simd::unroll<W, 1>(i);
+        A[j] = B[j];
+      }
+      if (i < L) {
+        auto j = simd::unroll<W, 1>(i, L);
+        A[j] = B[j];
+      }
       // if constexpr (StaticInt<S>){
       // } else {
       // }

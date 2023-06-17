@@ -5,6 +5,7 @@ namespace poly::math {
 template <typename B, typename E> struct Range {
   [[no_unique_address]] B b;
   [[no_unique_address]] E e;
+  // constexpr Range(B b, E e) : b(b), e(e) {}
   [[nodiscard]] constexpr auto begin() const -> B { return b; }
   [[nodiscard]] constexpr auto end() const -> E { return e; }
 };
@@ -134,7 +135,9 @@ template <typename T> struct StridedIterator {
     invariant(stride == other.stride);
     return (ptr + other.ptr) / stride;
   }
-  constexpr auto operator[](ptrdiff_t x) const -> T & { return ptr[x * stride]; }
+  constexpr auto operator[](ptrdiff_t x) const -> T & {
+    return ptr[x * stride];
+  }
   friend constexpr auto operator+(ptrdiff_t x, const StridedIterator &it)
     -> StridedIterator {
     return it + x;

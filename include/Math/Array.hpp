@@ -114,7 +114,8 @@ template <class T, class S> struct Array {
     auto offset = calcOffset(sz, i);
     auto newDim = calcNewDim(sz, i);
     invariant(ptr != nullptr);
-    if constexpr (std::is_same_v<decltype(newDim), Empty>) return ptr[offset];
+    if constexpr (std::is_same_v<decltype(newDim), Empty>)
+      return ref(ptr, offset);
     else return Array<T, decltype(newDim)>{ptr + offset, newDim};
   }
   // TODO: switch to operator[] when we enable c++23
@@ -397,7 +398,7 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
     auto offset = calcOffset(this->sz, i);
     auto newDim = calcNewDim(this->sz, i);
     if constexpr (std::is_same_v<decltype(newDim), Empty>)
-      return this->ptr[offset];
+      return ref(this->ptr, offset);
     else return MutArray<T, decltype(newDim)>{this->ptr + offset, newDim};
   }
   // TODO: switch to operator[] when we enable c++23

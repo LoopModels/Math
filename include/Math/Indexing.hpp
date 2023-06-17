@@ -4,6 +4,8 @@
 #include "Math/MatrixDimensions.hpp"
 #include "Utilities/Invariant.hpp"
 #include <cstddef>
+#include <type_traits>
+#include <utility>
 
 namespace poly::math {
 
@@ -71,8 +73,28 @@ concept ScalarRelativeIndex =
   std::same_as<T, End> || std::same_as<T, Begin> ||
   std::same_as<T, OffsetBegin> || std::same_as<T, OffsetEnd>;
 
+namespace simd {
+struct NoPredicate {
+  constexpr explicit operator ptrdiff_t() const { return 0; }
+};
+
+template <ptrdiff_t W, ptrdiff_t N, typename P = NoPredicate> struct Unroll;
+template <ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P = NoPredicate>
+struct Tile;
+
+template <class T> struct IsSimdScalarIndex : std::false_type {};
+template <ptrdiff_t W, ptrdiff_t N, typename P>
+struct IsSimdScalarIndex<Unroll<W, N, P>> : std::true_type {};
+
+// template <class T> struct IsSimdCartIndex : std::false_type {};
+// template <ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P>
+// struct IsSimdCartIndex<Tile<W, M, N, P>> : std::true_type {};
+
+} // namespace simd
+
 template <typename T>
-concept ScalarIndex = std::integral<T> || ScalarRelativeIndex<T>;
+concept ScalarIndex = std::integral<T> || ScalarRelativeIndex<T> ||
+                      simd::IsSimdScalarIndex<T>::value;
 
 static constexpr inline struct Colon {
   [[nodiscard]] inline constexpr auto operator()(auto B, auto E) const {
