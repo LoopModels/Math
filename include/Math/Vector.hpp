@@ -4,6 +4,7 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 
 namespace poly::math {
 template <typename T>
@@ -75,5 +76,31 @@ constexpr auto selfDot(const auto &a) {
   for (auto x : a) sum += x * x;
   return sum;
 }
+template <class T, size_t N>
+inline constexpr auto len(const std::array<T, N> &) noexcept
+  -> std::integral_constant<ptrdiff_t, N> {
+  return {};
+}
+template <class T, size_t N>
+inline constexpr auto len(const auto &x) noexcept -> ptrdiff_t {
+  return std::ssize(x);
+}
+template <typename T>
+concept StaticallySized = requires(T t) {
+  { decltype(len(t))::value } -> std::convertible_to<ptrdiff_t>;
+};
+static_assert(
+  std::same_as<decltype(len(std::declval<std::array<int64_t, 3>>())),
+               std::integral_constant<ptrdiff_t, 3>>);
+static_assert(StaticallySized<std::array<int64_t, 3>>);
+static_assert(sizeof(std::array<int64_t, 5>) == 5 * sizeof(int64_t));
+static_assert(sizeof(const std::array<int64_t, 5> &) == 5 * sizeof(int64_t));
+
+template <typename T>
+concept DoCopy = Scalar<std::remove_cvref_t<T>> ||
+                 (std::is_trivially_destructible_v<std::remove_cvref_t<T>> &&
+                  std::is_trivially_copyable_v<std::remove_cvref_t<T>> &&
+                  (!StaticallySized<std::remove_cvref_t<T>>)) ||
+                 (sizeof(T) <= sizeof(uintptr_t));
 
 } // namespace poly::math

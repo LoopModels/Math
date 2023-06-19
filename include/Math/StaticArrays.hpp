@@ -1,5 +1,6 @@
 #pragma once
 #include "Math/Array.hpp"
+#include <utility>
 
 namespace poly::math {
 
@@ -188,8 +189,28 @@ public:
   }
 };
 
-template <class T, size_t N>
+template <class T, ptrdiff_t N>
 using SVector = StaticArray<T, std::integral_constant<ptrdiff_t, N>>;
 
 static_assert(AbstractVector<SVector<int64_t, 3>>);
+
+template <class T, ptrdiff_t N>
+inline constexpr auto len(const SVector<T, N> &) noexcept {
+  return std::integral_constant<ptrdiff_t, N>{};
+}
+static_assert(std::same_as<decltype(len(std::declval<SVector<int64_t, 3>>())),
+                           std::integral_constant<ptrdiff_t, 3>>);
+static_assert(StaticallySized<SVector<int64_t, 3>>);
+
+template <typename T>
+concept StaticallySizedInlineData =
+  StaticallySized<T> && std::is_trivially_destructible_v<T> &&
+  std::is_trivially_copyable_v<T> && requires(T t) {
+    { sizeof(T) >= len(std::declval<T>()) * sizeof(utils::eltype_t<T>) };
+    { t.data() } -> std::same_as<const utils::eltype_t<T> *>;
+    { t.size() } -> std::same_as<ptrdiff_t>;
+  };
+
+static_assert(!DoCopy<SVector<int64_t, 4>>);
+
 }; // namespace poly::math

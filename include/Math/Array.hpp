@@ -1399,6 +1399,8 @@ static_assert(std::same_as<utils::eltype_t<Matrix<int64_t>>, int64_t>);
 static_assert(
   std::convertible_to<Array<int64_t, SquareDims>, Array<int64_t, StridedDims>>);
 
+static_assert(!StaticallySized<Vector<int64_t>>);
+
 inline auto printVectorImpl(std::ostream &os, const AbstractVector auto &a)
   -> std::ostream & {
   os << "[ ";
@@ -1613,4 +1615,10 @@ inline auto operator<<(std::ostream &os, Array<T, DenseDims> A)
   -> std::ostream & {
   return printMatrix(os, PtrMatrix<T>{A});
 }
+
+template <typename T, class S>
+constexpr auto len(Array<T, S> const &A) -> ptrdiff_t {
+  return ptrdiff_t(A.dim());
+}
+
 } // namespace poly::math
