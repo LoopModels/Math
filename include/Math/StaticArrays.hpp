@@ -74,7 +74,8 @@ public:
     auto newDim = calcNewDim(S{}, i);
     auto ptr = data();
     invariant(ptr != nullptr);
-    if constexpr (std::is_same_v<decltype(newDim), Empty>) return ptr[offset];
+    if constexpr (std::is_same_v<decltype(newDim), Empty>)
+      return ref(static_cast<const T *>(ptr), offset);
     else return Array<T, decltype(newDim)>{ptr + offset, newDim};
   }
   // TODO: switch to operator[] when we enable c++23
@@ -164,7 +165,7 @@ public:
     auto offset = calcOffset(S{}, i);
     auto newDim = calcNewDim(S{}, i);
     if constexpr (std::is_same_v<decltype(newDim), Empty>)
-      return data()[offset];
+      return ref(data(), offset);
     else return MutArray<T, decltype(newDim)>{data() + offset, newDim};
   }
   // TODO: switch to operator[] when we enable c++23

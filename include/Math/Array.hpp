@@ -115,7 +115,7 @@ template <class T, class S> struct Array {
     auto newDim = calcNewDim(sz, i);
     invariant(ptr != nullptr);
     if constexpr (std::is_same_v<decltype(newDim), Empty>)
-      return ref(ptr, offset);
+      return ref(static_cast<const T *>(ptr), offset);
     else return Array<T, decltype(newDim)>{ptr + offset, newDim};
   }
   // TODO: switch to operator[] when we enable c++23
@@ -1351,10 +1351,9 @@ static_assert(!AbstractVector<const PtrMatrix<int64_t>>,
 
 static_assert(AbstractMatrix<PtrMatrix<int64_t>>,
               "PtrMatrix<int64_t> isa AbstractMatrix failed");
-static_assert(
-  std::same_as<std::remove_reference_t<decltype(PtrMatrix<int64_t>(
-                 nullptr, Row{0}, Col{0})(ptrdiff_t(0), ptrdiff_t(0)))>,
-               int64_t>);
+static_assert(std::same_as<decltype(PtrMatrix<int64_t>(nullptr, Row{0}, Col{0})(
+                             ptrdiff_t(0), ptrdiff_t(0))),
+                           const int64_t &>);
 static_assert(
   std::same_as<std::remove_reference_t<decltype(MutPtrMatrix<int64_t>(
                  nullptr, Row{0}, Col{0})(ptrdiff_t(0), ptrdiff_t(0)))>,
@@ -1528,7 +1527,7 @@ inline auto printMatrix(std::ostream &os, PtrMatrix<T> A) -> std::ostream & {
     if (i) os << "  ";
     else os << "\n[ ";
     for (ptrdiff_t j = 0; j < N; j++) {
-      auto Aij = A(i, j);
+      T Aij = A(i, j);
       for (U k = 0; k < U(maxDigits[j]) - countDigits(Aij); k++) os << " ";
       os << Aij;
       if (j != ptrdiff_t(N) - 1) os << " ";

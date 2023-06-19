@@ -13,9 +13,6 @@
 
 namespace poly::math {
 
-template <typename T>
-concept Scalar = std::integral<T> || std::floating_point<T>;
-
 template <typename T> class SmallSparseMatrix;
 template <class T, class S, class P> class ArrayOps {
   [[gnu::returns_nonnull]] constexpr auto data_() -> T * {

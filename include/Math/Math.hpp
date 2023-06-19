@@ -79,7 +79,7 @@ template <typename Op, AbstractVector A> struct ElementwiseUnaryOp<Op, A> {
   using value_type = typename A::value_type;
   [[no_unique_address]] Op op;
   [[no_unique_address]] A a;
-  constexpr auto operator[](ptrdiff_t i) const { return op(a[i]); }
+  constexpr auto operator[](auto i) const { return op(a[i]); }
 
   [[nodiscard]] constexpr auto size() const { return a.size(); }
   [[nodiscard]] constexpr auto view() const { return *this; };
@@ -93,13 +93,21 @@ constexpr auto get(const AbstractMatrix auto &A, ptrdiff_t i, ptrdiff_t j) {
 }
 // unroll index
 template <ptrdiff_t W, ptrdiff_t N, typename P>
+constexpr auto get(const Scalar auto &A, simd::Unroll<W, N, P>) {
+  return A;
+}
+template <ptrdiff_t W, ptrdiff_t N, typename P>
 constexpr auto get(const AbstractVector auto &A, simd::Unroll<W, N, P> i) {
-  A[i];
+  return A[i];
 }
 // tile index
 template <ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P>
+constexpr auto get(const Scalar auto &A, simd::Tile<W, M, N, P>) {
+  return A;
+}
+template <ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P>
 constexpr auto get(const AbstractMatrix auto &A, simd::Tile<W, M, N, P> i) {
-  A[i];
+  return A[i];
 }
 
 constexpr auto size(const std::integral auto) -> ptrdiff_t { return 1; }
@@ -264,6 +272,17 @@ template <AbstractMatrix A, AbstractVector B> struct MatVecMul {
     static_assert(AbstractVector<B>, "B should be an AbstractVector");
     value_type s = 0;
     for (ptrdiff_t k = 0; k < a.numCol(); ++k) s += a(i, k) * b[k];
+    return s;
+  }
+  template <ptrdiff_t W, ptrdiff_t N, typename P>
+  constexpr auto operator[](simd::Unroll<W, N, P> i) const
+    -> Unrolled<value_type, W, N> {
+    // this is really quite inefficient compared to how
+    // vector.transpose() * matrix
+    // would be, but v'*m isn't supported yet.
+    static_assert(AbstractVector<B>, "B should be an AbstractVector");
+    Unrolled<value_type, W, N> s{};
+    for (ptrdiff_t k = 0; k < a.numCol(); ++k) s += a(_, k)[i] * b[k];
     return s;
   }
   [[nodiscard]] constexpr auto size() const -> ptrdiff_t {
