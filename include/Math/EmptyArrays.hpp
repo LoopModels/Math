@@ -20,7 +20,6 @@ template <typename T> struct EmptyMatrix {
   static constexpr auto size() -> CartesianIndex<Row, Col> {
     return {Row{0}, Col{0}};
   }
-  static constexpr auto view() -> EmptyMatrix<T> { return EmptyMatrix<T>{}; }
   static constexpr auto dim() -> SquareDims { return SquareDims{unsigned(0)}; }
 };
 

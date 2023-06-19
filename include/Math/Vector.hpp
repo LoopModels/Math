@@ -7,15 +7,17 @@
 
 namespace poly::math {
 template <typename T>
-concept AbstractVector = utils::HasEltype<T> && requires(T t, ptrdiff_t i) {
-  { t[i] } -> std::convertible_to<utils::eltype_t<T>>;
-  { t.size() } -> std::convertible_to<ptrdiff_t>;
-  { t.view() };
-  // {
-  //     std::remove_reference_t<T>::canResize
-  //     } -> std::same_as<const bool &>;
-  // {t.extendOrAssertSize(i)};
-};
+concept AbstractVector =
+  utils::HasEltype<T> && Scalar<utils::eltype_t<T>> &&
+  !std::same_as<T, std::string> && !std::same_as<T, std::string_view> &&
+  requires(T t, ptrdiff_t i) {
+    { t[i] } -> std::convertible_to<utils::eltype_t<T>>;
+    { t.size() } -> std::convertible_to<ptrdiff_t>;
+    // {
+    //     std::remove_reference_t<T>::canResize
+    //     } -> std::same_as<const bool &>;
+    // {t.extendOrAssertSize(i)};
+  };
 
 // This didn't work: #include "Math/Vector.hpp" NOLINT(unused-includes)
 // so I moved some code from "Math/Array.hpp" here instead.
@@ -35,6 +37,7 @@ static_assert(!SizeMultiple8<uint32_t>);
 static_assert(SizeMultiple8<uint64_t>);
 static_assert(std::is_same_v<default_capacity_type_t<uint32_t>, uint32_t>);
 static_assert(std::is_same_v<default_capacity_type_t<uint64_t>, uint64_t>);
+static_assert(!AbstractVector<std::string_view>);
 
 template <class T> consteval auto PreAllocStorage() -> size_t {
   constexpr ptrdiff_t totalBytes = 128;

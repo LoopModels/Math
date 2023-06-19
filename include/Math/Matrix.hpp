@@ -9,7 +9,7 @@
 
 namespace poly::math {
 template <typename T>
-concept AbstractMatrixCore = utils::HasEltype<T> && requires(T t, ptrdiff_t i) {
+concept AbstractMatrix = utils::HasEltype<T> && requires(T t, ptrdiff_t i) {
   { t(i, i) } -> std::convertible_to<utils::eltype_t<T>>;
   { t.numRow() } -> SameOrBroadcast<Row>;
   { t.numCol() } -> SameOrBroadcast<Col>;
@@ -20,10 +20,7 @@ concept AbstractMatrixCore = utils::HasEltype<T> && requires(T t, ptrdiff_t i) {
   //     } -> std::same_as<const bool &>;
   // {t.extendOrAssertSize(i, i)};
 };
-template <typename T>
-concept AbstractMatrix = AbstractMatrixCore<T> && requires(T t, ptrdiff_t i) {
-  { t.view() } -> AbstractMatrixCore;
-};
+
 template <typename T>
 concept HasDataPtr = requires(T t) {
   { t.data() } -> std::same_as<utils::eltype_t<T> *>;
@@ -52,7 +49,6 @@ template <typename A> struct Transpose {
   [[nodiscard]] constexpr auto numCol() const -> Col {
     return Col{ptrdiff_t{a.numRow()}};
   }
-  [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
   [[nodiscard]] constexpr auto size() const -> CartesianIndex<Row, Col> {
     return {numRow(), numCol()};
   }

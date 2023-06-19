@@ -35,7 +35,6 @@ public:
   [[nodiscard]] constexpr auto dim() const -> DenseDims {
     return {numRow(), numCol()};
   }
-  // [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
   constexpr SmallSparseMatrix(Row numRows, Col numCols)
     : rows(unsigned(numRows), 0), col{numCols} {
     invariant(ptrdiff_t(col) <= maxElemPerRow);

@@ -5,6 +5,16 @@
 namespace poly {
 namespace math {
 struct Rational;
+
+template <typename T>
+concept PrimitiveScalar = std::integral<T> || std::floating_point<T>;
+template <typename T>
+concept DefinesIsScalar = requires(T) {
+  { std::remove_reference_t<T>::is_scalar };
+};
+template <typename T>
+concept Scalar = PrimitiveScalar<T> || DefinesIsScalar<T>;
+
 } // namespace math
 namespace utils {
 

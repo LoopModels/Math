@@ -182,10 +182,6 @@ template <class T, class S> struct Array {
         if (r != c && (*this)(r, c) != 0) return false;
     return true;
   }
-  [[nodiscard]] constexpr auto view() const noexcept -> Array<T, S> {
-    invariant(ptr != nullptr);
-    return Array<T, S>{ptr, this->sz};
-  }
 #ifndef NDEBUG
   constexpr void extendOrAssertSize(Row MM, Col NN) const {
     ASSERT((MM == numRow() && NN == numCol()));

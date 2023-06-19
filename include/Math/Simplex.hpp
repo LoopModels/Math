@@ -337,8 +337,6 @@ public:
     [[nodiscard]] constexpr auto size() const -> ptrdiff_t {
       return numVars - skippedVars;
     }
-    [[nodiscard]] constexpr auto view() const -> Solution { return *this; };
-
     [[nodiscard]] constexpr auto denomLCM() const -> int64_t {
       int64_t l = 1;
       for (auto r : *this) l = lcm(l, r.denominator);

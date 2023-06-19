@@ -3,6 +3,7 @@
 #include "Math/AxisTypes.hpp"
 #include "Math/Indexing.hpp"
 #include "Math/MatrixDimensions.hpp"
+#include "Utilities/TypePromotion.hpp"
 #include <array>
 #include <concepts>
 #include <cstddef>
@@ -13,9 +14,6 @@
 #include <type_traits>
 
 namespace poly::math {
-
-template <typename T>
-concept PrimitiveScalar = std::integral<T> || std::floating_point<T>;
 namespace simd {
 
 template <ptrdiff_t W, ptrdiff_t N, typename P> struct Unroll {
