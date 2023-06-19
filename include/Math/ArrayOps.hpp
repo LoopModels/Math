@@ -7,6 +7,7 @@
 #include "Math/UniformScaling.hpp"
 #include "Math/Vector.hpp"
 #include <algorithm>
+#include <bit>
 #include <cstddef>
 #include <eve/module/core.hpp>
 #include <type_traits>
@@ -53,33 +54,42 @@ public:
   }
   [[gnu::flatten]] constexpr auto operator<<(const SmallSparseMatrix<T> &B)
     -> P &;
+  static constexpr auto vecWidth() -> ptrdiff_t {
+    constexpr ptrdiff_t W = eve::wide<T>::size();
+    if constexpr (StaticInt<S>) {
+      if constexpr (S::value < W) {
+        constexpr size_t L = S::value;
+        return 1 << (8 * sizeof(size_t) - std::countl_zero(L - 1));
+      }
+    }
+    return W;
+  }
   [[gnu::flatten]] constexpr auto operator<<(const AbstractVector auto &B)
     -> P & {
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr();
       invariant(M, B.size());
       for (ptrdiff_t i = 0; i < M; ++i) static_cast<P *>(this)(i, _) << B[i];
-    } else if constexpr (Scalar<T>) {
-      constexpr ptrdiff_t W = eve::wide<T>::size();
-      ptrdiff_t L = size_();
-      invariant(L, ptrdiff_t(B.size()));
-      ptrdiff_t i = 0, n = W;
-      auto &A{getThis()};
-      for (; n <= L; i = n, n += W) {
-        auto j = simd::unroll<W, 1>(i);
-        A[j] = B[j];
-      }
-      if (i < L) {
-        auto j = simd::unroll<W, 1>(i, L);
-        A[j] = B[j];
-      }
-      // if constexpr (StaticInt<S>){
-      // } else {
-      // }
     } else {
-      ptrdiff_t L = size_();
-      invariant(L, ptrdiff_t(B.size()));
-      for (ptrdiff_t i = 0; i < L; ++i) index(i) = B[i];
+      constexpr ptrdiff_t W = vecWidth();
+      if constexpr (Scalar<T> && (W > 1)) {
+        ptrdiff_t L = size_();
+        invariant(L, ptrdiff_t(B.size()));
+        ptrdiff_t i = 0, n = W;
+        auto &A{getThis()};
+        for (; n <= L; i = n, n += W) {
+          auto j = simd::unroll<W, 1>(i);
+          A[j] = B[j];
+        }
+        if (i < L) {
+          auto j = simd::unroll<W, 1>(i, L);
+          A[j] = B[j];
+        }
+      } else {
+        ptrdiff_t L = size_();
+        invariant(L, ptrdiff_t(B.size()));
+        for (ptrdiff_t i = 0; i < L; ++i) index(i) = B[i];
+      }
     }
     return *static_cast<P *>(this);
   }

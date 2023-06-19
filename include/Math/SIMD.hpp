@@ -13,8 +13,15 @@
 #include <type_traits>
 
 namespace poly::math {
+
 template <typename T>
-concept Scalar = std::integral<T> || std::floating_point<T>;
+concept DefinesIsScalar = requires(T) {
+  { std::remove_reference_t<T>::is_scalar };
+};
+
+template <typename T>
+concept Scalar =
+  std::integral<T> || std::floating_point<T> || DefinesIsScalar<T>;
 namespace simd {
 
 template <ptrdiff_t W, ptrdiff_t N, typename P> struct Unroll {
