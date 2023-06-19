@@ -169,7 +169,7 @@ template <class Op, class A, class B> struct ElementwiseMatrixBinaryOp {
   [[no_unique_address]] Op op;
   [[no_unique_address]] const A &a;
   [[no_unique_address]] const B &b;
-  constexpr ElementwiseMatrixBinaryOp(Op _op, A _a, B _b)
+  constexpr ElementwiseMatrixBinaryOp(Op _op, const A &_a, const B &_b)
     : op(_op), a(_a), b(_b) {}
   constexpr auto operator()(auto i, auto j) const {
     return op(get(a, i, j), get(b, i, j));
@@ -473,70 +473,70 @@ constexpr auto operator*(const AbstractVector auto &a,
 }
 
 template <AbstractVector M, utils::ElementOf<M> S>
-constexpr auto operator+(S a, const M &b) {
+constexpr auto operator+(const S &a, const M &b) {
   return ElementwiseVectorBinaryOp(Add{}, a, b);
 }
 template <AbstractVector M, utils::ElementOf<M> S>
-constexpr auto operator+(const M &b, S a) {
+constexpr auto operator+(const M &b, const S &a) {
   return ElementwiseVectorBinaryOp(Add{}, b, a);
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
-constexpr auto operator+(S a, const M &b) {
+constexpr auto operator+(const S &a, const M &b) {
   return ElementwiseMatrixBinaryOp(Add{}, a, b);
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
-constexpr auto operator+(const M &b, S a) {
+constexpr auto operator+(const M &b, const S &a) {
   return ElementwiseMatrixBinaryOp(Add{}, b, a);
 }
 
 template <AbstractVector M, utils::ElementOf<M> S>
-constexpr auto operator-(S a, const M &b) {
+constexpr auto operator-(const S &a, const M &b) {
   return ElementwiseVectorBinaryOp(Sub{}, a, b);
 }
 template <AbstractVector M, utils::ElementOf<M> S>
-constexpr auto operator-(const M &b, S a) {
+constexpr auto operator-(const M &b, const S &a) {
   return ElementwiseVectorBinaryOp(Sub{}, b, a);
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
-constexpr auto operator-(S a, const M &b) {
+constexpr auto operator-(const S &a, const M &b) {
   return ElementwiseMatrixBinaryOp(Sub{}, a, b);
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
-constexpr auto operator-(const M &b, S a) {
+constexpr auto operator-(const M &b, const S &a) {
   return ElementwiseMatrixBinaryOp(Sub{}, b, a);
 }
 
 template <AbstractVector M, utils::ElementOf<M> S>
-constexpr auto operator*(S a, const M &b) {
+constexpr auto operator*(const S &a, const M &b) {
   return ElementwiseVectorBinaryOp(Mul{}, a, b);
 }
 template <AbstractVector M, utils::ElementOf<M> S>
-constexpr auto operator*(const M &b, S a) {
+constexpr auto operator*(const M &b, const S &a) {
   return ElementwiseVectorBinaryOp(Mul{}, b, a);
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
-constexpr auto operator*(S a, const M &b) {
+constexpr auto operator*(const S &a, const M &b) {
   return ElementwiseMatrixBinaryOp(Mul{}, a, b);
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
-constexpr auto operator*(const M &b, S a) {
+constexpr auto operator*(const M &b, const S &a) {
   return ElementwiseMatrixBinaryOp(Mul{}, b, a);
 }
 
 template <AbstractVector M, utils::ElementOf<M> S>
-constexpr auto operator/(S a, const M &b) {
+constexpr auto operator/(const S &a, const M &b) {
   return ElementwiseVectorBinaryOp(Div{}, a, b);
 }
 template <AbstractVector M, utils::ElementOf<M> S>
-constexpr auto operator/(const M &b, S a) {
+constexpr auto operator/(const M &b, const S &a) {
   return ElementwiseVectorBinaryOp(Div{}, b, a);
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
-constexpr auto operator/(S a, const M &b) {
+constexpr auto operator/(const S &a, const M &b) {
   return ElementwiseMatrixBinaryOp(Div{}, a, b);
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
-constexpr auto operator/(const M &b, S a) {
+constexpr auto operator/(const M &b, const S &a) {
   return ElementwiseMatrixBinaryOp(Div{}, b, a);
 }
 

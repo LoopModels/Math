@@ -8,9 +8,8 @@
 namespace poly::math {
 template <typename T>
 concept AbstractVector =
-  utils::HasEltype<T> && Scalar<utils::eltype_t<T>> &&
-  !std::same_as<T, std::string> && !std::same_as<T, std::string_view> &&
-  requires(T t, ptrdiff_t i) {
+  utils::HasEltype<T> && !std::same_as<T, std::string> &&
+  !std::same_as<T, std::string_view> && requires(T t, ptrdiff_t i) {
     { t[i] } -> std::convertible_to<utils::eltype_t<T>>;
     { t.size() } -> std::convertible_to<ptrdiff_t>;
     // {

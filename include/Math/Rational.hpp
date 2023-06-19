@@ -17,6 +17,7 @@ template <is_int_v<64> T> constexpr auto widen(T x) -> __int128_t { return x; }
 template <is_int_v<32> T> constexpr auto splitInt(T x) -> int64_t { return x; }
 
 struct Rational {
+  static constexpr bool is_scalar = true;
   [[no_unique_address]] int64_t numerator{0};
   [[no_unique_address]] int64_t denominator{1};
 
