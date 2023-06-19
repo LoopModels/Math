@@ -147,6 +147,19 @@ template <Scalar T, ptrdiff_t W, ptrdiff_t N> struct Unrolled {
     for (ptrdiff_t i = 0; i < N; ++i) data[i] *= b;
     return *this;
   }
+  template <std::floating_point U>
+  constexpr auto operator/=(const Unrolled<U, W, N> &b) {
+    static_assert(std::floating_point<T>);
+#pragma GCC unroll 16
+    for (ptrdiff_t i = 0; i < N; ++i) data[i] /= b[i];
+    return *this;
+  }
+  constexpr auto operator/=(std::floating_point auto b) {
+    static_assert(std::floating_point<T>);
+#pragma GCC unroll 16
+    for (ptrdiff_t i = 0; i < N; ++i) data[i] /= b;
+    return *this;
+  }
 };
 template <Scalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N> struct Tiled {
   std::array<std::array<eve::wide<T, eve::fixed<W>>, N>, M> data;
@@ -199,6 +212,23 @@ template <Scalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N> struct Tiled {
     for (ptrdiff_t i = 0; i < M; ++i)
 #pragma GCC unroll 16
       for (ptrdiff_t j = 0; j < N; ++j) data[i][j] *= b;
+    return *this;
+  }
+  template <std::floating_point U>
+  constexpr auto operator/=(const Tiled<U, W, M, N> &b) {
+    static_assert(std::floating_point<T>);
+#pragma GCC unroll 16
+    for (ptrdiff_t i = 0; i < M; ++i)
+#pragma GCC unroll 16
+      for (ptrdiff_t j = 0; j < N; ++j) data[i][j] /= b[i][j];
+    return *this;
+  }
+  constexpr auto operator/=(std::floating_point auto b) {
+    static_assert(std::floating_point<T>);
+#pragma GCC unroll 16
+    for (ptrdiff_t i = 0; i < M; ++i)
+#pragma GCC unroll 16
+      for (ptrdiff_t j = 0; j < N; ++j) data[i][j] /= b;
     return *this;
   }
 };
@@ -366,6 +396,62 @@ constexpr auto operator*(Scalar auto a, const Tiled<T, W, M, N> &b) {
   for (ptrdiff_t i = 0; i < M; ++i)
 #pragma GCC unroll 16
     for (ptrdiff_t j = 0; j < N; ++j) ret[i][j] = a * b[i][j];
+  return ret;
+}
+template <std::floating_point T, std::floating_point U, ptrdiff_t W,
+          ptrdiff_t N>
+constexpr auto operator/(const Unrolled<T, W, N> &a,
+                         const Unrolled<U, W, N> &b) {
+  Unrolled<std::common_type_t<T, U>, W, N> ret;
+#pragma GCC unroll 16
+  for (ptrdiff_t i = 0; i < N; ++i) ret[i] = a[i] / b[i];
+  return ret;
+}
+template <std::floating_point T, ptrdiff_t W, ptrdiff_t N>
+constexpr auto operator/(const Unrolled<T, W, N> &a,
+                         std::floating_point auto b) {
+  Unrolled<T, W, N> ret;
+#pragma GCC unroll 16
+  for (ptrdiff_t i = 0; i < N; ++i) ret[i] = a[i] / b;
+  return ret;
+}
+template <std::floating_point T, ptrdiff_t W, ptrdiff_t N>
+constexpr auto operator/(std::floating_point auto a,
+                         const Unrolled<T, W, N> &b) {
+  Unrolled<T, W, N> ret;
+#pragma GCC unroll 16
+  for (ptrdiff_t i = 0; i < N; ++i) ret[i] = a / b[i];
+  return ret;
+}
+template <std::floating_point T, std::floating_point U, ptrdiff_t W,
+          ptrdiff_t M, ptrdiff_t N>
+constexpr auto operator/(const Tiled<T, W, M, N> &a,
+                         const Tiled<U, W, M, N> &b) {
+  Tiled<std::common_type_t<T, U>, W, M, N> ret;
+#pragma GCC unroll 16
+  for (ptrdiff_t i = 0; i < M; ++i)
+#pragma GCC unroll 16
+    for (ptrdiff_t j = 0; j < N; ++j) ret[i][j] = a[i][j] / b[i][j];
+  return ret;
+}
+template <std::floating_point T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
+constexpr auto operator/(const Tiled<T, W, M, N> &a,
+                         std::floating_point auto b) {
+  Tiled<T, W, M, N> ret;
+#pragma GCC unroll 16
+  for (ptrdiff_t i = 0; i < M; ++i)
+#pragma GCC unroll 16
+    for (ptrdiff_t j = 0; j < N; ++j) ret[i][j] = a[i][j] / b;
+  return ret;
+}
+template <std::floating_point T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
+constexpr auto operator/(std::floating_point auto a,
+                         const Tiled<T, W, M, N> &b) {
+  Tiled<T, W, M, N> ret;
+#pragma GCC unroll 16
+  for (ptrdiff_t i = 0; i < M; ++i)
+#pragma GCC unroll 16
+    for (ptrdiff_t j = 0; j < N; ++j) ret[i][j] = a / b[i][j];
   return ret;
 }
 
