@@ -2,7 +2,11 @@
 #include <concepts>
 #include <type_traits>
 
-namespace poly::utils {
+namespace poly {
+namespace math {
+struct Rational;
+} // namespace math
+namespace utils {
 
 template <typename T>
 concept HasEltype = requires(T) {
@@ -79,17 +83,17 @@ template <typename A, ElementOf<A> B> struct PromoteEltype<A, B> {
 template <typename A, typename B>
 using promote_eltype_t = typename PromoteEltype<A, B>::value_type;
 
-struct Rational;
-template <> struct GetEltype<Rational> {
-  using value_type = Rational;
+template <> struct GetEltype<math::Rational> {
+  using value_type = math::Rational;
 };
-template <> struct PromoteType<Rational, Rational> {
-  using value_type = Rational;
+template <> struct PromoteType<math::Rational, math::Rational> {
+  using value_type = math::Rational;
 };
-template <std::integral I> struct PromoteType<I, Rational> {
-  using value_type = Rational;
+template <std::integral I> struct PromoteType<I, math::Rational> {
+  using value_type = math::Rational;
 };
-template <std::integral I> struct PromoteType<Rational, I> {
-  using value_type = Rational;
+template <std::integral I> struct PromoteType<math::Rational, I> {
+  using value_type = math::Rational;
 };
-} // namespace poly::utils
+} // namespace utils
+} // namespace poly

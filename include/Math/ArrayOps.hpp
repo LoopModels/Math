@@ -13,7 +13,21 @@
 #include <type_traits>
 
 namespace poly::math {
-
+namespace simd {
+template <typename T, typename S>
+inline constexpr auto vecWidth() -> ptrdiff_t {
+  if constexpr (PrimitiveScalar<T>) {
+    constexpr ptrdiff_t W = eve::wide<T>::size();
+    if constexpr (StaticInt<S>) {
+      if constexpr (S::value < W) {
+        constexpr size_t L = S::value;
+        return 1 << (8 * sizeof(size_t) - std::countl_zero(L - 1));
+      }
+    }
+    return W;
+  } else return 1;
+}
+} // namespace simd
 template <typename T> class SmallSparseMatrix;
 template <class T, class S, class P> class ArrayOps {
   [[gnu::returns_nonnull]] constexpr auto data_() -> T * {
@@ -54,16 +68,6 @@ public:
   }
   [[gnu::flatten]] constexpr auto operator<<(const SmallSparseMatrix<T> &B)
     -> P &;
-  static constexpr auto vecWidth() -> ptrdiff_t {
-    constexpr ptrdiff_t W = eve::wide<T>::size();
-    if constexpr (StaticInt<S>) {
-      if constexpr (S::value < W) {
-        constexpr size_t L = S::value;
-        return 1 << (8 * sizeof(size_t) - std::countl_zero(L - 1));
-      }
-    }
-    return W;
-  }
   [[gnu::flatten]] constexpr auto operator<<(const AbstractVector auto &B)
     -> P & {
     if constexpr (MatrixDimension<S>) {
@@ -71,8 +75,8 @@ public:
       invariant(M, B.size());
       for (ptrdiff_t i = 0; i < M; ++i) static_cast<P *>(this)(i, _) << B[i];
     } else {
-      constexpr ptrdiff_t W = vecWidth();
-      if constexpr (Scalar<T> && (W > 1)) {
+      constexpr ptrdiff_t W = simd::vecWidth<T, S>();
+      if constexpr (PrimitiveScalar<T> && (W > 1)) {
         ptrdiff_t L = size_();
         invariant(L, ptrdiff_t(B.size()));
         ptrdiff_t i = 0, n = W;

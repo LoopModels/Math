@@ -3,7 +3,7 @@
 #include "Math/Constructors.hpp"
 #include "Math/Math.hpp"
 #include "Math/MatrixDimensions.hpp"
-#include "Rational.hpp"
+#include "Math/Rational.hpp"
 #include "Utilities/Invariant.hpp"
 #include <concepts>
 namespace poly::math::LU {
@@ -270,5 +270,7 @@ constexpr void rdiv(MutSquarePtrMatrix<T> A, MutPtrMatrix<T> B) {
   auto ipiv{factImpl(A)};
   rdiv(A, ipiv, B);
 }
+static_assert(!PrimitiveScalar<Rational>);
+static_assert(simd::vecWidth<Rational, unsigned>() == 1);
 
 } // namespace poly::math::LU

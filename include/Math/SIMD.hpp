@@ -15,13 +15,7 @@
 namespace poly::math {
 
 template <typename T>
-concept DefinesIsScalar = requires(T) {
-  { std::remove_reference_t<T>::is_scalar };
-};
-
-template <typename T>
-concept Scalar =
-  std::integral<T> || std::floating_point<T> || DefinesIsScalar<T>;
+concept PrimitiveScalar = std::integral<T> || std::floating_point<T>;
 namespace simd {
 
 template <ptrdiff_t W, ptrdiff_t N, typename P> struct Unroll {
@@ -114,7 +108,7 @@ template <class T> constexpr auto ref(const T *p, ptrdiff_t i) -> const T & {
   return p[i];
 }
 
-template <Scalar T, ptrdiff_t W, ptrdiff_t N> struct Unrolled {
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N> struct Unrolled {
   std::array<eve::wide<T, eve::fixed<W>>, N> data;
   constexpr auto operator[](ptrdiff_t i) -> eve::wide<T, eve::fixed<W>> & {
     return data[i];
@@ -124,32 +118,35 @@ template <Scalar T, ptrdiff_t W, ptrdiff_t N> struct Unrolled {
     return data[i];
   }
 
-  template <Scalar U> constexpr auto operator+=(const Unrolled<U, W, N> &b) {
+  template <PrimitiveScalar U>
+  constexpr auto operator+=(const Unrolled<U, W, N> &b) {
 #pragma GCC unroll 16
     for (ptrdiff_t i = 0; i < N; ++i) data[i] += b[i];
     return *this;
   }
-  constexpr auto operator+=(Scalar auto b) {
+  constexpr auto operator+=(PrimitiveScalar auto b) {
 #pragma GCC unroll 16
     for (ptrdiff_t i = 0; i < N; ++i) data[i] += b;
     return *this;
   }
-  template <Scalar U> constexpr auto operator-=(const Unrolled<U, W, N> &b) {
+  template <PrimitiveScalar U>
+  constexpr auto operator-=(const Unrolled<U, W, N> &b) {
 #pragma GCC unroll 16
     for (ptrdiff_t i = 0; i < N; ++i) data[i] -= b[i];
     return *this;
   }
-  constexpr auto operator-=(Scalar auto b) {
+  constexpr auto operator-=(PrimitiveScalar auto b) {
 #pragma GCC unroll 16
     for (ptrdiff_t i = 0; i < N; ++i) data[i] -= b;
     return *this;
   }
-  template <Scalar U> constexpr auto operator*=(const Unrolled<U, W, N> &b) {
+  template <PrimitiveScalar U>
+  constexpr auto operator*=(const Unrolled<U, W, N> &b) {
 #pragma GCC unroll 16
     for (ptrdiff_t i = 0; i < N; ++i) data[i] *= b[i];
     return *this;
   }
-  constexpr auto operator*=(Scalar auto b) {
+  constexpr auto operator*=(PrimitiveScalar auto b) {
 #pragma GCC unroll 16
     for (ptrdiff_t i = 0; i < N; ++i) data[i] *= b;
     return *this;
@@ -168,7 +165,8 @@ template <Scalar T, ptrdiff_t W, ptrdiff_t N> struct Unrolled {
     return *this;
   }
 };
-template <Scalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N> struct Tiled {
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
+struct Tiled {
   std::array<std::array<eve::wide<T, eve::fixed<W>>, N>, M> data;
   constexpr auto operator[](ptrdiff_t i)
     -> std::array<eve::wide<T, eve::fixed<W>>, N> & {
@@ -179,42 +177,45 @@ template <Scalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N> struct Tiled {
     return data[i];
   }
 
-  template <Scalar U> constexpr auto operator+=(const Tiled<U, W, M, N> &b) {
+  template <PrimitiveScalar U>
+  constexpr auto operator+=(const Tiled<U, W, M, N> &b) {
 #pragma GCC unroll 16
     for (ptrdiff_t i = 0; i < M; ++i)
 #pragma GCC unroll 16
       for (ptrdiff_t j = 0; j < N; ++j) data[i][j] += b[i][j];
     return *this;
   }
-  constexpr auto operator+=(Scalar auto b) {
+  constexpr auto operator+=(PrimitiveScalar auto b) {
 #pragma GCC unroll 16
     for (ptrdiff_t i = 0; i < M; ++i)
 #pragma GCC unroll 16
       for (ptrdiff_t j = 0; j < N; ++j) data[i][j] += b;
     return *this;
   }
-  template <Scalar U> constexpr auto operator-=(const Tiled<U, W, M, N> &b) {
+  template <PrimitiveScalar U>
+  constexpr auto operator-=(const Tiled<U, W, M, N> &b) {
 #pragma GCC unroll 16
     for (ptrdiff_t i = 0; i < M; ++i)
 #pragma GCC unroll 16
       for (ptrdiff_t j = 0; j < N; ++j) data[i][j] -= b[i][j];
     return *this;
   }
-  constexpr auto operator-=(Scalar auto b) {
+  constexpr auto operator-=(PrimitiveScalar auto b) {
 #pragma GCC unroll 16
     for (ptrdiff_t i = 0; i < M; ++i)
 #pragma GCC unroll 16
       for (ptrdiff_t j = 0; j < N; ++j) data[i][j] -= b;
     return *this;
   }
-  template <Scalar U> constexpr auto operator*=(const Tiled<U, W, M, N> &b) {
+  template <PrimitiveScalar U>
+  constexpr auto operator*=(const Tiled<U, W, M, N> &b) {
 #pragma GCC unroll 16
     for (ptrdiff_t i = 0; i < M; ++i)
 #pragma GCC unroll 16
       for (ptrdiff_t j = 0; j < N; ++j) data[i][j] *= b[i][j];
     return *this;
   }
-  constexpr auto operator*=(Scalar auto b) {
+  constexpr auto operator*=(PrimitiveScalar auto b) {
 #pragma GCC unroll 16
     for (ptrdiff_t i = 0; i < M; ++i)
 #pragma GCC unroll 16
@@ -239,7 +240,7 @@ template <Scalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N> struct Tiled {
     return *this;
   }
 };
-template <Scalar T, Scalar U, ptrdiff_t W, ptrdiff_t N>
+template <PrimitiveScalar T, PrimitiveScalar U, ptrdiff_t W, ptrdiff_t N>
 constexpr auto operator+(const Unrolled<T, W, N> &a,
                          const Unrolled<U, W, N> &b) {
   Unrolled<std::common_type_t<T, U>, W, N> ret;
@@ -247,21 +248,22 @@ constexpr auto operator+(const Unrolled<T, W, N> &a,
   for (ptrdiff_t i = 0; i < N; ++i) ret[i] = a[i] + b[i];
   return ret;
 }
-template <Scalar T, ptrdiff_t W, ptrdiff_t N>
-constexpr auto operator+(const Unrolled<T, W, N> &a, Scalar auto b) {
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N>
+constexpr auto operator+(const Unrolled<T, W, N> &a, PrimitiveScalar auto b) {
   Unrolled<T, W, N> ret;
 #pragma GCC unroll 16
   for (ptrdiff_t i = 0; i < N; ++i) ret[i] = a[i] + b;
   return ret;
 }
-template <Scalar T, ptrdiff_t W, ptrdiff_t N>
-constexpr auto operator+(Scalar auto a, const Unrolled<T, W, N> &b) {
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N>
+constexpr auto operator+(PrimitiveScalar auto a, const Unrolled<T, W, N> &b) {
   Unrolled<T, W, N> ret;
 #pragma GCC unroll 16
   for (ptrdiff_t i = 0; i < N; ++i) ret[i] = a + b[i];
   return ret;
 }
-template <Scalar T, Scalar U, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
+template <PrimitiveScalar T, PrimitiveScalar U, ptrdiff_t W, ptrdiff_t M,
+          ptrdiff_t N>
 constexpr auto operator+(const Tiled<T, W, M, N> &a,
                          const Tiled<U, W, M, N> &b) {
   Tiled<std::common_type_t<T, U>, W, M, N> ret;
@@ -271,8 +273,8 @@ constexpr auto operator+(const Tiled<T, W, M, N> &a,
     for (ptrdiff_t j = 0; j < N; ++j) ret[i][j] = a[i][j] + b[i][j];
   return ret;
 }
-template <Scalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
-constexpr auto operator+(const Tiled<T, W, M, N> &a, Scalar auto b) {
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
+constexpr auto operator+(const Tiled<T, W, M, N> &a, PrimitiveScalar auto b) {
   Tiled<T, W, M, N> ret;
 #pragma GCC unroll 16
   for (ptrdiff_t i = 0; i < M; ++i)
@@ -280,8 +282,8 @@ constexpr auto operator+(const Tiled<T, W, M, N> &a, Scalar auto b) {
     for (ptrdiff_t j = 0; j < N; ++j) ret[i][j] = a[i][j] + b;
   return ret;
 }
-template <Scalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
-constexpr auto operator+(Scalar auto a, const Tiled<T, W, M, N> &b) {
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
+constexpr auto operator+(PrimitiveScalar auto a, const Tiled<T, W, M, N> &b) {
   Tiled<T, W, M, N> ret;
 #pragma GCC unroll 16
   for (ptrdiff_t i = 0; i < M; ++i)
@@ -289,7 +291,7 @@ constexpr auto operator+(Scalar auto a, const Tiled<T, W, M, N> &b) {
     for (ptrdiff_t j = 0; j < N; ++j) ret[i][j] = a + b[i][j];
   return ret;
 }
-template <Scalar T, Scalar U, ptrdiff_t W, ptrdiff_t N>
+template <PrimitiveScalar T, PrimitiveScalar U, ptrdiff_t W, ptrdiff_t N>
 constexpr auto operator-(const Unrolled<T, W, N> &a,
                          const Unrolled<U, W, N> &b) {
   Unrolled<std::common_type_t<T, U>, W, N> ret;
@@ -297,28 +299,29 @@ constexpr auto operator-(const Unrolled<T, W, N> &a,
   for (ptrdiff_t i = 0; i < N; ++i) ret[i] = a[i] - b[i];
   return ret;
 }
-template <Scalar T, ptrdiff_t W, ptrdiff_t N>
-constexpr auto operator-(const Unrolled<T, W, N> &a, Scalar auto b) {
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N>
+constexpr auto operator-(const Unrolled<T, W, N> &a, PrimitiveScalar auto b) {
   Unrolled<T, W, N> ret;
 #pragma GCC unroll 16
   for (ptrdiff_t i = 0; i < N; ++i) ret[i] = a[i] - b;
   return ret;
 }
-template <Scalar T, ptrdiff_t W, ptrdiff_t N>
-constexpr auto operator-(Scalar auto a, const Unrolled<T, W, N> &b) {
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N>
+constexpr auto operator-(PrimitiveScalar auto a, const Unrolled<T, W, N> &b) {
   Unrolled<T, W, N> ret;
 #pragma GCC unroll 16
   for (ptrdiff_t i = 0; i < N; ++i) ret[i] = a - b[i];
   return ret;
 }
-template <Scalar T, ptrdiff_t W, ptrdiff_t N>
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N>
 constexpr auto operator-(const Unrolled<T, W, N> &b) {
   Unrolled<T, W, N> ret;
 #pragma GCC unroll 16
   for (ptrdiff_t i = 0; i < N; ++i) ret[i] = -b[i];
   return ret;
 }
-template <Scalar T, Scalar U, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
+template <PrimitiveScalar T, PrimitiveScalar U, ptrdiff_t W, ptrdiff_t M,
+          ptrdiff_t N>
 constexpr auto operator-(const Tiled<T, W, M, N> &a,
                          const Tiled<U, W, M, N> &b) {
   Tiled<std::common_type_t<T, U>, W, M, N> ret;
@@ -328,8 +331,8 @@ constexpr auto operator-(const Tiled<T, W, M, N> &a,
     for (ptrdiff_t j = 0; j < N; ++j) ret[i][j] = a[i][j] - b[i][j];
   return ret;
 }
-template <Scalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
-constexpr auto operator-(const Tiled<T, W, M, N> &a, Scalar auto b) {
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
+constexpr auto operator-(const Tiled<T, W, M, N> &a, PrimitiveScalar auto b) {
   Tiled<T, W, M, N> ret;
 #pragma GCC unroll 16
   for (ptrdiff_t i = 0; i < M; ++i)
@@ -337,8 +340,8 @@ constexpr auto operator-(const Tiled<T, W, M, N> &a, Scalar auto b) {
     for (ptrdiff_t j = 0; j < N; ++j) ret[i][j] = a[i][j] - b;
   return ret;
 }
-template <Scalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
-constexpr auto operator-(Scalar auto a, const Tiled<T, W, M, N> &b) {
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
+constexpr auto operator-(PrimitiveScalar auto a, const Tiled<T, W, M, N> &b) {
   Tiled<T, W, M, N> ret;
 #pragma GCC unroll 16
   for (ptrdiff_t i = 0; i < M; ++i)
@@ -346,7 +349,7 @@ constexpr auto operator-(Scalar auto a, const Tiled<T, W, M, N> &b) {
     for (ptrdiff_t j = 0; j < N; ++j) ret[i][j] = a - b[i][j];
   return ret;
 }
-template <Scalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
 constexpr auto operator-(const Tiled<T, W, M, N> &b) {
   Tiled<T, W, M, N> ret;
 #pragma GCC unroll 16
@@ -355,7 +358,7 @@ constexpr auto operator-(const Tiled<T, W, M, N> &b) {
     for (ptrdiff_t j = 0; j < N; ++j) ret[i][j] = -b[i][j];
   return ret;
 }
-template <Scalar T, Scalar U, ptrdiff_t W, ptrdiff_t N>
+template <PrimitiveScalar T, PrimitiveScalar U, ptrdiff_t W, ptrdiff_t N>
 constexpr auto operator*(const Unrolled<T, W, N> &a,
                          const Unrolled<U, W, N> &b) {
   Unrolled<std::common_type_t<T, U>, W, N> ret;
@@ -363,21 +366,22 @@ constexpr auto operator*(const Unrolled<T, W, N> &a,
   for (ptrdiff_t i = 0; i < N; ++i) ret[i] = a[i] * b[i];
   return ret;
 }
-template <Scalar T, ptrdiff_t W, ptrdiff_t N>
-constexpr auto operator*(const Unrolled<T, W, N> &a, Scalar auto b) {
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N>
+constexpr auto operator*(const Unrolled<T, W, N> &a, PrimitiveScalar auto b) {
   Unrolled<T, W, N> ret;
 #pragma GCC unroll 16
   for (ptrdiff_t i = 0; i < N; ++i) ret[i] = a[i] * b;
   return ret;
 }
-template <Scalar T, ptrdiff_t W, ptrdiff_t N>
-constexpr auto operator*(Scalar auto a, const Unrolled<T, W, N> &b) {
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N>
+constexpr auto operator*(PrimitiveScalar auto a, const Unrolled<T, W, N> &b) {
   Unrolled<T, W, N> ret;
 #pragma GCC unroll 16
   for (ptrdiff_t i = 0; i < N; ++i) ret[i] = a * b[i];
   return ret;
 }
-template <Scalar T, Scalar U, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
+template <PrimitiveScalar T, PrimitiveScalar U, ptrdiff_t W, ptrdiff_t M,
+          ptrdiff_t N>
 constexpr auto operator*(const Tiled<T, W, M, N> &a,
                          const Tiled<U, W, M, N> &b) {
   Tiled<std::common_type_t<T, U>, W, M, N> ret;
@@ -387,8 +391,8 @@ constexpr auto operator*(const Tiled<T, W, M, N> &a,
     for (ptrdiff_t j = 0; j < N; ++j) ret[i][j] = a[i][j] * b[i][j];
   return ret;
 }
-template <Scalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
-constexpr auto operator*(const Tiled<T, W, M, N> &a, Scalar auto b) {
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
+constexpr auto operator*(const Tiled<T, W, M, N> &a, PrimitiveScalar auto b) {
   Tiled<T, W, M, N> ret;
 #pragma GCC unroll 16
   for (ptrdiff_t i = 0; i < M; ++i)
@@ -396,8 +400,8 @@ constexpr auto operator*(const Tiled<T, W, M, N> &a, Scalar auto b) {
     for (ptrdiff_t j = 0; j < N; ++j) ret[i][j] = a[i][j] * b;
   return ret;
 }
-template <Scalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
-constexpr auto operator*(Scalar auto a, const Tiled<T, W, M, N> &b) {
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N>
+constexpr auto operator*(PrimitiveScalar auto a, const Tiled<T, W, M, N> &b) {
   Tiled<T, W, M, N> ret;
 #pragma GCC unroll 16
   for (ptrdiff_t i = 0; i < M; ++i)
@@ -462,7 +466,7 @@ constexpr auto operator/(std::floating_point auto a,
   return ret;
 }
 
-template <Scalar T, ptrdiff_t W, ptrdiff_t N, typename P>
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N, typename P>
 constexpr auto ref(const T *p, simd::UnrollOffset<W, N, P> i)
   -> Unrolled<T, W, N> {
   Unrolled<T, W, N> ret;
@@ -479,7 +483,7 @@ constexpr auto ref(const T *p, simd::UnrollOffset<W, N, P> i)
     ret[NN] = eve::load[eve::keep_first(i.p)](p + W * NN, eve::lane<W>);
   return ret;
 }
-template <Scalar T, ptrdiff_t W, ptrdiff_t N, typename P>
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N, typename P>
 constexpr auto ref(const T *p, simd::StridedUnrollOffset<W, N, P> i)
   -> Unrolled<T, W, N> {
   Unrolled<T, W, N> ret;
@@ -498,7 +502,7 @@ constexpr auto ref(const T *p, simd::StridedUnrollOffset<W, N, P> i)
   return ret;
 }
 
-template <Scalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P>
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P>
 constexpr auto ref(const T *p, simd::TileOffset<W, M, N, P> i)
   -> Tiled<T, W, M, N> {
   Tiled<T, W, M, N> ret;
@@ -512,7 +516,8 @@ constexpr auto ref(const T *p, simd::TileOffset<W, M, N, P> i)
 }
 
 namespace simd {
-template <Scalar T, ptrdiff_t W, ptrdiff_t N, typename P> struct UnrollRef {
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N, typename P>
+struct UnrollRef {
   T *p;
   UnrollOffset<W, N, P> i;
   constexpr auto operator=(const Unrolled<T, W, N> &v) -> UnrollRef & {
@@ -529,7 +534,7 @@ template <Scalar T, ptrdiff_t W, ptrdiff_t N, typename P> struct UnrollRef {
     return ref(static_cast<const T *>(p), i);
   }
 };
-template <Scalar T, ptrdiff_t W, ptrdiff_t N, typename P>
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N, typename P>
 struct StridedUnrollRef {
   T *p;
   StridedUnrollOffset<W, N, P> i;
@@ -559,7 +564,7 @@ struct StridedUnrollRef {
     return ref(static_cast<const T *>(p), i);
   }
 };
-template <Scalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P>
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P>
 struct TileRef {
   T *p;
   TileOffset<W, M, N, P> i;
@@ -583,18 +588,18 @@ struct TileRef {
   }
 };
 } // namespace simd
-template <Scalar T, ptrdiff_t W, ptrdiff_t N, typename P>
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N, typename P>
 constexpr auto ref(T *p, simd::UnrollOffset<W, N, P> i)
   -> simd::UnrollRef<T, W, N, P> {
   return {p, i};
 }
-template <Scalar T, ptrdiff_t W, ptrdiff_t N, typename P>
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N, typename P>
 constexpr auto ref(T *p, simd::StridedUnrollOffset<W, N, P> i)
   -> simd::StridedUnrollRef<T, W, N, P> {
   return {p, i};
 }
 
-template <Scalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P>
+template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P>
 constexpr auto ref(const T *p, simd::TileOffset<W, M, N, P> i)
   -> simd::TileRef<T, W, M, N, P> {
   return {p, i};
