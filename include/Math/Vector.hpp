@@ -102,5 +102,9 @@ concept DoCopy = Scalar<std::remove_cvref_t<T>> ||
                   std::is_trivially_copyable_v<std::remove_cvref_t<T>> &&
                   (!StaticallySized<std::remove_cvref_t<T>>)) ||
                  (sizeof(T) <= sizeof(uintptr_t));
+template <typename T>
+concept EagerArray = std::remove_cvref_t<T>::eager;
+template <typename T>
+concept FuseVector = AbstractVector<T> && !EagerArray<T>;
 
 } // namespace poly::math

@@ -75,7 +75,8 @@ public:
       invariant(M, B.size());
       for (ptrdiff_t i = 0; i < M; ++i) static_cast<P *>(this)(i, _) << B[i];
     } else {
-      constexpr ptrdiff_t W = simd::vecWidth<T, S>();
+      // constexpr ptrdiff_t W = simd::vecWidth<T, S>();
+      constexpr ptrdiff_t W = 1;
       if constexpr (PrimitiveScalar<T> && (W > 1)) {
         ptrdiff_t L = size_();
         invariant(L, ptrdiff_t(B.size()));

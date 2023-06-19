@@ -35,6 +35,12 @@ static_assert(DoCopy<PtrVector<int64_t>>);
 static_assert(DoCopy<DensePtrMatrix<int64_t>>);
 static_assert(!DoCopy<DenseMatrix<int64_t>>);
 
+template <typename T>
+concept FuseMatrix = AbstractMatrix<T> && !EagerArray<T>;
+
+static_assert(FuseVector<PtrVector<int64_t>>);
+static_assert(FuseVector<Vector<int64_t>>);
+
 [[gnu::flatten]] constexpr auto operator==(const AbstractMatrix auto &A,
                                            const AbstractMatrix auto &B)
   -> bool {
@@ -83,7 +89,7 @@ ElementwiseUnaryOp(Op, A) -> ElementwiseUnaryOp<Op, std::remove_cvref_t<A>>;
 // scalars broadcast
 constexpr auto get(const Scalar auto &A, ptrdiff_t) { return A; }
 constexpr auto get(const Scalar auto &A, ptrdiff_t, ptrdiff_t) { return A; }
-constexpr auto get(const AbstractVector auto &A, ptrdiff_t i) { return A[i]; }
+constexpr auto get(const FuseVector auto &A, ptrdiff_t i) { return A[i]; }
 constexpr auto get(const AbstractMatrix auto &A, ptrdiff_t i, ptrdiff_t j) {
   return A(i, j);
 }
@@ -93,7 +99,7 @@ constexpr auto get(const PrimitiveScalar auto &A, simd::Unroll<W, N, P>) {
   return A;
 }
 template <ptrdiff_t W, ptrdiff_t N, typename P>
-constexpr auto get(const AbstractVector auto &A, simd::Unroll<W, N, P> i) {
+constexpr auto get(const FuseVector auto &A, simd::Unroll<W, N, P> i) {
   return A[i];
 }
 // tile index
@@ -108,9 +114,7 @@ constexpr auto get(const AbstractMatrix auto &A, simd::Tile<W, M, N, P> i) {
 
 constexpr auto size(const std::integral auto) -> ptrdiff_t { return 1; }
 constexpr auto size(const std::floating_point auto) -> ptrdiff_t { return 1; }
-constexpr auto size(const AbstractVector auto &x) -> ptrdiff_t {
-  return x.size();
-}
+constexpr auto size(const FuseVector auto &x) -> ptrdiff_t { return x.size(); }
 
 static_assert(utils::ElementOf<int, DenseMatrix<int64_t>>);
 static_assert(utils::ElementOf<int64_t, DenseMatrix<int64_t>>);
@@ -147,13 +151,13 @@ template <class Op, class A, class B> struct ElementwiseVectorBinaryOp {
   [[no_unique_address]] B b;
   constexpr auto operator[](auto i) const { return op(get(a, i), get(b, i)); }
   [[nodiscard]] constexpr auto size() const -> ptrdiff_t {
-    if constexpr (AbstractVector<A> && AbstractVector<B>) {
+    if constexpr (FuseVector<A> && FuseVector<B>) {
       const ptrdiff_t N = a.size();
       invariant(N == b.size());
       return N;
-    } else if constexpr (AbstractVector<A>) {
+    } else if constexpr (FuseVector<A>) {
       return a.size();
-    } else { // if constexpr (AbstractVector<B>) {
+    } else { // if constexpr (FuseVector<B>) {
       return b.size();
     }
   }
@@ -254,13 +258,13 @@ template <AbstractMatrix A, AbstractMatrix B> struct MatMatMul {
   [[nodiscard]] constexpr auto transpose() const { return Transpose{*this}; };
 };
 
-template <AbstractMatrix A, AbstractVector B> struct MatVecMul {
+template <AbstractMatrix A, FuseVector B> struct MatVecMul {
   using value_type = utils::promote_eltype_t<A, B>;
   using concrete = is_concrete_t<A, B>;
   [[no_unique_address]] const A &a;
   [[no_unique_address]] const B &b;
   constexpr auto operator[](ptrdiff_t i) const -> value_type {
-    static_assert(AbstractVector<B>, "B should be an AbstractVector");
+    static_assert(FuseVector<B>, "B should be an FuseVector");
     value_type s = 0;
     for (ptrdiff_t k = 0; k < a.numCol(); ++k) s += a(i, k) * b[k];
     return s;
@@ -271,7 +275,7 @@ template <AbstractMatrix A, AbstractVector B> struct MatVecMul {
     // this is really quite inefficient compared to how
     // vector.transpose() * matrix
     // would be, but v'*m isn't supported yet.
-    static_assert(AbstractVector<B>, "B should be an AbstractVector");
+    static_assert(FuseVector<B>, "B should be an FuseVector");
     Unrolled<value_type, W, N> s{};
     for (ptrdiff_t k = 0; k < a.numCol(); ++k) s += a(_, k)[i] * b[k];
     return s;
@@ -294,7 +298,7 @@ template <AbstractMatrix A, AbstractMatrix B>
 MatMatMul(const A &a, const B &b) -> MatMatMul<
   std::conditional_t<DoCopy<A>, std::remove_cvref_t<A>, const A &>,
   std::conditional_t<DoCopy<B>, std::remove_cvref_t<B>, const B &>>;
-template <AbstractMatrix A, AbstractVector B>
+template <AbstractMatrix A, FuseVector B>
 MatVecMul(const A &a, const B &b) -> MatVecMul<
   std::conditional_t<DoCopy<A>, std::remove_cvref_t<A>, const A &>,
   std::conditional_t<DoCopy<B>, std::remove_cvref_t<B>, const B &>>;
@@ -310,8 +314,8 @@ static_assert(std::is_trivially_copyable_v<
               ElementwiseUnaryOp<Sub, StridedVector<int64_t>>>);
 static_assert(Trivial<ElementwiseUnaryOp<Sub, StridedVector<int64_t>>>);
 
-constexpr auto allMatch(const AbstractVector auto &x0,
-                        const AbstractVector auto &x1) -> bool {
+constexpr auto allMatch(const FuseVector auto &x0, const FuseVector auto &x1)
+  -> bool {
   ptrdiff_t N = x0.size();
   if (N != x1.size()) return false;
   for (ptrdiff_t n = 0; n < N; ++n)
@@ -440,7 +444,7 @@ inline auto operator<<(std::ostream &os, const T &A) -> std::ostream & {
   return printMatrix(os, PtrMatrix<typename T::value_type>(B));
 }
 
-constexpr auto operator-(const AbstractVector auto &a) {
+constexpr auto operator-(const FuseVector auto &a) {
   return ElementwiseUnaryOp{Sub{}, a};
 }
 constexpr auto operator-(const AbstractMatrix auto &a) {
@@ -457,20 +461,19 @@ constexpr auto operator*(const AbstractMatrix auto &a,
   // return MatMatMul<decltype(a), decltype(b)>{.a = a, .b = b};
 }
 constexpr auto operator*(const AbstractMatrix auto &a,
-                         const AbstractVector auto &b) {
+                         const FuseVector auto &b) {
   invariant(ptrdiff_t(a.numCol()) == b.size());
   return MatVecMul{a, b};
 }
-constexpr auto operator*(const AbstractVector auto &a,
-                         const AbstractVector auto &b) {
+constexpr auto operator*(const FuseVector auto &a, const FuseVector auto &b) {
   return ElementwiseVectorBinaryOp{Mul{}, a, b};
 }
 
-template <AbstractVector M, utils::ElementOf<M> S>
+template <FuseVector M, utils::ElementOf<M> S>
 constexpr auto operator+(const S &a, const M &b) {
   return ElementwiseVectorBinaryOp{Add{}, a, b};
 }
-template <AbstractVector M, utils::ElementOf<M> S>
+template <FuseVector M, utils::ElementOf<M> S>
 constexpr auto operator+(const M &b, const S &a) {
   return ElementwiseVectorBinaryOp{Add{}, b, a};
 }
@@ -483,11 +486,11 @@ constexpr auto operator+(const M &b, const S &a) {
   return ElementwiseMatrixBinaryOp{Add{}, b, a};
 }
 
-template <AbstractVector M, utils::ElementOf<M> S>
+template <FuseVector M, utils::ElementOf<M> S>
 constexpr auto operator-(const S &a, const M &b) {
   return ElementwiseVectorBinaryOp{Sub{}, a, b};
 }
-template <AbstractVector M, utils::ElementOf<M> S>
+template <FuseVector M, utils::ElementOf<M> S>
 constexpr auto operator-(const M &b, const S &a) {
   return ElementwiseVectorBinaryOp{Sub{}, b, a};
 }
@@ -500,11 +503,11 @@ constexpr auto operator-(const M &b, const S &a) {
   return ElementwiseMatrixBinaryOp{Sub{}, b, a};
 }
 
-template <AbstractVector M, utils::ElementOf<M> S>
+template <FuseVector M, utils::ElementOf<M> S>
 constexpr auto operator*(const S &a, const M &b) {
   return ElementwiseVectorBinaryOp{Mul{}, a, b};
 }
-template <AbstractVector M, utils::ElementOf<M> S>
+template <FuseVector M, utils::ElementOf<M> S>
 constexpr auto operator*(const M &b, const S &a) {
   return ElementwiseVectorBinaryOp{Mul{}, b, a};
 }
@@ -517,11 +520,11 @@ constexpr auto operator*(const M &b, const S &a) {
   return ElementwiseMatrixBinaryOp{Mul{}, b, a};
 }
 
-template <AbstractVector M, utils::ElementOf<M> S>
+template <FuseVector M, utils::ElementOf<M> S>
 constexpr auto operator/(const S &a, const M &b) {
   return ElementwiseVectorBinaryOp{Div{}, a, b};
 }
-template <AbstractVector M, utils::ElementOf<M> S>
+template <FuseVector M, utils::ElementOf<M> S>
 constexpr auto operator/(const M &b, const S &a) {
   return ElementwiseVectorBinaryOp{Div{}, b, a};
 }
@@ -534,16 +537,14 @@ constexpr auto operator/(const M &b, const S &a) {
   return ElementwiseMatrixBinaryOp{Div{}, b, a};
 }
 
-constexpr auto operator+(const AbstractVector auto &a,
-                         const AbstractVector auto &b) {
+constexpr auto operator+(const FuseVector auto &a, const FuseVector auto &b) {
   return ElementwiseVectorBinaryOp{Add{}, a, b};
 }
 constexpr auto operator+(const AbstractMatrix auto &a,
                          const AbstractMatrix auto &b) {
   return ElementwiseMatrixBinaryOp{Add{}, a, b};
 }
-constexpr auto operator-(const AbstractVector auto &a,
-                         const AbstractVector auto &b) {
+constexpr auto operator-(const FuseVector auto &a, const FuseVector auto &b) {
   return ElementwiseVectorBinaryOp{Sub{}, a, b};
 }
 constexpr auto operator-(const AbstractMatrix auto &a,
@@ -551,8 +552,7 @@ constexpr auto operator-(const AbstractMatrix auto &a,
   return ElementwiseMatrixBinaryOp{Sub{}, a, b};
 }
 
-constexpr auto operator/(const AbstractVector auto &a,
-                         const AbstractVector auto &b) {
+constexpr auto operator/(const FuseVector auto &a, const FuseVector auto &b) {
   return ElementwiseVectorBinaryOp{Div{}, a, b};
 }
 
@@ -560,29 +560,27 @@ static_assert(
   AbstractMatrix<ElementwiseMatrixBinaryOp<Mul, PtrMatrix<int64_t>, int>>,
   "ElementwiseBinaryOp isa AbstractMatrix failed");
 
-static_assert(
-  !AbstractVector<MatMatMul<PtrMatrix<int64_t>, PtrMatrix<int64_t>>>,
-  "MatMul should not be an AbstractVector!");
+static_assert(!FuseVector<MatMatMul<PtrMatrix<int64_t>, PtrMatrix<int64_t>>>,
+              "MatMul should not be an FuseVector!");
 static_assert(AbstractMatrix<MatMatMul<PtrMatrix<int64_t>, PtrMatrix<int64_t>>>,
               "MatMul is not an AbstractMatrix!");
 static_assert(AbstractMatrix<Transpose<PtrMatrix<int64_t>>>);
 
-template <AbstractVector V>
-constexpr auto operator*(const Transpose<V> &a, const AbstractVector auto &b) {
+template <FuseVector V>
+constexpr auto operator*(const Transpose<V> &a, const FuseVector auto &b) {
   typename V::value_type s = 0;
   for (ptrdiff_t i = 0; i < b.size(); ++i) s += a.a(i) * b(i);
   return s;
 }
 
+static_assert(FuseVector<decltype(-std::declval<StridedVector<int64_t>>())>);
 static_assert(
-  AbstractVector<decltype(-std::declval<StridedVector<int64_t>>())>);
-static_assert(
-  AbstractVector<decltype(-std::declval<StridedVector<int64_t>>() * 0)>);
+  FuseVector<decltype(-std::declval<StridedVector<int64_t>>() * 0)>);
 // static_assert(std::ranges::range<StridedVector<int64_t>>);
 
-static_assert(AbstractVector<Vector<int64_t>>);
-static_assert(AbstractVector<const Vector<int64_t>>);
-static_assert(AbstractVector<Vector<int64_t> &>);
+static_assert(FuseVector<Vector<int64_t>>);
+static_assert(FuseVector<const Vector<int64_t>>);
+static_assert(FuseVector<Vector<int64_t> &>);
 static_assert(AbstractMatrix<IntMatrix>);
 static_assert(AbstractMatrix<IntMatrix &>);
 
@@ -615,9 +613,9 @@ template <typename T, typename I> struct SliceView {
   [[nodiscard]] constexpr auto size() const -> ptrdiff_t { return i.size(); }
 };
 
-static_assert(AbstractVector<SliceView<int64_t, unsigned>>);
+static_assert(FuseVector<SliceView<int64_t, unsigned>>);
 
-template <AbstractVector B> constexpr auto norm2(const B &A) {
+template <FuseVector B> constexpr auto norm2(const B &A) {
   using T = typename B::value_type;
   T s = 0;
   for (ptrdiff_t j = 0; j < A.numCol(); ++j) s += A(j) * A(j);

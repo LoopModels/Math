@@ -1,5 +1,9 @@
 #pragma once
 #include "Math/Array.hpp"
+#include "Math/ArrayOps.hpp"
+#include "Math/SIMD.hpp"
+#include "Math/Vector.hpp"
+#include <cstddef>
 #include <utility>
 
 namespace poly::math {
@@ -189,10 +193,85 @@ public:
   }
 };
 
+constexpr auto cld(ptrdiff_t x, ptrdiff_t y) -> ptrdiff_t {
+  return (x + y - 1) / y;
+}
+
+template <PrimitiveScalar T, ptrdiff_t N>
+class StaticArray<T, std::integral_constant<ptrdiff_t, N>>
+  : public Unrolled<
+      T, simd::vecWidth<T, std::integral_constant<ptrdiff_t, N>>(),
+      cld(N, simd::vecWidth<T, std::integral_constant<ptrdiff_t, N>>())> {
+  static constexpr ptrdiff_t W =
+    simd::vecWidth<T, std::integral_constant<ptrdiff_t, N>>();
+  static constexpr ptrdiff_t NV = cld(N, W);
+  using Base = Unrolled<T, W, NV>;
+
+public:
+  constexpr StaticArray() = default;
+  constexpr StaticArray(const StaticArray &) = default;
+  constexpr StaticArray(StaticArray &&) noexcept = default;
+  constexpr auto operator=(const StaticArray &) -> StaticArray & = default;
+  constexpr auto operator=(StaticArray &&) noexcept -> StaticArray & = default;
+  constexpr StaticArray(Unrolled<T, W, NV> &&rhs) noexcept : Base(rhs) {}
+
+  struct Reference {
+    StaticArray *d_;
+    ptrdiff_t i_;
+    constexpr operator T() const { return d_->get(i_); }
+    constexpr auto operator=(T v) -> Reference & {
+      d_->set(i_, v);
+      return *this;
+    }
+  };
+  static constexpr bool eager = true;
+  using value_type = T;
+  using reference = Reference;
+  // using const_reference = const T &;
+  // using size_type = unsigned;
+  // using difference_type = int;
+  // using iterator = T *;
+  // using const_iterator = const T *;
+  // using pointer = T *;
+  // using const_pointer = const T *;
+  //       using concrete = std::true_type;
+
+  constexpr auto operator[](ptrdiff_t i) const -> T {
+    return this->data[i / W].get(i % W);
+  }
+  constexpr auto operator[](ptrdiff_t i) -> Reference {
+    return Reference{this, i};
+  }
+  constexpr auto begin() noexcept -> T * {
+    void *p = this->data;
+    return static_cast<T *>(p);
+  }
+  [[nodiscard]] constexpr auto begin() const noexcept -> const T * {
+    const void *p = this->data;
+    return static_cast<const T *>(p);
+  }
+  constexpr auto end() noexcept -> T * { return begin() + N; }
+  [[nodiscard]] constexpr auto end() const noexcept -> const T * {
+    return begin() + N;
+  }
+  [[nodiscard]] constexpr auto size() const noexcept -> ptrdiff_t { return N; }
+  constexpr auto operator<<(const AbstractVector auto &rhs) -> StaticArray & {
+    MutPtrVector<T> result{begin(), N};
+    result << rhs;
+    return *this;
+  }
+  constexpr auto operator<<(const Unrolled<T, W, NV> &rhs) -> StaticArray & {
+    *static_cast<Unrolled<T, W, NV> *>(this) = rhs;
+    return *this;
+  }
+};
 template <class T, ptrdiff_t N>
 using SVector = StaticArray<T, std::integral_constant<ptrdiff_t, N>>;
 
+static_assert(SVector<int64_t, 3>::eager);
+static_assert(EagerArray<SVector<int64_t, 3>>);
 static_assert(AbstractVector<SVector<int64_t, 3>>);
+static_assert(!FuseVector<SVector<int64_t, 3>>);
 
 template <class T, ptrdiff_t N>
 inline constexpr auto len(const SVector<T, N> &) noexcept {
