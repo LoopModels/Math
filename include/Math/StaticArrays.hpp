@@ -196,4 +196,10 @@ template <class T, size_t N>
 using SVector = StaticArray<T, std::integral_constant<ptrdiff_t, N>>;
 
 static_assert(AbstractVector<SVector<int64_t, 3>>);
+
+template <class T, StaticSize S>
+inline constexpr auto view(const StaticArray<T, S> &x) {
+  return x.view();
+}
+
 }; // namespace poly::math

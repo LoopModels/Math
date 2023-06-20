@@ -3,7 +3,7 @@
 #include "Math/Constructors.hpp"
 #include "Math/Math.hpp"
 #include "Math/MatrixDimensions.hpp"
-#include "Rational.hpp"
+#include "Math/Rational.hpp"
 #include "Utilities/Invariant.hpp"
 #include <concepts>
 namespace poly::math::LU {

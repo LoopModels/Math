@@ -120,7 +120,7 @@ template <class T, class S> struct Array {
   // TODO: switch to operator[] when we enable c++23
   // for vectors, we just drop the column, essentially broadcasting
   template <class R, class C>
-  constexpr auto operator()(R r, C c) const noexcept -> decltype(auto) {
+  constexpr auto operator()(R r, C c) const noexcept -> const auto & {
     if constexpr (MatrixDimension<S>)
       return (*this)[CartesianIndex<R, C>{r, c}];
     else return (*this)[ptrdiff_t(r)];
@@ -1350,10 +1350,9 @@ static_assert(!AbstractVector<const PtrMatrix<int64_t>>,
 
 static_assert(AbstractMatrix<PtrMatrix<int64_t>>,
               "PtrMatrix<int64_t> isa AbstractMatrix failed");
-static_assert(
-  std::same_as<std::remove_reference_t<decltype(PtrMatrix<int64_t>(
-                 nullptr, Row{0}, Col{0})(ptrdiff_t(0), ptrdiff_t(0)))>,
-               int64_t>);
+static_assert(std::same_as<decltype(PtrMatrix<int64_t>(nullptr, Row{0}, Col{0})(
+                             ptrdiff_t(0), ptrdiff_t(0))),
+                           const int64_t &>);
 static_assert(
   std::same_as<std::remove_reference_t<decltype(MutPtrMatrix<int64_t>(
                  nullptr, Row{0}, Col{0})(ptrdiff_t(0), ptrdiff_t(0)))>,
