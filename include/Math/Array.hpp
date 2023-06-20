@@ -114,13 +114,14 @@ template <class T, class S> struct Array {
     auto offset = calcOffset(sz, i);
     auto newDim = calcNewDim(sz, i);
     invariant(ptr != nullptr);
-    if constexpr (std::is_same_v<decltype(newDim), Empty>) return ptr[offset];
+    if constexpr (std::is_same_v<decltype(newDim), Empty>)
+      return static_cast<const T *>(ptr)[offset];
     else return Array<T, decltype(newDim)>{ptr + offset, newDim};
   }
   // TODO: switch to operator[] when we enable c++23
   // for vectors, we just drop the column, essentially broadcasting
   template <class R, class C>
-  constexpr auto operator()(R r, C c) const noexcept -> const auto & {
+  constexpr auto operator()(R r, C c) const noexcept -> decltype(auto) {
     if constexpr (MatrixDimension<S>)
       return (*this)[CartesianIndex<R, C>{r, c}];
     else return (*this)[ptrdiff_t(r)];
