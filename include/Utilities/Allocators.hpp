@@ -395,7 +395,7 @@ static_assert(!std::is_trivially_destructible_v<OwningArena<>>);
 // Alloc wrapper people can pass and store by value
 // with a specific value type, so that it can act more like a
 // `std::allocator`.
-template <typename T, size_t SlabSize = 16384, bool BumpUp = false>
+template <typename T, size_t SlabSize = 16384, bool BumpUp = true>
 class WArena {
   using Alloc = Arena<SlabSize, BumpUp>;
   [[no_unique_address]] NotNull<Alloc> A;
@@ -422,6 +422,12 @@ public:
   }
   constexpr void rollback(typename Alloc::CheckPoint p) { A->rollback(p); }
 };
+template <typename T, size_t SlabSize, bool BumpUp>
+constexpr auto wrap(NotNull<Arena<SlabSize, BumpUp>> a)
+  -> WArena<T, SlabSize, BumpUp> {
+  return WArena<T, SlabSize, BumpUp>(a);
+}
+
 static_assert(
   std::same_as<std::allocator_traits<WArena<int64_t *>>::size_type, size_t>);
 static_assert(
