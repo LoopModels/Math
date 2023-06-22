@@ -29,8 +29,8 @@ constexpr auto gcdxScale(int64_t a, int64_t b) -> std::array<int64_t, 4> {
 }
 // zero out below diagonal
 constexpr void zeroSupDiagonal(MutPtrMatrix<int64_t> A,
-                               MutSquarePtrMatrix<int64_t> K, ptrdiff_t i, Row M,
-                               Col N) {
+                               MutSquarePtrMatrix<int64_t> K, ptrdiff_t i,
+                               Row M, Col N) {
   ptrdiff_t minMN = std::min(ptrdiff_t(M), ptrdiff_t(N));
   for (ptrdiff_t j = i + 1; j < M; ++j) {
     int64_t Aii = A(i, i);
@@ -68,8 +68,8 @@ constexpr void zeroSupDiagonal(MutPtrMatrix<int64_t> A,
 // This method is only called by orthogonalize, hence we can assume
 // (Akk == 1) || (Akk == -1)
 constexpr void zeroSubDiagonal(MutPtrMatrix<int64_t> A,
-                               MutSquarePtrMatrix<int64_t> K, ptrdiff_t k, Row M,
-                               Col N) {
+                               MutSquarePtrMatrix<int64_t> K, ptrdiff_t k,
+                               Row M, Col N) {
   int64_t Akk = A(k, k);
   if (Akk == -1) {
     for (ptrdiff_t m = 0; m < N; ++m) A(k, m) *= -1;
@@ -301,7 +301,8 @@ constexpr void reduceColumn(MutPtrMatrix<int64_t> A, Col c, Row r) {
 }
 // treats A as stacked on top of B
 constexpr void reduceColumnStack(MutPtrMatrix<int64_t> A,
-                                 MutPtrMatrix<int64_t> B, ptrdiff_t c, ptrdiff_t r) {
+                                 MutPtrMatrix<int64_t> B, ptrdiff_t c,
+                                 ptrdiff_t r) {
   zeroSupDiagonal(B, c, r);
   reduceSubDiagonalStack(B, A, c, r);
 }
@@ -320,8 +321,8 @@ constexpr void removeZeroRows(MutDensePtrMatrix<int64_t> &A) {
 }
 
 // pass by value, returns number of rows to truncate
-constexpr auto simplifySystemImpl(MutPtrMatrix<int64_t> A, ptrdiff_t colInit = 0)
-  -> Row {
+constexpr auto simplifySystemImpl(MutPtrMatrix<int64_t> A,
+                                  ptrdiff_t colInit = 0) -> Row {
   auto [M, N] = A.size();
   for (ptrdiff_t r = 0, c = colInit; c < N && r < M; ++c)
     if (!pivotRows(A, Col{c}, M, Row{r})) reduceColumn(A, Col{c}, Row{r++});
@@ -361,7 +362,8 @@ constexpr void simplifySystem(MutPtrMatrix<int64_t> &A,
 }
 [[nodiscard]] constexpr auto hermite(IntMatrix A)
   -> std::pair<IntMatrix, SquareMatrix<int64_t>> {
-  SquareMatrix<int64_t> U{SquareMatrix<int64_t>::identity(ptrdiff_t(A.numRow()))};
+  SquareMatrix<int64_t> U{
+    SquareMatrix<int64_t>::identity(ptrdiff_t(A.numRow()))};
   simplifySystemsImpl({A, U});
   return std::make_pair(std::move(A), std::move(U));
 }
@@ -490,7 +492,8 @@ constexpr auto pivotRowsBareiss(MutPtrMatrix<int64_t> A, ptrdiff_t i, Row M,
   if (j != piv) swap(A, j, piv);
   return ptrdiff_t(piv);
 }
-constexpr void bareiss(MutPtrMatrix<int64_t> A, MutPtrVector<ptrdiff_t> pivots) {
+constexpr void bareiss(MutPtrMatrix<int64_t> A,
+                       MutPtrVector<ptrdiff_t> pivots) {
   const auto [M, N] = A.size();
   invariant(ptrdiff_t(pivots.size()), min(M, N));
   int64_t prev = 1, pivInd = 0;
@@ -520,8 +523,8 @@ constexpr void bareiss(MutPtrMatrix<int64_t> A, MutPtrVector<ptrdiff_t> pivots) 
 // doesn't reduce last row (assumes you're solving for it)
 constexpr auto updateForNewRow(MutPtrMatrix<int64_t> A) -> ptrdiff_t {
   // use existing rows to reduce
-  ptrdiff_t M = ptrdiff_t(A.numRow()), N = ptrdiff_t(A.numCol()), MM = M - 1, NN = N - 1,
-         n = 0, i, j = std::numeric_limits<ptrdiff_t>::max();
+  ptrdiff_t M = ptrdiff_t(A.numRow()), N = ptrdiff_t(A.numCol()), MM = M - 1,
+            NN = N - 1, n = 0, i, j = std::numeric_limits<ptrdiff_t>::max();
   for (ptrdiff_t m = 0; m < MM; ++m) {
 #ifndef NDEBUG
     if (!allZero(A(m, _(0, n)))) __builtin_trap();
@@ -640,7 +643,7 @@ constexpr void nullSpace11(DenseMatrix<int64_t> &B, DenseMatrix<int64_t> &A) {
   // free their own ptrs; we'd have to still store either the old pointer or the
   // offset.
   // However, this may be reasonable given an implementation
-  // that takes a `BumpAlloc<>` as input to allocate `B`, as
+  // that takes a `Arena<>` as input to allocate `B`, as
   // then we don't need to track the pointer.
   std::copy_n(B.data() + ptrdiff_t(R * M), ptrdiff_t(D * M), B.data());
   B.truncate(D);

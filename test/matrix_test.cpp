@@ -196,11 +196,11 @@ TEST(SquareMatrixTest, BasicAssertions) {
     for (ptrdiff_t i = 0; i < 2; ++i) EXPECT_EQ(B(j, i), 4 * (i + 2) + j);
 }
 TEST(VectorTest, BasicAssertions) {
-  poly::utils::BumpAlloc<> alloc;
+  poly::utils::OwningArena<> alloc;
   ResizeableView<int64_t, unsigned> x;
   for (size_t i = 0; i < 100; ++i) {
     if (x.getCapacity() <= x.size())
-      x.reserve(alloc, std::max(unsigned(8), 2 * x.size()));
+      x.reserve(&alloc, std::max(unsigned(8), 2 * x.size()));
     x.emplace_back(i);
   }
   EXPECT_EQ(x.size(), 100);

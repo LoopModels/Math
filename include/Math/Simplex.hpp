@@ -659,8 +659,7 @@ public:
   // A(:,1:end)*x <= A(:,0)
   // B(:,1:end)*x == B(:,0)
   // returns a Simplex if feasible, and an empty `Optional` otherwise
-  static constexpr auto positiveVariables(BumpAlloc<> &alloc,
-                                          PtrMatrix<int64_t> A,
+  static constexpr auto positiveVariables(Arena<> *alloc, PtrMatrix<int64_t> A,
                                           PtrMatrix<int64_t> B)
     -> Optional<Simplex *> {
     invariant(A.numCol() == B.numCol());
@@ -671,7 +670,7 @@ public:
     // each of these will require an augment variable
     for (unsigned i = 0; i < numSlack; ++i) varCap += A(i, 0) < 0;
     // try to avoid reallocating
-    auto checkpoint{alloc.checkpoint()};
+    auto checkpoint{alloc->checkpoint()};
     Simplex *simplex{
       Simplex::create(alloc, numCon, numVar + numSlack, numCon, varCap)};
     // construct:
@@ -686,11 +685,10 @@ public:
     // for (ptrdiff_t i = 0; i < numSlack; ++i) consts[i] = A(i, 0);
     // for (ptrdiff_t i = 0; i < numStrict; ++i) consts[i + numSlack] = B(i, 0);
     if (!simplex->initiateFeasible()) return simplex;
-    alloc.rollback(checkpoint);
+    alloc->rollback(checkpoint);
     return nullptr;
   }
-  static constexpr auto positiveVariables(BumpAlloc<> &alloc,
-                                          PtrMatrix<int64_t> A)
+  static constexpr auto positiveVariables(Arena<> *alloc, PtrMatrix<int64_t> A)
     -> Optional<Simplex *> {
     unsigned numVar = unsigned(A.numCol()) - 1, numSlack = unsigned(A.numRow()),
              numCon = numSlack, varCap = numVar + numSlack;
@@ -698,7 +696,7 @@ public:
     // each of these will require an augment variable
     for (unsigned i = 0; i < numSlack; ++i) varCap += A(i, 0) < 0;
     // try to avoid reallocating
-    auto checkpoint{alloc.checkpoint()};
+    auto checkpoint{alloc->checkpoint()};
     Simplex *simplex{
       Simplex::create(alloc, numCon, numVar + numSlack, numCon, varCap)};
     // construct:
@@ -710,12 +708,12 @@ public:
     // for (ptrdiff_t i = 0; i < numSlack; ++i) consts[i] = A(i, 0);
     simplex->getConstants() << A(_, 0);
     if (!simplex->initiateFeasible()) return simplex;
-    alloc.rollback(checkpoint);
+    alloc->rollback(checkpoint);
     return nullptr;
   }
 
-  constexpr void pruneBounds(BumpAlloc<> &alloc, ptrdiff_t numSlack = 0) {
-    auto p = alloc.scope();
+  constexpr void pruneBounds(Arena<> *alloc, ptrdiff_t numSlack = 0) {
+    auto p = alloc->scope();
     Simplex *simplex{Simplex::create(alloc, numConstraints, numVars,
                                      constraintCapacity, varCapacity)};
     // Simplex simplex{getNumCons(), getNumVars(), getNumSlack(), 0};
@@ -765,7 +763,7 @@ public:
   // }
   // check if a solution exists such that `x` can be true.
   // returns `true` if unsatisfiable
-  [[nodiscard]] constexpr auto unSatisfiable(BumpAlloc<> &alloc,
+  [[nodiscard]] constexpr auto unSatisfiable(Arena<> alloc,
                                              PtrVector<int64_t> x,
                                              ptrdiff_t off) const -> bool {
     // is it a valid solution to set the first `x.size()` variables to
@@ -776,8 +774,7 @@ public:
     // is satisfiable.
     const ptrdiff_t numCon = getNumCons(), numVar = getNumVars(),
                     numFix = x.size();
-    auto p = alloc.scope();
-    Simplex *subSimp{Simplex::create(alloc, numCon, numVar - numFix)};
+    Simplex *subSimp{Simplex::create(&alloc, numCon, numVar - numFix)};
     // subSimp.tableau(0, 0) = 0;
     // subSimp.tableau(0, 1) = 0;
     auto fC{getTableau()};
@@ -791,15 +788,14 @@ public:
     // returns `true` if unsatisfiable
     return subSimp->initiateFeasible();
   }
-  [[nodiscard]] constexpr auto satisfiable(BumpAlloc<> &alloc,
-                                           PtrVector<int64_t> x,
+  [[nodiscard]] constexpr auto satisfiable(Arena<> alloc, PtrVector<int64_t> x,
                                            ptrdiff_t off) const -> bool {
     return !unSatisfiable(alloc, x, off);
   }
   // check if a solution exists such that `x` can be true.
   // zeros remaining rows
   [[nodiscard]] constexpr auto
-  unSatisfiableZeroRem(BumpAlloc<> &alloc, PtrVector<int64_t> x, ptrdiff_t off,
+  unSatisfiableZeroRem(Arena<> alloc, PtrVector<int64_t> x, ptrdiff_t off,
                        ptrdiff_t numRow) const -> bool {
     // is it a valid solution to set the first `x.size()` variables to
     // `x`? first, check that >= 0 constraint is satisfied
@@ -809,8 +805,7 @@ public:
     // is satisfiable.
     invariant(numRow <= getNumCons());
     const ptrdiff_t numFix = x.size();
-    auto p = alloc.scope();
-    Simplex *subSimp{Simplex::create(alloc, numRow, off++)};
+    Simplex *subSimp{Simplex::create(&alloc, numRow, off++)};
     auto fC{getConstraints()};
     auto sC{subSimp->getConstraints()};
     sC(_, 0) << fC(_(begin, numRow), 0) -
@@ -823,13 +818,12 @@ public:
   /// (i.e., indsFree + indOne == index of var pinned to 1)
   /// numRow is number of rows used, extras are dropped
   // [[nodiscard]] constexpr auto
-  [[nodiscard]] inline auto
-  unSatisfiableZeroRem(BumpAlloc<> &alloc, ptrdiff_t iFree,
-                       std::array<ptrdiff_t, 2> inds, ptrdiff_t numRow) const
+  [[nodiscard]] inline auto unSatisfiableZeroRem(Arena<> alloc, ptrdiff_t iFree,
+                                                 std::array<ptrdiff_t, 2> inds,
+                                                 ptrdiff_t numRow) const
     -> bool {
     invariant(numRow <= getNumCons());
-    auto p = alloc.scope();
-    Simplex *subSimp{Simplex::create(alloc, numRow, iFree++)};
+    Simplex *subSimp{Simplex::create(&alloc, numRow, iFree++)};
     auto fC{getConstraints()};
     auto sC{subSimp->getConstraints()};
     auto r = _(0, numRow);
@@ -838,7 +832,7 @@ public:
     return subSimp->initiateFeasible();
   }
   [[nodiscard]] constexpr auto
-  satisfiableZeroRem(BumpAlloc<> &alloc, PtrVector<int64_t> x, ptrdiff_t off,
+  satisfiableZeroRem(Arena<> alloc, PtrVector<int64_t> x, ptrdiff_t off,
                      ptrdiff_t numRow) const -> bool {
     return !unSatisfiableZeroRem(alloc, x, off, numRow);
   }
@@ -859,18 +853,17 @@ public:
       }
     }
   }
-  static constexpr auto create(BumpAlloc<> &alloc, unsigned numCon,
-                               unsigned numVar) -> NotNull<Simplex> {
+  static constexpr auto create(Arena<> *alloc, unsigned numCon, unsigned numVar)
+    -> NotNull<Simplex> {
     return create(alloc, numCon, numVar, numCon, numVar + numCon);
   }
-  static constexpr auto create(BumpAlloc<> &alloc, unsigned numCon,
-                               unsigned numVar, unsigned conCap,
-                               unsigned varCap) -> NotNull<Simplex> {
+  static constexpr auto create(Arena<> *alloc, unsigned numCon, unsigned numVar,
+                               unsigned conCap, unsigned varCap)
+    -> NotNull<Simplex> {
 
     size_t memNeeded = tableauOffset(conCap, varCap) +
                        sizeof(value_type) * reservedTableau(conCap, varCap);
-    auto *mem =
-      (Simplex *)alloc.allocate(sizeof(Simplex) + memNeeded, alignof(Simplex));
+    auto *mem = (Simplex *)alloc->allocate(sizeof(Simplex) + memNeeded);
     mem->numConstraints = numCon;
     mem->numVars = numVar;
     mem->constraintCapacity = conCap;
@@ -905,13 +898,13 @@ public:
   }
 
   static constexpr auto
-  create(BumpAlloc<> &alloc, unsigned numCon,
+  create(Arena<> *alloc, unsigned numCon,
          unsigned numVar, // NOLINT(bugprone-easily-swappable-parameters)
          unsigned numSlack) -> NotNull<Simplex> {
     unsigned conCap = numCon, varCap = numVar + numSlack + numCon;
     return create(alloc, numCon, numVar, conCap, varCap);
   }
-  constexpr auto copy(BumpAlloc<> &alloc) const -> NotNull<Simplex> {
+  constexpr auto copy(Arena<> *alloc) const -> NotNull<Simplex> {
     NotNull<Simplex> res =
       create(alloc, getNumCons(), getNumVars(), getConCap(), getVarCap());
     *res << *this;
