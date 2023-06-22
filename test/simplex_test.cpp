@@ -14,10 +14,10 @@ TEST(SimplexTest, BasicAssertions) {
   // 15 >= 2x + 5y + 3z
   IntMatrix A{"[10 3 2 1; 15 2 5 3]"_mat};
   IntMatrix B{DenseDims{0, 4}};
-  Arena<> alloc;
-  Optional<Simplex *> optS0{Simplex::positiveVariables(alloc, A)};
+  OwningArena<> alloc;
+  Optional<Simplex *> optS0{Simplex::positiveVariables(&alloc, A)};
   EXPECT_TRUE(optS0.hasValue());
-  Optional<Simplex *> optS1{Simplex::positiveVariables(alloc, A, B)};
+  Optional<Simplex *> optS1{Simplex::positiveVariables(&alloc, A, B)};
   EXPECT_TRUE(optS1.hasValue());
   ASSERT(optS0.hasValue());
   ASSERT(optS1.hasValue());
@@ -38,12 +38,12 @@ TEST(SimplexTest, BasicAssertions) {
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(LexMinSmallTest, BasicAssertions) {
-  Arena alloc;
+  OwningArena alloc;
   // -10 == -3x - 2y - z  + s0
   // -15 == -2x - 5y - 3z + s1
   IntMatrix tableau{"[-10 0 1 -1 -2 -3; -15 1 0 -3 -5 -2]"_mat};
   // IntMatrix A{"[-10 -3 -2 -1; -15 -2 -5 -3]"_mat};
-  Simplex *simp{Simplex::create(alloc, 2, 5)};
+  Simplex *simp{Simplex::create(&alloc, 2, 5)};
   simp->getConstraints() << tableau;
   Vector<Rational> sol(5);
   EXPECT_FALSE(simp->initiateFeasible());
@@ -111,7 +111,7 @@ TEST(LexMinSmallTest, BasicAssertions) {
   EXPECT_EQ(sol[last - 4], 15);
 }
 
-auto simplexFromTableau(Arena<> &alloc, IntMatrix &tableau)
+auto simplexFromTableau(Arena<> *alloc, IntMatrix &tableau)
   -> NotNull<Simplex> {
   unsigned numCon = unsigned(tableau.numRow()) - 1;
   unsigned numVar = unsigned(tableau.numCol()) - 1;
@@ -990,8 +990,8 @@ TEST(LexMinSimplexTest, BasicAssertions) {
     "1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]"_mat};
   // std::cout << "tableau3 =" << tableau << "\n";
   tableau(0, _) << -5859553999884210514;
-  Arena<> alloc;
-  NotNull<Simplex> simp{simplexFromTableau(alloc, tableau)};
+  OwningArena<> alloc;
+  NotNull<Simplex> simp{simplexFromTableau(&alloc, tableau)};
   Vector<Rational> sol(37);
   EXPECT_EQ(sol.size(), 37);
   EXPECT_FALSE(simp->initiateFeasible());
@@ -1025,7 +1025,7 @@ TEST(LexMinSimplexTest, BasicAssertions) {
   }
   {
     // test new simplex
-    NotNull<Simplex> simp2{simplexFromTableau(alloc, tableau)};
+    NotNull<Simplex> simp2{simplexFromTableau(&alloc, tableau)};
     EXPECT_FALSE(simp2->initiateFeasible());
     auto C{simp2->getCost()};
     C[_(0, end - 36)] << 0;
@@ -1272,8 +1272,8 @@ TEST(LexMinSimplexTest2, BasicAssertions) {
     "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 0 "
     "0 0 0 0 0 0 0 0 0 ]"_mat};
   // std::cout << "tableau4 =" << tableau << "\n";
-  Arena<> alloc;
-  NotNull<Simplex> simp{simplexFromTableau(alloc, tableau)};
+  OwningArena<> alloc;
+  NotNull<Simplex> simp{simplexFromTableau(&alloc, tableau)};
   Vector<Rational> sol(15);
   EXPECT_EQ(sol.size(), 15);
   EXPECT_FALSE(simp->initiateFeasible());
@@ -2186,7 +2186,7 @@ TEST(Infesaible, BasicAssertions) {
   C(219, 288) = -1;
   C(219, 294) = 1;
   C(219, 295) = 1;
-  Arena<> alloc;
-  NotNull<Simplex> simp{simplexFromTableau(alloc, C)};
+  OwningArena<> alloc;
+  NotNull<Simplex> simp{simplexFromTableau(&alloc, C)};
   EXPECT_TRUE(simp->initiateFeasible());
 }

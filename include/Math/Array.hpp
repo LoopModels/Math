@@ -9,6 +9,7 @@
 #include "Math/MatrixDimensions.hpp"
 #include "Math/Rational.hpp"
 #include "Math/Vector.hpp"
+#include "Utilities/Allocators.hpp"
 #include "Utilities/Invariant.hpp"
 #include "Utilities/Optional.hpp"
 #include "Utilities/TypePromotion.hpp"
@@ -690,12 +691,13 @@ struct ResizeableView : MutArray<T, S> {
     ++this->sz;
     return p;
   }
-  template <typename A> constexpr void reserve(A &alloc, U newCapacity) {
+  template <size_t SlabSize, bool BumpUp>
+  constexpr void reserve(utils::Arena<SlabSize, BumpUp> *alloc, U newCapacity) {
     if (newCapacity <= capacity) return;
     T *oldPtr =
-      std::exchange(this->ptr, alloc.template allocate<T>(newCapacity));
+      std::exchange(this->ptr, alloc->template allocate<T>(newCapacity));
     std::copy_n(oldPtr, U(this->sz), this->ptr);
-    alloc.deallocate(oldPtr, capacity);
+    alloc->deallocate(oldPtr, capacity);
     capacity = newCapacity;
   }
 
@@ -1116,7 +1118,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     : BaseT{memory.data(), b.dim(), U(N), b.get_allocator()} {
     if (b.isSmall()) { // copy
       std::copy_n(b.data(), ptrdiff_t(b.dim()), this->data());
-    } else {           // steal
+    } else { // steal
       this->ptr = b.data();
       this->capacity = b.getCapacity();
     }
@@ -1127,7 +1129,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     if constexpr (N > 0) {
       if (b.isSmall()) { // copy
         std::copy_n(b.data(), ptrdiff_t(b.dim()), this->data());
-      } else {           // steal
+      } else { // steal
         this->ptr = b.data();
         this->capacity = b.getCapacity();
       }
@@ -1142,7 +1144,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     : BaseT{memory.data(), s, U(N), b.get_allocator()} {
     if (b.isSmall()) { // copy
       std::copy_n(b.data(), ptrdiff_t(b.dim()), this->data());
-    } else {           // steal
+    } else { // steal
       this->ptr = b.data();
       this->capacity = b.getCapacity();
     }

@@ -113,9 +113,30 @@ public:
   //   std::allocator<UList<T>> alloc;
   //   push_ordered(alloc, t);
   // }
-  [[nodiscard]] constexpr auto push(utils::Arena<> &alloc, T t) -> UList *;
-  constexpr void push_ordered(utils::Arena<> &alloc, T t);
-  constexpr auto copy(utils::Arena<> &alloc) const -> UList *;
+  [[nodiscard]] constexpr auto push(utils::Arena<> *alloc, T t) -> UList * {
+    invariant(count <= std::ssize(data));
+    if (!isFull()) {
+      data[count++] = t;
+      return this;
+    }
+    return alloc->create<UList<T>>(t, this);
+  };
+  constexpr void push_ordered(utils::Arena<> *alloc, T t) {
+    invariant(count <= std::ssize(data));
+    if (!isFull()) {
+      data[count++] = t;
+      return;
+    }
+    if (next == nullptr) next = alloc->create<UList<T>>(t);
+    else next->push_ordered(alloc, t);
+  }
+  constexpr auto copy(utils::Arena<> *alloc) const -> UList * {
+    UList<T> *L = alloc->create<UList<T>>();
+    L->count = count;
+    std::copy(std::begin(data), std::end(data), std::begin(L->data));
+    if (next) L->next = next->copy(alloc);
+    return L;
+  }
   /// erase
   /// behavior is undefined if `x` doesn't point to this node
   constexpr void erase(T *x) {
@@ -260,35 +281,5 @@ public:
   constexpr auto dbegin() -> T * { return data; }
   constexpr auto dend() -> T * { return data + count; }
 };
-
-template <typename T>
-[[nodiscard]] constexpr auto UList<T>::push(utils::Arena<> &alloc, T t)
-  -> UList * {
-  invariant(count <= std::ssize(data));
-  if (!isFull()) {
-    data[count++] = t;
-    return this;
-  }
-  return alloc.create<UList<T>>(t, this);
-}
-/// ordered push
-template <typename T>
-constexpr void UList<T>::push_ordered(utils::Arena<> &alloc, T t) {
-  invariant(count <= std::ssize(data));
-  if (!isFull()) {
-    data[count++] = t;
-    return;
-  }
-  if (next == nullptr) next = alloc.create<UList<T>>(t);
-  else next->push_ordered(alloc, t);
-}
-template <typename T>
-constexpr auto UList<T>::copy(utils::Arena<> &alloc) const -> UList<T> * {
-  UList<T> *L = alloc.create<UList<T>>();
-  L->count = count;
-  std::copy(std::begin(data), std::end(data), std::begin(L->data));
-  if (next) L->next = next->copy(alloc);
-  return L;
-}
 
 } // namespace poly::containers

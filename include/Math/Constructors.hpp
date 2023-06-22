@@ -5,7 +5,7 @@
 #include "Utilities/Allocators.hpp"
 
 namespace poly::math {
-using utils::Arena, utils::WArena;
+using utils::Arena, utils::WArena, utils::OwningArena;
 template <class T>
 constexpr auto vector(std::allocator<T>, unsigned int M) -> Vector<T> {
   return Vector<T>(M);
@@ -16,9 +16,9 @@ constexpr auto vector(WArena<T> alloc, unsigned int M)
   return {alloc.allocate(M), M, M};
 }
 template <class T, size_t SlabSize, bool BumpUp>
-constexpr auto vector(Arena<SlabSize, BumpUp> &alloc, unsigned int M)
+constexpr auto vector(Arena<SlabSize, BumpUp> *alloc, unsigned int M)
   -> ResizeableView<T, unsigned> {
-  return {alloc.template allocate<T>(M), M, M};
+  return {alloc->template allocate<T>(M), M, M};
 }
 
 template <class T>
@@ -33,9 +33,9 @@ constexpr auto vector(WArena<T> alloc, unsigned int M, T x)
   return a;
 }
 template <class T, size_t SlabSize, bool BumpUp>
-constexpr auto vector(Arena<SlabSize, BumpUp> &alloc, unsigned int M, T x)
+constexpr auto vector(Arena<SlabSize, BumpUp> *alloc, unsigned int M, T x)
   -> ResizeableView<T, unsigned> {
-  ResizeableView<T, unsigned> a{alloc.template allocate<T>(M), M, M};
+  ResizeableView<T, unsigned> a{alloc->template allocate<T>(M), M, M};
   a.fill(x);
   return a;
 }
@@ -50,9 +50,9 @@ constexpr auto matrix(WArena<T> alloc, unsigned int M)
   return {alloc.allocate(M * M), SquareDims{M}};
 }
 template <class T, size_t SlabSize, bool BumpUp>
-constexpr auto matrix(Arena<SlabSize, BumpUp> &alloc, unsigned int M)
+constexpr auto matrix(Arena<SlabSize, BumpUp> *alloc, unsigned int M)
   -> MutSquarePtrMatrix<T> {
-  return {alloc.template allocate<T>(M * M), SquareDims{M}};
+  return {alloc->template allocate<T>(M * M), SquareDims{M}};
 }
 template <class T>
 constexpr auto matrix(std::allocator<T>, unsigned int M, T x)
@@ -67,9 +67,9 @@ constexpr auto matrix(WArena<T> alloc, unsigned int M, T x)
   return A;
 }
 template <class T, size_t SlabSize, bool BumpUp>
-constexpr auto matrix(Arena<SlabSize, BumpUp> &alloc, unsigned int M, T x)
+constexpr auto matrix(Arena<SlabSize, BumpUp> *alloc, unsigned int M, T x)
   -> MutSquarePtrMatrix<T> {
-  MutSquarePtrMatrix<T> A{alloc.template allocate<T>(M * M), SquareDims{M}};
+  MutSquarePtrMatrix<T> A{alloc->template allocate<T>(M * M), SquareDims{M}};
   A.fill(x);
   return A;
 }
@@ -83,9 +83,9 @@ constexpr auto matrix(WArena<T> alloc, Row M, Col N) -> MutDensePtrMatrix<T> {
   return {alloc.allocate(M * N), DenseDims{M, N}};
 }
 template <class T, size_t SlabSize, bool BumpUp>
-constexpr auto matrix(Arena<SlabSize, BumpUp> &alloc, Row M, Col N)
+constexpr auto matrix(Arena<SlabSize, BumpUp> *alloc, Row M, Col N)
   -> MutDensePtrMatrix<T> {
-  return {alloc.template allocate<T>(M * N), M, N};
+  return {alloc->template allocate<T>(M * N), M, N};
 }
 template <class T>
 constexpr auto matrix(std::allocator<T>, Row M, Col N, T x) -> DenseMatrix<T> {
@@ -99,9 +99,9 @@ constexpr auto matrix(WArena<T> alloc, Row M, Col N, T x)
   return A;
 }
 template <class T, size_t SlabSize, bool BumpUp>
-constexpr auto matrix(Arena<SlabSize, BumpUp> &alloc, Row M, Col N, T x)
+constexpr auto matrix(Arena<SlabSize, BumpUp> *alloc, Row M, Col N, T x)
   -> MutDensePtrMatrix<T> {
-  MutDensePtrMatrix<T> A{alloc.template allocate<T>(M * N), DenseDims{M, N}};
+  MutDensePtrMatrix<T> A{alloc->template allocate<T>(M * N), DenseDims{M, N}};
   A.fill(x);
   return A;
 }
@@ -120,7 +120,7 @@ constexpr auto identity(WArena<T> alloc, unsigned int M)
   return A;
 }
 template <class T, size_t SlabSize, bool BumpUp>
-constexpr auto identity(Arena<SlabSize, BumpUp> &alloc, unsigned int M)
+constexpr auto identity(Arena<SlabSize, BumpUp> *alloc, unsigned int M)
   -> MutSquarePtrMatrix<T> {
   MutSquarePtrMatrix<T> A{matrix(alloc, M, T{})};
   A.diag() << T{1};
@@ -129,21 +129,11 @@ constexpr auto identity(Arena<SlabSize, BumpUp> &alloc, unsigned int M)
 
 template <typename T, typename I>
 concept Alloc = requires(T t, unsigned int M, Row r, Col c, I i) {
-                  {
-                    identity<I>(t, M)
-                    } -> std::convertible_to<MutSquarePtrMatrix<I>>;
-                  {
-                    matrix<I>(t, M)
-                    } -> std::convertible_to<MutSquarePtrMatrix<I>>;
-                  {
-                    matrix<I>(t, M, i)
-                    } -> std::convertible_to<MutSquarePtrMatrix<I>>;
-                  {
-                    matrix<I>(t, r, c)
-                    } -> std::convertible_to<MutDensePtrMatrix<I>>;
-                  {
-                    matrix(t, r, c, i)
-                    } -> std::convertible_to<MutDensePtrMatrix<I>>;
-                  { vector<I>(t, M) } -> std::convertible_to<MutPtrVector<I>>;
-                };
+  { identity<I>(t, M) } -> std::convertible_to<MutSquarePtrMatrix<I>>;
+  { matrix<I>(t, M) } -> std::convertible_to<MutSquarePtrMatrix<I>>;
+  { matrix<I>(t, M, i) } -> std::convertible_to<MutSquarePtrMatrix<I>>;
+  { matrix<I>(t, r, c) } -> std::convertible_to<MutDensePtrMatrix<I>>;
+  { matrix(t, r, c, i) } -> std::convertible_to<MutDensePtrMatrix<I>>;
+  { vector<I>(t, M) } -> std::convertible_to<MutPtrVector<I>>;
+};
 } // namespace poly::math
