@@ -2,7 +2,6 @@
 
 #include "Utilities/Invariant.hpp"
 #include "Utilities/Valid.hpp"
-#include <Containers/UnrolledList.hpp>
 #include <algorithm>
 #include <bit>
 #include <cstddef>
@@ -53,31 +52,58 @@ void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 
 namespace poly::utils {
 
-template <size_t SlabSize, bool BumpUp, size_t MinAlignment> class BumpAlloc {
-  static_assert(std::has_single_bit(MinAlignment));
+/// Each slab reserves the first 16 bytes for
+/// 1. a pointer to the next slab
+/// 2. a pointer to the first slab
+template <size_t SlabSize = 16384, bool BumpUp = true> class Arena {
+  static constexpr size_t Alignment = alignof(std::max_align_t);
+  static constexpr auto align(size_t x) -> size_t {
+    return (x + Alignment - 1) & ~(Alignment - 1);
+  }
+  // meta data is always in front, so we don't have to handle
+  // the rare accidental case of huge slabs separately.
+  static constexpr size_t MetaSize = align(2 * sizeof(void *));
+  static_assert(std::has_single_bit(Alignment));
 
 public:
   static constexpr bool BumpDown = !BumpUp;
   using value_type = void;
-  [[using gnu: returns_nonnull, alloc_size(2), alloc_align(3),
-    malloc]] constexpr auto
-  allocate(size_t Size, size_t Align) -> void * {
-    if (Size > SlabSize / 2) {
-      void *p = std::aligned_alloc(Align, Size);
-      pushOldSlab(p);
 #ifndef NDEBUG
-      std::fill_n((char *)(p), Size, -1);
-#endif
-      return p;
-    }
-    auto p = (Align > MinAlignment) ? bumpAlloc(Size, Align) : bumpAlloc(Size);
-    __asan_unpoison_memory_region(p, Size);
-    __msan_allocated_memory(p, Size);
-#ifndef NDEBUG
-    if ((MinAlignment >= alignof(int64_t)) && ((Size & 7) == 0)) {
+  constexpr void fillWithJunk(void *p, size_t Size) {
+    if (((Size & 7) == 0)) {
       std::fill_n(static_cast<std::int64_t *>(p), Size >> 3,
                   std::numeric_limits<std::int64_t>::min());
     } else std::fill_n((char *)(p), Size, -1);
+  }
+#endif
+  [[using gnu: returns_nonnull, alloc_size(2), assume_aligned(Alignment),
+    malloc]] constexpr auto
+  allocate(size_t Size) -> void * {
+    // we allocate this slab and insert it.
+    // this is a pretty bad path.
+    if (Size > SlabSize - MetaSize) [[unlikely]] {
+      void *p = std::malloc(Size + MetaSize);
+      void *q = std::malloc(SlabSize);
+      void **meta = static_cast<void **>(p);
+      void **oldMeta = static_cast<void **>(sEnd);
+      void **newMeta = static_cast<void **>(q);
+      void *firstSlab = oldMeta[1];
+      oldMeta[0] = p;
+      meta[0] = q;
+      meta[1] = firstSlab;
+      newMeta[0] = nullptr;
+      newMeta[1] = firstSlab;
+      initSlab(q);
+#ifndef NDEBUG
+      fillWithJunk(static_cast<char *>(p) + MetaSize, Size);
+#endif
+      return static_cast<char *>(p) + MetaSize;
+    }
+    auto p = bumpAlloc(Size);
+    __asan_unpoison_memory_region(p, Size);
+    __msan_allocated_memory(p, Size);
+#ifndef NDEBUG
+    fillWithJunk(p, Size);
 #endif
     return p;
   }
@@ -85,22 +111,21 @@ public:
   [[gnu::returns_nonnull, gnu::flatten]] constexpr auto allocate(size_t N = 1)
     -> T * {
     static_assert(std::is_trivially_destructible_v<T>,
-                  "BumpAlloc only supports trivially destructible types.");
-    return static_cast<T *>(allocate(N * sizeof(T), alignof(T)));
+                  "Arena only supports trivially destructible types.");
+    return static_cast<T *>(allocate(N * sizeof(T)));
   }
   template <typename T, class... Args>
   [[gnu::returns_nonnull, gnu::flatten]] constexpr auto create(Args &&...args)
     -> T * {
     static_assert(std::is_trivially_destructible_v<T>,
-                  "BumpAlloc only supports trivially destructible types.");
-    return std::construct_at(static_cast<T *>(allocate(sizeof(T), alignof(T))),
+                  "Arena only supports trivially destructible types.");
+    return std::construct_at(static_cast<T *>(allocate(sizeof(T))),
                              std::forward<Args>(args)...);
   }
-  static constexpr auto contains(void *P, void *p) -> bool { return P == p; }
   constexpr void deallocate(void *Ptr, size_t Size) {
     __asan_poison_memory_region(Ptr, Size);
     if constexpr (BumpUp) {
-      if (Ptr + align(Size) == slab) slab = Ptr;
+      if ((char *)Ptr + align(Size) == slab) slab = Ptr;
     } else if (Ptr == slab) {
       slab = (char *)slab + align(Size);
       return;
@@ -109,13 +134,11 @@ public:
   template <typename T> constexpr void deallocate(T *Ptr, size_t N = 1) {
     deallocate((void *)Ptr, N * sizeof(T));
   }
-  constexpr auto tryReallocate(void *Ptr, size_t szOld, size_t szNew,
-                               size_t Align) -> void * {
-    invariant(std::has_single_bit(Align));
-    Align = Align > MinAlignment ? Align : MinAlignment;
+  constexpr auto tryReallocate(void *Ptr, size_t szOld, size_t szNew)
+    -> void * {
     if constexpr (BumpUp) {
-      if (Ptr == slab - align(szOld)) {
-        slab = Ptr + align(szNew);
+      if (Ptr == (char *)slab - align(szOld)) {
+        slab = (char *)Ptr + align(szNew);
         if (!outOfSlab()) {
           __asan_unpoison_memory_region((char *)Ptr + szOld, szNew - szOld);
           __msan_allocated_memory((char *)Ptr + szOld, szNew - szOld);
@@ -123,7 +146,7 @@ public:
         }
       }
     } else if (Ptr == slab) {
-      size_t extraSize = align(szNew - szOld, Align);
+      size_t extraSize = align(szNew - szOld);
       slab = (char *)slab - extraSize;
       if (!outOfSlab()) {
         __asan_unpoison_memory_region(slab, extraSize);
@@ -136,27 +159,24 @@ public:
   template <typename T>
   constexpr auto tryReallocate(T *Ptr, size_t OldSize, size_t NewSize) -> T * {
     return static_cast<T *>(
-      tryReallocate(Ptr, OldSize * sizeof(T), NewSize * sizeof(T), alignof(T)));
+      tryReallocate(Ptr, OldSize * sizeof(T), NewSize * sizeof(T)));
   }
   /// reallocate<ForOverwrite>(void *Ptr, ptrdiff_t OldSize, ptrdiff_t NewSize,
   /// size_t Align) Should be safe with OldSize == 0, as it checks before
   /// copying
   template <bool ForOverwrite = false>
   [[gnu::returns_nonnull, nodiscard]] constexpr auto
-  reallocate(void *Ptr, ptrdiff_t szOld, ptrdiff_t szNew, size_t Align)
-    -> void * {
-    invariant(std::has_single_bit(Align));
+  reallocate(void *Ptr, size_t szOld, size_t szNew) -> void * {
     if (szOld >= szNew) return Ptr;
     if (Ptr) {
-      if (void *p = tryReallocate(Ptr, szOld, szNew, Align)) {
+      if (void *p = tryReallocate(Ptr, szOld, szNew)) {
         if constexpr ((BumpDown) & (!ForOverwrite))
           std::copy_n((char *)Ptr, szOld, (char *)p);
         return p;
       }
-      Align = Align > MinAlignment ? Align : MinAlignment;
       if constexpr (BumpUp) {
-        if (Ptr == slab - align(szOld)) {
-          slab = Ptr + align(szNew);
+        if (Ptr == (char *)slab - align(szOld)) {
+          slab = (char *)Ptr + align(szNew);
           if (!outOfSlab()) {
             __asan_unpoison_memory_region((char *)Ptr + szOld, szNew - szOld);
             __msan_allocated_memory((char *)Ptr + szOld, szNew - szOld);
@@ -164,7 +184,7 @@ public:
           }
         }
       } else if (Ptr == slab) {
-        ptrdiff_t extraSize = align(szNew - szOld, Align);
+        size_t extraSize = align(szNew - szOld);
         slab = (char *)slab - extraSize;
         if (!outOfSlab()) {
           __asan_unpoison_memory_region(slab, extraSize);
@@ -176,7 +196,7 @@ public:
       }
     }
     // we need to allocate new memory
-    auto newPtr = allocate(szNew, Align);
+    auto newPtr = allocate(szNew);
     if (szOld && Ptr) {
       if constexpr (!ForOverwrite)
         std::copy_n((char *)Ptr, szOld, (char *)newPtr);
@@ -185,14 +205,12 @@ public:
     return newPtr;
   }
   constexpr void reset() {
-    resetSlabs();
 #ifdef NDEBUG
-    initSlab(sEnd);
+    resetSlabs();
 #else
-    // we want to increase chance of dangling references getting caught, by
-    // freeing
-    std::free(sEnd);
-    initNewSlab();
+    // catch dangling references
+    freeAllSlabs();
+    initialize();
 #endif
   }
   template <bool ForOverwrite = false, typename T>
@@ -201,23 +219,18 @@ public:
     return static_cast<T *>(reallocate<ForOverwrite>(
       Ptr, OldSize * sizeof(T), NewSize * sizeof(T), alignof(T)));
   }
-  constexpr explicit BumpAlloc() { initNewSlab(); }
-  constexpr explicit BumpAlloc(BumpAlloc &&other) noexcept
-    : slab{other.slab}, sEnd{other.sEnd}, slabs{other.slabs} {
-    other.slab = nullptr;
-    other.sEnd = nullptr;
-    other.slabs = nullptr;
-  }
-  BumpAlloc(const BumpAlloc &) = delete;
-  constexpr ~BumpAlloc() {
-    // need a check because of move
-    // should we even support moving?
-    resetSlabs();
-    if (sEnd) std::free(sEnd);
-  }
+  constexpr explicit Arena() { initialize(); }
+  constexpr explicit Arena(Arena &&other) = delete;
+  //   : slab{other.slab}, sEnd{other.sEnd} {
+  //   other.slab = nullptr;
+  //   other.sEnd = nullptr;
+  // }
+  Arena(const Arena &) = delete;
+  constexpr ~Arena() { freeAllSlabs(); }
+
   template <typename T, typename... Args>
   constexpr auto construct(Args &&...args) -> T * {
-    auto *p = allocate(sizeof(T), alignof(T));
+    auto *p = allocate(sizeof(T));
     return new (p) T(std::forward<Args>(args)...);
   }
   constexpr auto isPointInSlab(void *p) -> bool {
@@ -234,105 +247,81 @@ public:
     return {slab, sEnd};
   }
   constexpr void rollback(CheckPoint p) {
-    if (p.isInSlab(sEnd)) {
 #if MATH_ADDRESS_SANITIZER_BUILD
+    if (p.isInSlab(sEnd)) {
       if constexpr (BumpUp)
         __asan_poison_memory_region(p.p, (char *)slab - (char *)p.p);
       else __asan_poison_memory_region(slab, (char *)p.p - (char *)slab);
+    }
 #endif
-      slab = p.p;
-    } else initSlab(sEnd);
+    slab = p.p;
+    sEnd = p.e;
   }
   /// RAII version of CheckPoint
   class ScopeLifetime {
-    BumpAlloc &alloc;
+    Arena &alloc;
     CheckPoint p;
 
   public:
-    constexpr ScopeLifetime(BumpAlloc &a) : alloc(a), p(a.checkpoint()) {}
+    constexpr ScopeLifetime(Arena &a) : alloc(a), p(a.checkpoint()) {}
     constexpr ~ScopeLifetime() { alloc.rollback(p); }
   };
   constexpr auto scope() -> ScopeLifetime { return *this; }
 
 private:
-  static constexpr auto align(ptrdiff_t x) -> ptrdiff_t {
-    return (x + MinAlignment - 1) & ~(MinAlignment - 1);
-  }
-  static constexpr auto align(ptrdiff_t x, ptrdiff_t alignment) -> ptrdiff_t {
-    return (x + alignment - 1) & ~(alignment - 1);
-  }
-  static constexpr auto align(void *p) -> void * {
-    uint64_t i = reinterpret_cast<uintptr_t>(p), j = i;
-    if constexpr (BumpUp) i += MinAlignment - 1;
-    i &= ~(MinAlignment - 1);
-    return (char *)p + (i - j);
-  }
-  static constexpr auto align(void *p, size_t alignment) -> void * {
-    invariant(std::has_single_bit(alignment));
-    uintptr_t i = reinterpret_cast<uintptr_t>(p), j = i;
-    if constexpr (BumpUp) i += alignment - 1;
-    i &= ~(alignment - 1);
-    return (char *)p + (i - j);
+  constexpr void initialize() {
+    initNewSlab();
+    void **meta = static_cast<void **>(sEnd);
+    meta[0] = nullptr;
+    meta[1] = sEnd; // sEnd is first
   }
   static constexpr auto bump(void *ptr, ptrdiff_t N) -> void * {
     if constexpr (BumpUp) return (char *)ptr + N;
     else return (char *)ptr - N;
   }
-  static constexpr auto outOfSlab(void *cur, void *lst) -> bool {
-    if constexpr (BumpUp) return cur >= lst;
-    else return cur < lst;
+  static constexpr auto outOfSlab(void *current, void *last) -> bool {
+    if constexpr (BumpUp) return current >= last;
+    else return current < last;
   }
   constexpr auto outOfSlab() -> bool { return outOfSlab(slab, getEnd()); }
   constexpr auto getEnd() -> void * {
     if constexpr (BumpUp) return static_cast<char *>(sEnd) + SlabSize;
-    else return sEnd;
+    else return static_cast<char *>(sEnd) + MetaSize;
+  }
+  static constexpr auto initValue(void *p) -> void * {
+    if constexpr (BumpUp) return static_cast<char *>(p) + MetaSize;
+    else return static_cast<char *>(p) + SlabSize;
   }
   constexpr void initSlab(void *p) {
-    __asan_poison_memory_region(p, SlabSize);
-    if constexpr (!BumpUp) {
-      slab = (char *)p + SlabSize;
-      sEnd = p;
-    } else sEnd = slab = p;
-  }
-  constexpr void initNewSlab() {
-    if constexpr (MinAlignment <= alignof(std::max_align_t))
-      initSlab(std::malloc(SlabSize));
-    else initSlab(std::aligned_alloc(MinAlignment, SlabSize));
-  }
-  constexpr void newSlab() {
-    void *old = sEnd;
-    initNewSlab();
-    pushOldSlab(old);
-  }
-  /// stores a slab so we can free it later
-  constexpr void pushOldSlab(void *old) {
-    if (slabs && (!slabs->isFull())) slabs->pushHasCapacity(old);
-    else slabs = create<containers::UList<void *>>(old, slabs);
-  }
-  // updates SlabCur and returns the allocated pointer
-  [[gnu::returns_nonnull]] constexpr auto allocCore(ptrdiff_t Size,
-                                                    size_t Align) -> void * {
+    // poison everything except the meta data
 #if MATH_ADDRESS_SANITIZER_BUILD
-    slab = bump(slab, Align); // poisoned zone
+    __asan_poison_memory_region(static_cast<char *>(p) + MetaSize,
+                                SlabSize - MetaSize);
 #endif
-    if constexpr (BumpUp) {
-      slab = align(slab, Align);
-      void *old = slab;
-      slab = (char *)slab + align(Size);
-      return old;
-    } else {
-      slab = align((char *)slab - Size, Align);
-      return slab;
-    }
+    sEnd = p;
+    slab = initValue(p);
+  }
+  constexpr void initNewSlab() { initSlab(std::malloc(SlabSize)); }
+  constexpr void newSlab(void **oldMeta) {
+    initNewSlab();
+    void **newMeta = static_cast<void **>(sEnd);
+    oldMeta[0] = sEnd;
+    newMeta[0] = nullptr;
+    newMeta[1] = oldMeta[1];
+  }
+  constexpr void nextSlab() {
+    void **meta = static_cast<void **>(sEnd);
+    if (void *p = meta[0]) initSlab(p);
+    else newSlab(meta);
   }
   // updates SlabCur and returns the allocated pointer
   [[gnu::returns_nonnull]] constexpr auto allocCore(ptrdiff_t Size) -> void * {
-    // we know we already have MinAlignment
+    // we know we already have Alignment
     // and we need to preserve it.
     // Thus, we align `Size` and offset it.
-    invariant((reinterpret_cast<ptrdiff_t>(slab) % MinAlignment) == 0);
+    invariant((reinterpret_cast<ptrdiff_t>(slab) % Alignment) == 0);
 #if MATH_ADDRESS_SANITIZER_BUILD
-    slab = bump(slab, MinAlignment); // poisoned zone
+    slab = bump(slab, Alignment); // poisoned zone
 #endif
     if constexpr (BumpUp) {
       void *old = slab;
@@ -343,61 +332,50 @@ private:
       return slab;
     }
   }
-  //
-  [[gnu::returns_nonnull]] constexpr auto bumpAlloc(ptrdiff_t Size,
-                                                    size_t Align) -> void * {
-    invariant(std::has_single_bit(Align));
-    void *ret = allocCore(Size, Align);
-    if (outOfSlab()) [[unlikely]] {
-      newSlab();
-      ret = allocCore(Size, Align);
-    }
-    return ret;
-  }
   [[gnu::returns_nonnull]] constexpr auto bumpAlloc(ptrdiff_t Size) -> void * {
     void *ret = allocCore(Size);
     if (outOfSlab()) [[unlikely]] {
-      newSlab();
+      nextSlab();
       ret = allocCore(Size);
     }
     return ret;
   }
-
-  constexpr void resetSlabs() {
-    if (slabs) slabs->forEachStack([](auto *s) { std::free(s); });
-    slabs = nullptr; // ((void *)slabs == sEnd) ? slabs : nullptr;
+  constexpr void freeAllSlabs() {
+    void *p = static_cast<void **>(sEnd)[1];
+    while (p) {
+      void *next = static_cast<void **>(p)[0];
+      std::free(p);
+      p = next;
+    }
   }
+  constexpr void resetSlabs() { initSlab(static_cast<void **>(sEnd)[1]); }
 
   void *slab{nullptr};
   void *sEnd{nullptr};
-  containers::UList<void *> *slabs{nullptr};
 };
-static_assert(sizeof(BumpAlloc<>) == 24);
-static_assert(!std::is_trivially_copyable_v<BumpAlloc<>>);
-static_assert(!std::is_trivially_destructible_v<BumpAlloc<>>);
-static_assert(
-  std::same_as<std::allocator_traits<BumpAlloc<>>::size_type, size_t>);
+static_assert(sizeof(Arena<>) == 16);
+static_assert(!std::is_trivially_copyable_v<Arena<>>);
+static_assert(!std::is_trivially_destructible_v<Arena<>>);
+static_assert(std::same_as<std::allocator_traits<Arena<>>::size_type, size_t>);
 
 // Alloc wrapper people can pass and store by value
 // with a specific value type, so that it can act more like a
 // `std::allocator`.
-template <typename T, size_t SlabSize = 16384, bool BumpUp = false,
-          ptrdiff_t MinAlignment = alignof(std::max_align_t)>
-class WBumpAlloc {
-  using Alloc = BumpAlloc<SlabSize, BumpUp, MinAlignment>;
+template <typename T, size_t SlabSize = 16384, bool BumpUp = false>
+class WArena {
+  using Alloc = Arena<SlabSize, BumpUp>;
   [[no_unique_address]] NotNull<Alloc> A;
 
 public:
   using value_type = T;
   template <typename U> struct rebind { // NOLINT(readability-identifier-naming)
-    using other = WBumpAlloc<U, SlabSize, BumpUp, MinAlignment>;
+    using other = WArena<U, SlabSize, BumpUp>;
   };
-  constexpr explicit WBumpAlloc(Alloc &alloc) : A(&alloc) {}
-  constexpr explicit WBumpAlloc(NotNull<Alloc> alloc) : A(alloc) {}
-  constexpr explicit WBumpAlloc(const WBumpAlloc &other) = default;
+  constexpr explicit WArena(Alloc &alloc) : A(&alloc) {}
+  constexpr explicit WArena(NotNull<Alloc> alloc) : A(alloc) {}
+  constexpr explicit WArena(const WArena &other) = default;
   template <typename U>
-  constexpr explicit WBumpAlloc(WBumpAlloc<U> other)
-    : A(other.get_allocator()) {}
+  constexpr explicit WArena(WArena<U> other) : A(other.get_allocator()) {}
   [[nodiscard]] constexpr auto get_allocator() const -> NotNull<Alloc> {
     return A;
   }
@@ -410,79 +388,48 @@ public:
   }
   constexpr void rollback(typename Alloc::CheckPoint p) { A->rollback(p); }
 };
-static_assert(std::same_as<
-              std::allocator_traits<WBumpAlloc<int64_t *>>::size_type, size_t>);
 static_assert(
-  std::same_as<std::allocator_traits<WBumpAlloc<int64_t>>::pointer, int64_t *>);
+  std::same_as<std::allocator_traits<WArena<int64_t *>>::size_type, size_t>);
+static_assert(
+  std::same_as<std::allocator_traits<WArena<int64_t>>::pointer, int64_t *>);
 
-static_assert(std::is_trivially_copyable_v<NotNull<BumpAlloc<>>>);
-static_assert(std::is_trivially_copyable_v<WBumpAlloc<int64_t>>);
+static_assert(std::is_trivially_copyable_v<NotNull<Arena<>>>);
+static_assert(std::is_trivially_copyable_v<WArena<int64_t>>);
 
 template <typename A>
-concept Allocator = requires(A a) {
-  typename A::value_type;
-  { a.allocate(1) } -> std::same_as<typename std::allocator_traits<A>::pointer>;
-  {
-    a.deallocate(std::declval<typename std::allocator_traits<A>::pointer>(), 1)
+concept Allocator =
+  requires(A a) {
+    typename A::value_type;
+    {
+      a.allocate(1)
+      } -> std::same_as<typename std::allocator_traits<A>::pointer>;
+    {
+      a.deallocate(std::declval<typename std::allocator_traits<A>::pointer>(),
+                   1)
+    };
   };
-};
-static_assert(Allocator<WBumpAlloc<int64_t>>);
+static_assert(Allocator<WArena<int64_t>>);
 static_assert(Allocator<std::allocator<int64_t>>);
 
 struct NoCheckpoint {};
 
 constexpr auto checkpoint(const auto &) { return NoCheckpoint{}; }
-template <class T> constexpr auto checkpoint(WBumpAlloc<T> alloc) {
+template <class T> constexpr auto checkpoint(WArena<T> alloc) {
   return alloc.checkpoint();
 }
-constexpr auto checkpoint(BumpAlloc<> &alloc) { return alloc.checkpoint(); }
+constexpr auto checkpoint(Arena<> &alloc) { return alloc.checkpoint(); }
 
 constexpr void rollback(const auto &, NoCheckpoint) {}
-template <class T> constexpr void rollback(WBumpAlloc<T> alloc, auto p) {
+template <class T> constexpr void rollback(WArena<T> alloc, auto p) {
   alloc.rollback(p);
 }
-constexpr void rollback(BumpAlloc<> &alloc, auto p) { alloc.rollback(p); }
+constexpr void rollback(Arena<> &alloc, auto p) { alloc.rollback(p); }
 } // namespace poly::utils
-template <size_t SlabSize, bool BumpUp, size_t MinAlignment>
-auto operator new(size_t Size,
-                  poly::utils::BumpAlloc<SlabSize, BumpUp, MinAlignment> &Alloc)
+template <size_t SlabSize, bool BumpUp>
+auto operator new(size_t Size, poly::utils::Arena<SlabSize, BumpUp> &Alloc)
   -> void * {
-  return Alloc.allocate(Size, alignof(std::max_align_t));
+  return Alloc.allocate(Size);
 }
 
-template <size_t SlabSize, bool BumpUp, size_t MinAlignment>
-void operator delete(void *,
-                     poly::utils::BumpAlloc<SlabSize, BumpUp, MinAlignment> &) {
-}
-namespace poly::containers {
-template <typename T>
-[[nodiscard]] constexpr auto UList<T>::push(utils::BumpAlloc<> &alloc, T t)
-  -> UList * {
-  invariant(count <= std::ssize(data));
-  if (!isFull()) {
-    data[count++] = t;
-    return this;
-  }
-  return alloc.create<UList<T>>(t, this);
-}
-/// ordered push
-template <typename T>
-constexpr void UList<T>::push_ordered(utils::BumpAlloc<> &alloc, T t) {
-  invariant(count <= std::ssize(data));
-  if (!isFull()) {
-    data[count++] = t;
-    return;
-  }
-  if (next == nullptr) next = alloc.create<UList<T>>(t);
-  else next->push_ordered(alloc, t);
-}
-template <typename T>
-constexpr auto UList<T>::copy(utils::BumpAlloc<> &alloc) const -> UList<T> * {
-  UList<T> *L = alloc.create<UList<T>>();
-  L->count = count;
-  std::copy(std::begin(data), std::end(data), std::begin(L->data));
-  if (next) L->next = next->copy(alloc);
-  return L;
-}
-
-} // namespace poly::containers
+template <size_t SlabSize, bool BumpUp>
+void operator delete(void *, poly::utils::Arena<SlabSize, BumpUp> &) {}
