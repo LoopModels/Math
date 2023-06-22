@@ -136,4 +136,6 @@ concept Alloc = requires(T t, unsigned int M, Row r, Col c, I i) {
   { matrix(t, r, c, i) } -> std::convertible_to<MutDensePtrMatrix<I>>;
   { vector<I>(t, M) } -> std::convertible_to<MutPtrVector<I>>;
 };
+static_assert(Alloc<std::allocator<int64_t>, int64_t>);
+static_assert(Alloc<Arena<> *, int64_t>);
 } // namespace poly::math

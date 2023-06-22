@@ -153,7 +153,7 @@ public:
   /// copying
   template <bool ForOverwrite = false>
   [[gnu::returns_nonnull, nodiscard]] constexpr auto
-  reallocate(void *Ptr, size_t szOld, size_t szNew) -> void * {
+  reallocateImpl(void *Ptr, size_t szOld, size_t szNew) -> void * {
     if (szOld >= szNew) return Ptr;
     if (Ptr) {
       if (void *p = tryReallocate(Ptr, szOld, szNew)) {
@@ -201,9 +201,9 @@ public:
   }
   template <bool ForOverwrite = false, typename T>
   [[gnu::returns_nonnull, gnu::flatten, nodiscard]] constexpr auto
-  reallocate(T *Ptr, ptrdiff_t OldSize, ptrdiff_t NewSize) -> T * {
-    return static_cast<T *>(reallocate<ForOverwrite>(
-      Ptr, OldSize * sizeof(T), NewSize * sizeof(T), alignof(T)));
+  reallocate(T *Ptr, size_t OldSize, size_t NewSize) -> T * {
+    return static_cast<T *>(reallocateImpl<ForOverwrite>(
+      Ptr, OldSize * sizeof(T), NewSize * sizeof(T)));
   }
   //   : slab{other.slab}, sEnd{other.sEnd} {
   //   other.slab = nullptr;
