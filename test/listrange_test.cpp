@@ -32,30 +32,24 @@ public:
 };
 
 auto f = [](List<List<int> *> *l) -> List<int> * { return l->getData(); };
-static_assert(
-  std::input_iterator<utils::ListIterator<List<int>, utils::GetNext>>);
+using LI = utils::ListIterator<List<int>, utils::GetNext, utils::Identity>;
+using LR = utils::ListRange<List<int>, utils::GetNext, utils::Identity>;
+using NLI =
+  utils::NestedListIterator<List<List<int> *>, List<int>, utils::GetNext,
+                            utils::GetNext, decltype(f), utils::Identity>;
+using NLR =
+  utils::NestedListRange<List<List<int> *>, utils::GetNext, utils::GetNext,
+                         decltype(f), utils::Identity>;
 
-static_assert(
-  std::forward_iterator<utils::ListIterator<List<int>, utils::GetNext>>);
-static_assert(
-  std::ranges::input_range<utils::ListRange<List<int>, utils::GetNext>>);
-static_assert(
-  std::ranges::forward_range<utils::ListRange<List<int>, utils::GetNext>>);
+static_assert(std::input_iterator<LI>);
+static_assert(std::forward_iterator<LI>);
+static_assert(std::ranges::input_range<LR>);
+static_assert(std::ranges::forward_range<LR>);
 
-static_assert(
-  std::input_iterator<
-    utils::NestedListIterator<List<List<int> *>, List<int>, utils::GetNext,
-                              utils::GetNext, decltype(f)>>);
-static_assert(
-  std::forward_iterator<
-    utils::NestedListIterator<List<List<int> *>, List<int>, utils::GetNext,
-                              utils::GetNext, decltype(f)>>);
-static_assert(
-  std::ranges::input_range<utils::NestedListRange<
-    List<List<int> *>, utils::GetNext, utils::GetNext, decltype(f)>>);
-static_assert(
-  std::ranges::forward_range<utils::NestedListRange<
-    List<List<int> *>, utils::GetNext, utils::GetNext, decltype(f)>>);
+static_assert(std::input_iterator<NLI>);
+static_assert(std::forward_iterator<NLI>);
+static_assert(std::ranges::input_range<NLR>);
+static_assert(std::ranges::forward_range<NLR>);
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(ListRangeTest, BasicAssertions) {
@@ -84,6 +78,14 @@ TEST(ListRangeTest, BasicAssertions) {
       for (auto *v : utils::ListRange{outer->getData(), utils::GetNext{}})
         s += v->getData();
     EXPECT_EQ(s, 454545);
+  }
+  {
+    int s = 0;
+    for (auto *outer = listList; outer; outer = outer->getNext())
+      for (auto v : utils::ListRange{outer->getData(), utils::GetNext{},
+                                     [](auto *v) { return 2 * v->getData(); }})
+        s += v;
+    EXPECT_EQ(s, 909090);
   }
   {
     int s = 0;

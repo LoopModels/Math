@@ -29,16 +29,23 @@ public:
     return state->getParent();
   }
 };
+class Identity {
+public:
+  template <typename T> constexpr auto operator()(T *state) const noexcept {
+    return state;
+  }
+};
 
 class ListEnd {};
 
-template <typename T, class Op> class ListIterator {
+template <typename T, class Op, class Proj> class ListIterator {
   T *state_;
   [[no_unique_address]] Op op_{};
+  [[no_unique_address]] Proj p_{};
 
 public:
-  using value_type = T *;
-  constexpr auto operator*() const noexcept -> T * { return state_; }
+  using value_type = decltype(p_(state_));
+  constexpr auto operator*() const noexcept -> value_type { return p_(state_); }
   // constexpr auto operator->() const noexcept -> T * { return state_; }
   constexpr auto getState() const noexcept -> T * { return state_; }
   constexpr auto operator++() noexcept -> ListIterator & {
@@ -63,40 +70,59 @@ public:
     return state_ == nullptr;
   }
   constexpr ListIterator(T *state) noexcept : state_{state} {}
-  constexpr ListIterator(T *state, Op op) noexcept : state_{state}, op_{op} {}
+  constexpr ListIterator(T *state, Op op, Proj p) noexcept
+    : state_{state}, op_{op}, p_{p} {}
   constexpr ListIterator() = default;
 };
-template <typename T, class Op> ListIterator(T *, Op) -> ListIterator<T, Op>;
+template <typename T, class Op, class Proj>
+ListIterator(T *, Op, Proj) -> ListIterator<T, Op, Proj>;
+template <typename T, class Op>
+ListIterator(T *, Op) -> ListIterator<T, Op, Identity>;
 
-template <typename T, class Op> class ListRange {
+template <typename T, class Op, class Proj> class ListRange {
   T *begin_;
   [[no_unique_address]] Op op_{};
+  [[no_unique_address]] Proj p_{};
 
 public:
-  constexpr auto begin() noexcept -> ListIterator<T, Op> {
-    return {begin_, op_};
+  constexpr auto begin() noexcept -> ListIterator<T, Op, Proj> {
+    return {begin_, op_, p_};
   }
-  constexpr auto begin() const noexcept -> ListIterator<const T, Op> {
-    return {begin_, op_};
+  constexpr auto begin() const noexcept -> ListIterator<const T, Op, Proj> {
+    return {begin_, op_, p_};
   }
   static constexpr auto end() noexcept -> ListEnd { return {}; }
+  constexpr ListRange(T *begin, Op op, Proj p) noexcept
+    : begin_{begin}, op_{op}, p_{p} {}
   constexpr ListRange(T *begin, Op op) noexcept : begin_{begin}, op_{op} {}
   constexpr ListRange(T *begin) noexcept : begin_{begin} {}
 };
-template <typename T, class Op> ListRange(T *, Op) -> ListRange<T, Op>;
+template <typename T, class Op, class Proj>
+ListRange(T *, Op, Proj) -> ListRange<T, Op, Proj>;
+template <typename T> class NotNull;
+template <typename T, class Op, class Proj>
+ListRange(NotNull<T>, Op, Proj) -> ListRange<T, Op, Proj>;
+
+template <typename T, class Op>
+ListRange(T *, Op) -> ListRange<T, Op, Identity>;
+template <typename T> class NotNull;
+template <typename T, class Op>
+ListRange(NotNull<T>, Op) -> ListRange<T, Op, Identity>;
 // actually, implement via composition!
 // Implementation detail: the current inner state corresponds to the current
 // outer state. When we run out of inner states, we increment outer and set
 // inner.
-template <class O, class I, class OpOuter, class OpInner, class NewInner>
+template <class O, class I, class OpOuter, class OpInner, class NewInner,
+          class Proj>
 class NestedListIterator {
-  ListIterator<O, OpOuter> outer_state_;
-  ListIterator<I, OpInner> inner_state_;
-  [[no_unique_address]] NewInner newInner_{};
+  ListIterator<O, OpOuter, NewInner> outer_state_;
+  ListIterator<I, OpInner, Proj> inner_state_;
 
 public:
-  using value_type = I *;
-  constexpr auto operator*() const noexcept -> I * { return *inner_state_; }
+  using value_type = decltype(*inner_state_);
+  constexpr auto operator*() const noexcept -> value_type {
+    return *inner_state_;
+  }
   // constexpr auto operator->() const noexcept -> I * {
   //   return inner_state_.getState();
   // }
@@ -105,7 +131,7 @@ public:
     if (inner_state_ == ListEnd{}) {
       ++outer_state_;
       if (outer_state_ != ListEnd{})
-        inner_state_ = {newInner_(outer_state_.getState()), OpInner{}};
+        inner_state_ = {*outer_state_, OpInner{}, Proj{}};
     }
     return *this;
   }
@@ -128,55 +154,65 @@ public:
   constexpr auto operator==(ListEnd) const noexcept -> bool {
     return (inner_state_ == ListEnd{}) && (outer_state_ == ListEnd{});
   }
-  constexpr NestedListIterator(O *outer_state, I *inner_state, OpOuter outer,
-                               OpInner inner, NewInner newInner) noexcept
-    : outer_state_{outer_state, outer}, inner_state_{inner_state, inner},
-      newInner_{newInner} {}
-  constexpr NestedListIterator(ListIterator<O, OpOuter> outer_state,
-                               ListIterator<I, OpInner> inner_state,
-                               NewInner newInner) noexcept
-    : outer_state_{outer_state}, inner_state_{inner_state},
-      newInner_{newInner} {}
+  constexpr NestedListIterator(
+    ListIterator<O, OpOuter, NewInner> outer_state,
+    ListIterator<I, OpInner, Proj> inner_state) noexcept
+    : outer_state_{outer_state}, inner_state_{inner_state} {}
   constexpr NestedListIterator() = default;
 };
-template <class O, class I, class OpOuter, class OpInner, class NewInner>
-NestedListIterator(O *, I *, OpOuter, OpInner, NewInner)
-  -> NestedListIterator<O, I, OpOuter, OpInner, NewInner>;
-template <class O, class I, class OpOuter, class OpInner, class NewInner>
-NestedListIterator(ListIterator<O, OpOuter>, ListIterator<I, OpInner>, NewInner)
-  -> NestedListIterator<O, I, OpOuter, OpInner, NewInner>;
+template <class O, class I, class OpOuter, class OpInner, class NewInner,
+          class Proj>
+NestedListIterator(ListIterator<O, OpOuter, NewInner>,
+                   ListIterator<I, OpInner, Proj>)
+  -> NestedListIterator<O, I, OpOuter, OpInner, NewInner, Proj>;
 
-template <typename T, class OpOuter, class OpInner, class NewInner>
+template <typename T, class OpOuter, class OpInner, class NewInner, class Proj>
 class NestedListRange {
   T *begin_;
   [[no_unique_address]] OpOuter nextOuter_{};
   [[no_unique_address]] OpInner nextInner_{};
   [[no_unique_address]] NewInner newInner_{};
+  [[no_unique_address]] Proj p_{};
 
 public:
   constexpr auto begin() noexcept {
-    ListIterator<T, OpOuter> outer{begin_, nextOuter_};
+    ListIterator outer{begin_, nextOuter_, newInner_};
     decltype(newInner_(begin_)) innerState =
       begin_ ? newInner_(begin_) : nullptr;
-    ListIterator inner{innerState, nextInner_};
-    NestedListIterator iter{outer, inner, newInner_};
-    return iter;
+    ListIterator inner{innerState, nextInner_, p_};
+    return NestedListIterator{outer, inner};
   }
   constexpr auto begin() const noexcept {
     const T *b = begin_;
-    ListIterator<T, OpOuter> outer{b, nextOuter_};
+    ListIterator outer{b, nextOuter_, newInner_};
     const decltype(newInner_(b)) innerState = b ? newInner_(b) : nullptr;
-    ListIterator inner{innerState, nextInner_};
-    NestedListIterator iter{outer, inner, newInner_};
-    return iter;
+    ListIterator inner{innerState, nextInner_, p_};
+    return NestedListIterator{outer, inner};
   }
   static constexpr auto end() noexcept -> ListEnd { return {}; }
+  constexpr NestedListRange(T *begin, OpOuter outer, OpInner inner,
+                            NewInner newInner, Proj p) noexcept
+    : begin_{begin}, nextOuter_{outer}, nextInner_{inner}, newInner_{newInner},
+      p_{p} {}
   constexpr NestedListRange(T *begin, OpOuter outer, OpInner inner,
                             NewInner newInner) noexcept
     : begin_{begin}, nextOuter_{outer}, nextInner_{inner}, newInner_{newInner} {
   }
   constexpr NestedListRange(T *begin) noexcept : begin_{begin} {}
 };
+
+template <typename T, class OpOuter, class OpInner, class NewInner>
+NestedListRange(T *, OpOuter, OpInner, NewInner)
+  -> NestedListRange<T, OpOuter, OpInner, NewInner, Identity>;
+template <typename T, class OpOuter, class OpInner, class NewInner>
+NestedListRange(NotNull<T>, OpOuter, OpInner, NewInner)
+  -> NestedListRange<T, OpOuter, OpInner, NewInner, Identity>;
+template <typename T, class OpOuter, class OpInner, class NewInner, class Proj>
+NestedListRange(T *, OpOuter, OpInner, NewInner, Proj)
+  -> NestedListRange<T, OpOuter, OpInner, NewInner, Proj>;
+template <typename T, class OpOuter, class OpInner, class NewInner, class Proj>
+NestedListRange(NotNull<T>, OpOuter, OpInner, NewInner, Proj)
+  -> NestedListRange<T, OpOuter, OpInner, NewInner, Proj>;
 
 // static_assert(std::ranges::range<ListRange
 

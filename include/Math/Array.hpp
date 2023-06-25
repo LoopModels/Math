@@ -928,19 +928,6 @@ struct ReallocView : ResizeableView<T, S, U> {
   constexpr void extendOrAssertSize(Row R, Col C) {
     resizeForOverwrite(DenseDims{R, C});
   }
-  constexpr void moveLast(Col j) {
-    static_assert(MatrixDimension<S>);
-    if (j == this->numCol()) return;
-    Col Nd = this->numCol() - 1;
-    for (ptrdiff_t m = 0; m < this->numRow(); ++m) {
-      auto x = (*this)(m, j);
-      for (Col n = j; n < Nd;) {
-        Col o = n++;
-        (*this)(m, o) = (*this)(m, n);
-      }
-      (*this)(m, Nd) = x;
-    }
-  }
 
 protected:
   // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
@@ -1062,18 +1049,25 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     } else if constexpr (MatrixDimension<D> && MatrixDimension<S>) {
       invariant(b.numRow() == this->numRow());
       invariant(b.numCol() == this->numCol());
-      for (ptrdiff_t m = 0; m < this->numRow(); ++m)
+      for (ptrdiff_t m = 0; m < this->numRow(); ++m) {
+        POLYMATHVECTORIZE
         for (ptrdiff_t n = 0; n < this->numCol(); ++n) (*this)(m, n) = b(m, n);
+      }
     } else if constexpr (MatrixDimension<D>) {
       ptrdiff_t j = 0;
-      for (ptrdiff_t m = 0; m < b.numRow(); ++m)
+      for (ptrdiff_t m = 0; m < b.numRow(); ++m) {
+        POLYMATHVECTORIZE
         for (ptrdiff_t n = 0; n < b.numCol(); ++n) (*this)(j++) = b(m, n);
+      }
     } else if constexpr (MatrixDimension<S>) {
       ptrdiff_t j = 0;
-      for (ptrdiff_t m = 0; m < this->numRow(); ++m)
+      for (ptrdiff_t m = 0; m < this->numRow(); ++m) {
+        POLYMATHVECTORIZE
         for (ptrdiff_t n = 0; n < this->numCol(); ++n) (*this)(m, n) = b(j++);
+      }
     } else {
       T *p = this->data();
+      POLYMATHVECTORIZE
       for (ptrdiff_t i = 0; i < len; ++i) p[i] = b[i];
     }
   }
@@ -1118,7 +1112,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     : BaseT{memory.data(), b.dim(), U(N), b.get_allocator()} {
     if (b.isSmall()) { // copy
       std::copy_n(b.data(), ptrdiff_t(b.dim()), this->data());
-    } else { // steal
+    } else {           // steal
       this->ptr = b.data();
       this->capacity = b.getCapacity();
     }
@@ -1129,7 +1123,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     if constexpr (N > 0) {
       if (b.isSmall()) { // copy
         std::copy_n(b.data(), ptrdiff_t(b.dim()), this->data());
-      } else { // steal
+      } else {           // steal
         this->ptr = b.data();
         this->capacity = b.getCapacity();
       }
@@ -1144,7 +1138,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     : BaseT{memory.data(), s, U(N), b.get_allocator()} {
     if (b.isSmall()) { // copy
       std::copy_n(b.data(), ptrdiff_t(b.dim()), this->data());
-    } else { // steal
+    } else {           // steal
       this->ptr = b.data();
       this->capacity = b.getCapacity();
     }
