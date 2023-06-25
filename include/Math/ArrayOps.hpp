@@ -9,10 +9,11 @@
 #include <type_traits>
 
 #if defined __GNUC__ && __GNUC__ >= 8
-#define POLYMATHVECTORIZE _Pragma("GCC unroll 2") _Pragma("GCC ivdep")
+#define POLYMATHVECTORIZE _Pragma("GCC ivdep")
+// #define POLYMATHVECTORIZE _Pragma("GCC unroll 2") _Pragma("GCC ivdep")
 #elif defined __clang__
-#define POLYMATHVECTORIZE                                                      \
-  _Pragma("clang loop vectorize(enable) interleave_count(2)")
+#define POLYMATHVECTORIZE _Pragma("clang loop vectorize(enable)")
+// _Pragma("clang loop vectorize(enable) interleave_count(2)")
 #else
 #define POLYMATHVECTORIZE
 #endif
