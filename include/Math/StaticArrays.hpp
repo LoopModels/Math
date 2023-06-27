@@ -1,6 +1,7 @@
 #pragma once
 #include "Math/Array.hpp"
-
+#include <tuple>
+#include <type_traits>
 namespace poly::math {
 
 static_assert(
@@ -190,6 +191,11 @@ public:
   constexpr auto operator==(const StaticArray &rhs) const noexcept -> bool {
     return std::equal(begin(), end(), rhs.begin());
   }
+  template <std::size_t I> constexpr auto get() -> T & { return memory[I]; }
+  template <std::size_t I>
+  [[nodiscard]] constexpr auto get() const -> const T & {
+    return memory[I];
+  }
 };
 
 template <class T, size_t N>
@@ -203,3 +209,12 @@ inline constexpr auto view(const StaticArray<T, S> &x) {
 }
 
 }; // namespace poly::math
+namespace std {
+template <class T, std::size_t N>
+struct tuple_size<poly::math::SVector<T, N>> // NOLINT(cert-dcl58-cpp)
+  : std::integral_constant<std::size_t, N> {};
+template <std::size_t I, class T, std::size_t N>
+struct tuple_element<I, poly::math::SVector<T, N>> { // NOLINT(cert-dcl58-cpp)
+  using type = T;
+};
+} // namespace std

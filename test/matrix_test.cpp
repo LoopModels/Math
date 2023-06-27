@@ -228,4 +228,8 @@ TEST(SVectorTest, BasicAssertions) {
   // EXPECT_TRUE(constCmp(x.size()).second);
   // EXPECT_TRUE(constCmp(x.size(), unsigned(3)).second);
   // EXPECT_TRUE(constCmp(x.size(), y.size()).second);
+  auto [a, b, c] = w;
+  EXPECT_EQ(a, 11);
+  EXPECT_EQ(b, 22);
+  EXPECT_EQ(c, 33);
 }
