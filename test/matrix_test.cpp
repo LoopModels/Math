@@ -5,7 +5,6 @@
 #include "Math/StaticArrays.hpp"
 #include "Utilities/Allocators.hpp"
 #include "Utilities/MatrixStringParse.hpp"
-#include <bits/utility.h>
 #include <cstddef>
 #include <cstdint>
 #include <gtest/gtest.h>
