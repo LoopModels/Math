@@ -14,7 +14,7 @@ concept StaticSize = StaticInt<T>;
 template <class T, StaticSize S>
 class StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
   static constexpr ptrdiff_t capacity = ptrdiff_t{S{}};
-  std::array<T, capacity> memory{};
+  T memory[capacity]; // NOLINT(modernize-avoid-c-arrays)
 
 public:
   using value_type = T;
@@ -41,9 +41,9 @@ public:
     (*this) << b;
   }
   [[nodiscard]] constexpr auto data() const noexcept -> const T * {
-    return memory.data();
+    return memory;
   }
-  constexpr auto data() noexcept -> T * { return memory.data(); }
+  constexpr auto data() noexcept -> T * { return memory; }
 
   constexpr auto operator=(StaticArray const &) -> StaticArray & = default;
   constexpr auto operator=(StaticArray &&) noexcept -> StaticArray & = default;

@@ -1182,7 +1182,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
   template <class D, std::unsigned_integral I>
   constexpr auto operator=(ManagedArray<T, D, N, A, I> &&b) noexcept
     -> ManagedArray & {
-    if (this->begin() == b.begin()) return *this;
+    if (this->data() == b.data()) return *this;
     // here, we commandeer `b`'s memory
     this->sz = b.dim();
     this->allocator = std::move(b.get_allocator());
@@ -1430,15 +1430,16 @@ inline auto operator<<(std::ostream &os, const AbstractVector auto &A)
   B << A;
   return printVector(os, B);
 }
-template <std::integral T> struct MaxPow10 {
-  static constexpr T value = (sizeof(T) == 1)   ? 3
-                             : (sizeof(T) == 2) ? 5
-                             : (sizeof(T) == 4)
-                               ? 10
-                               : (std::signed_integral<T> ? 19 : 20);
-};
+template <std::integral T> static constexpr auto maxPow10() -> size_t {
+  if constexpr (sizeof(T) == 1) return 3;
+  else if constexpr (sizeof(T) == 2) return 5;
+  else if constexpr (sizeof(T) == 4) return 10;
+  else if constexpr (std::signed_integral<T>) return 19;
+  else return 20;
+}
+
 template <std::unsigned_integral T> constexpr auto countDigits(T x) {
-  std::array<T, MaxPow10<T>::value + 1> powers;
+  std::array<T, maxPow10<T>() + 1> powers;
   powers[0] = 0;
   powers[1] = 10;
   for (ptrdiff_t i = 2; i < std::ssize(powers); i++)
