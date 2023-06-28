@@ -208,6 +208,8 @@ TEST(VectorTest, BasicAssertions) {
 }
 TEST(SVectorTest, BasicAssertions) {
   SVector<int64_t, 3> x{1, 2, 3};
+  static_assert(std::tuple_size_v<decltype(x)> == 3);
+  static_assert(std::same_as<std::tuple_element_t<2, decltype(x)>, int64_t>);
   SVector<int64_t, 3> y{10, 20, 30};
   SVector<int64_t, 3> z{11, 22, 33};
   SVector<int64_t, 3> w = x + y;
@@ -228,4 +230,8 @@ TEST(SVectorTest, BasicAssertions) {
   // EXPECT_TRUE(constCmp(x.size()).second);
   // EXPECT_TRUE(constCmp(x.size(), unsigned(3)).second);
   // EXPECT_TRUE(constCmp(x.size(), y.size()).second);
+  auto [a, b, c] = w;
+  EXPECT_EQ(a, 11);
+  EXPECT_EQ(b, 22);
+  EXPECT_EQ(c, 33);
 }
