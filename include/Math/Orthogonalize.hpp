@@ -26,7 +26,8 @@ namespace poly::math {
         buff[k] -= Rational::createPositiveDenominator(A(j, k) * n, d);
     }
     int64_t lm = 1;
-    for (ptrdiff_t k = 0; k < A.numCol(); ++k) lm = lcm(lm, buff[k].denominator);
+    for (ptrdiff_t k = 0; k < A.numCol(); ++k)
+      lm = lcm(lm, buff[k].denominator);
     for (ptrdiff_t k = 0; k < A.numCol(); ++k)
       A(i, k) = buff[k].numerator * (lm / buff[k].denominator);
   }

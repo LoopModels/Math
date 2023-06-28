@@ -190,8 +190,8 @@ constexpr auto substituteEquality(MutDensePtrMatrix<int64_t> &,
 }
 
 constexpr auto substituteEquality(MutDensePtrMatrix<int64_t> &A,
-                                  MutDensePtrMatrix<int64_t> &E, const ptrdiff_t i)
-  -> bool {
+                                  MutDensePtrMatrix<int64_t> &E,
+                                  const ptrdiff_t i) -> bool {
 
   Row minNonZero = substituteEqualityPairImpl({A, E}, i);
   if (minNonZero == E.numRow()) return true;
@@ -334,8 +334,8 @@ constexpr void fourierMotzkinCore(DenseMatrix<int64_t> &A, ptrdiff_t v,
   const Row numRowsNew = numRowsOld - numNeg - numPos + numNeg * numPos + 1;
   A.resize(numRowsNew);
   // plan is to replace
-  for (ptrdiff_t i = 0, numRows = ptrdiff_t(numRowsOld), posCount = numPos; posCount;
-       ++i) {
+  for (ptrdiff_t i = 0, numRows = ptrdiff_t(numRowsOld), posCount = numPos;
+       posCount; ++i) {
     int64_t Aiv = A(i, v);
     if (Aiv <= 0) continue;
     --posCount;
@@ -418,7 +418,8 @@ constexpr void dropEmptyConstraints(MutDensePtrMatrix<int64_t> &A) {
     if (allZero(A(--c, _))) eraseConstraint(A, c);
 }
 
-constexpr auto uniqueConstraint(DensePtrMatrix<int64_t> A, ptrdiff_t C) -> bool {
+constexpr auto uniqueConstraint(DensePtrMatrix<int64_t> A, ptrdiff_t C)
+  -> bool {
   for (ptrdiff_t c = 0; c < C; ++c) {
     bool allEqual = true;
     for (ptrdiff_t r = 0; r < A.numCol(); ++r) allEqual &= (A(c, r) == A(C, r));
