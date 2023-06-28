@@ -5,6 +5,7 @@
 #include "Math/StaticArrays.hpp"
 #include "Utilities/Allocators.hpp"
 #include "Utilities/MatrixStringParse.hpp"
+#include <bits/utility.h>
 #include <cstddef>
 #include <cstdint>
 #include <gtest/gtest.h>
@@ -208,6 +209,8 @@ TEST(VectorTest, BasicAssertions) {
 }
 TEST(SVectorTest, BasicAssertions) {
   SVector<int64_t, 3> x{1, 2, 3};
+  static_assert(std::tuple_size_v<decltype(x)> == 3);
+  static_assert(std::same_as<std::tuple_element_t<2, decltype(x)>, int64_t>);
   SVector<int64_t, 3> y{10, 20, 30};
   SVector<int64_t, 3> z{11, 22, 33};
   SVector<int64_t, 3> w = x + y;

@@ -1,7 +1,7 @@
 #pragma once
 #include "Math/Array.hpp"
-#include <tuple>
 #include <type_traits>
+#include <utility>
 namespace poly::math {
 
 static_assert(
@@ -198,7 +198,7 @@ public:
   }
 };
 
-template <class T, size_t N>
+template <class T, ptrdiff_t N>
 using SVector = StaticArray<T, std::integral_constant<ptrdiff_t, N>>;
 
 static_assert(AbstractVector<SVector<int64_t, 3>>);
@@ -208,13 +208,13 @@ inline constexpr auto view(const StaticArray<T, S> &x) {
   return x.view();
 }
 
-}; // namespace poly::math
-namespace std {
-template <class T, std::size_t N>
-struct tuple_size<poly::math::SVector<T, N>> // NOLINT(cert-dcl58-cpp)
-  : std::integral_constant<std::size_t, N> {};
-template <std::size_t I, class T, std::size_t N>
-struct tuple_element<I, poly::math::SVector<T, N>> { // NOLINT(cert-dcl58-cpp)
+};                              // namespace poly::math
+
+template <class T, ptrdiff_t N> // NOLINTNEXTLINE(cert-dcl58-cpp)
+struct std::tuple_size<::poly::math::SVector<T, N>>
+  : std::integral_constant<ptrdiff_t, N> {};
+
+template <size_t I, class T, ptrdiff_t N> // NOLINTNEXTLINE(cert-dcl58-cpp)
+struct std::tuple_element<I, poly::math::SVector<T, N>> {
   using type = T;
 };
-} // namespace std
