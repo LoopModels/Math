@@ -153,41 +153,43 @@ public:
   /// copying
   template <bool ForOverwrite = false>
   [[gnu::returns_nonnull, nodiscard]] constexpr auto
-  reallocateImpl(void *Ptr, size_t szOld, size_t szNew) -> void * {
-    if (szOld >= szNew) return Ptr;
+  reallocateImpl(void *Ptr, size_t capOld, size_t capNew, size_t szOld)
+    -> void * {
+    if (capOld >= capNew) return Ptr;
     if (Ptr) {
-      if (void *p = tryReallocate(Ptr, szOld, szNew)) {
+      if (void *p = tryReallocate(Ptr, capOld, capNew)) {
         if constexpr ((!BumpUp) & (!ForOverwrite))
           std::copy_n((char *)Ptr, szOld, (char *)p);
         return p;
       }
       if constexpr (BumpUp) {
-        if (Ptr == (char *)slab - align(szOld)) {
-          slab = (char *)Ptr + align(szNew);
+        if (Ptr == (char *)slab - align(capOld)) {
+          slab = (char *)Ptr + align(capNew);
           if (!outOfSlab()) {
-            __asan_unpoison_memory_region((char *)Ptr + szOld, szNew - szOld);
-            __msan_allocated_memory((char *)Ptr + szOld, szNew - szOld);
+            __asan_unpoison_memory_region((char *)Ptr + capOld,
+                                          capNew - capOld);
+            __msan_allocated_memory((char *)Ptr + capOld, capNew - capOld);
             return Ptr;
           }
         }
       } else if (Ptr == slab) {
-        size_t extraSize = align(szNew - szOld);
+        size_t extraSize = align(capNew - capOld);
         slab = (char *)slab - extraSize;
         if (!outOfSlab()) {
           __asan_unpoison_memory_region(slab, extraSize);
           __msan_allocated_memory(SlabCur, extraSize);
           if constexpr (!ForOverwrite)
-            std::copy_n((char *)Ptr, szOld, (char *)slab);
+            std::copy_n((char *)Ptr, capOld, (char *)slab);
           return slab;
         }
       }
     }
     // we need to allocate new memory
-    auto newPtr = allocate(szNew);
+    auto newPtr = allocate(capNew);
     if (szOld && Ptr) {
       if constexpr (!ForOverwrite)
         std::copy_n((char *)Ptr, szOld, (char *)newPtr);
-      deallocate(Ptr, szOld);
+      deallocate(Ptr, capOld);
     }
     return newPtr;
   }
@@ -201,9 +203,18 @@ public:
   }
   template <bool ForOverwrite = false, typename T>
   [[gnu::returns_nonnull, gnu::flatten, nodiscard]] constexpr auto
-  reallocate(T *Ptr, size_t OldSize, size_t NewSize) -> T * {
+  reallocate(T *Ptr, size_t oldCapacity, size_t newCapacity) -> T * {
     return static_cast<T *>(reallocateImpl<ForOverwrite>(
-      Ptr, OldSize * sizeof(T), NewSize * sizeof(T)));
+      Ptr, oldCapacity * sizeof(T), newCapacity * sizeof(T),
+      oldCapacity * sizeof(T)));
+  }
+  template <bool ForOverwrite = false, typename T>
+  [[gnu::returns_nonnull, gnu::flatten, nodiscard]] constexpr auto
+  reallocate(T *Ptr, size_t oldCapacity, size_t newCapacity, size_t oldSize)
+    -> T * {
+    return static_cast<T *>(reallocateImpl<ForOverwrite>(
+      Ptr, oldCapacity * sizeof(T), newCapacity * sizeof(T),
+      oldSize * sizeof(T)));
   }
   //   : slab{other.slab}, sEnd{other.sEnd} {
   //   other.slab = nullptr;
@@ -252,19 +263,19 @@ public:
   constexpr auto scope() -> ScopeLifetime { return *this; }
 
 private:
-  constexpr auto tryReallocate(void *Ptr, size_t szOld, size_t szNew)
+  constexpr auto tryReallocate(void *Ptr, size_t capOld, size_t capNew)
     -> void * {
     if constexpr (BumpUp) {
-      if (Ptr == (char *)slab - align(szOld)) {
-        slab = (char *)Ptr + align(szNew);
+      if (Ptr == (char *)slab - align(capOld)) {
+        slab = (char *)Ptr + align(capNew);
         if (!outOfSlab()) {
-          __asan_unpoison_memory_region((char *)Ptr + szOld, szNew - szOld);
-          __msan_allocated_memory((char *)Ptr + szOld, szNew - szOld);
+          __asan_unpoison_memory_region((char *)Ptr + capOld, capNew - capOld);
+          __msan_allocated_memory((char *)Ptr + capOld, capNew - capOld);
           return Ptr;
         }
       }
     } else if (Ptr == slab) {
-      size_t extraSize = align(szNew - szOld);
+      size_t extraSize = align(capNew - capOld);
       slab = (char *)slab - extraSize;
       if (!outOfSlab()) {
         __asan_unpoison_memory_region(slab, extraSize);

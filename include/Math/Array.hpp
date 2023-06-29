@@ -526,10 +526,13 @@ struct ResizeableView : MutArray<T, S> {
   constexpr ResizeableView() noexcept : BaseT(nullptr, 0), capacity(0) {}
   constexpr ResizeableView(T *p, S s, U c) noexcept
     : BaseT(p, s), capacity(c) {}
+  constexpr ResizeableView(utils::Arena<> *a, S s, U c) noexcept
+    : ResizeableView{a->template allocate<T>(c), s, c} {}
 
   [[nodiscard]] constexpr auto isFull() const -> bool {
     return U(this->sz) == capacity;
   }
+
   template <class... Args>
   constexpr auto emplace_back(Args &&...args) -> decltype(auto) {
     static_assert(std::is_integral_v<S>, "emplace_back requires integral size");
@@ -537,9 +540,24 @@ struct ResizeableView : MutArray<T, S> {
     return *std::construct_at(this->ptr + this->sz++,
                               std::forward<Args>(args)...);
   }
+  /// Allocates extra space if needed
+  /// Has a different name to make sure we avoid ambiguities.
+  template <class... Args>
+  constexpr auto emplace_backa(utils::Arena<> *alloc, Args &&...args)
+    -> decltype(auto) {
+    static_assert(std::is_integral_v<S>, "emplace_back requires integral size");
+    if (isFull()) reserve(alloc, (capacity + 1) * 2);
+    return *std::construct_at(this->ptr + this->sz++,
+                              std::forward<Args>(args)...);
+  }
   constexpr void push_back(T value) {
     static_assert(std::is_integral_v<S>, "push_back requires integral size");
     invariant(U(this->sz) < capacity);
+    std::construct_at<T>(this->ptr + this->sz++, std::move(value));
+  }
+  constexpr void push_back(utils::Arena<> *alloc, T value) {
+    static_assert(std::is_integral_v<S>, "push_back requires integral size");
+    if (isFull()) reserve(alloc, (capacity + 1) * 2);
     std::construct_at<T>(this->ptr + this->sz++, std::move(value));
   }
   constexpr void pop_back() {
@@ -694,10 +712,12 @@ struct ResizeableView : MutArray<T, S> {
   template <size_t SlabSize, bool BumpUp>
   constexpr void reserve(utils::Arena<SlabSize, BumpUp> *alloc, U newCapacity) {
     if (newCapacity <= capacity) return;
-    T *oldPtr =
-      std::exchange(this->ptr, alloc->template allocate<T>(newCapacity));
-    std::copy_n(oldPtr, U(this->sz), this->ptr);
-    alloc->deallocate(oldPtr, capacity);
+    this->ptr = alloc->template reallocate<false, T>(this->ptr, capacity,
+                                                     newCapacity, U{this->sz});
+    // T *oldPtr =
+    //   std::exchange(this->ptr, alloc->template allocate<T>(newCapacity));
+    // std::copy_n(oldPtr, U(this->sz), this->ptr);
+    // alloc->deallocate(oldPtr, capacity);
     capacity = newCapacity;
   }
 
