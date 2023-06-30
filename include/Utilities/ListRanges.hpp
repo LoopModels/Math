@@ -88,20 +88,21 @@ template <typename T, class Op, class Proj>
 class ListRange
   : public std::ranges::view_interface<ListIterator<T, Op, Proj>> {
   T *begin_;
-  [[no_unique_address]] Op op_{};
-  [[no_unique_address]] Proj p_{};
+  [[no_unique_address]] Op next_{};
+  [[no_unique_address]] Proj projection_{};
 
 public:
   constexpr auto begin() noexcept -> ListIterator<T, Op, Proj> {
-    return {begin_, op_, p_};
+    return {begin_, next_, projection_};
   }
   constexpr auto begin() const noexcept -> ListIterator<const T, Op, Proj> {
-    return {begin_, op_, p_};
+    return {begin_, next_, projection_};
   }
   static constexpr auto end() noexcept -> End { return {}; }
-  constexpr ListRange(T *begin, Op op, Proj p) noexcept
-    : begin_{begin}, op_{op}, p_{p} {}
-  constexpr ListRange(T *begin, Op op) noexcept : begin_{begin}, op_{op} {}
+  constexpr ListRange(T *begin, Op next, Proj projection) noexcept
+    : begin_{begin}, next_{next}, projection_{projection} {}
+  constexpr ListRange(T *begin, Op next) noexcept
+    : begin_{begin}, next_{next} {}
   constexpr ListRange(T *begin) noexcept : begin_{begin} {}
 };
 template <typename T, class Op, class Proj>
@@ -158,7 +159,7 @@ public:
     return count;
   }
   constexpr NestedIterator(O o, I i, P p, J j, F f) noexcept
-    : outer{o}, inner{i}, outerend{p}, innerend{j}, innerfun(f) {}
+    : outer{o}, inner{i}, outerend{p}, innerend{j}, innerfun{f} {}
 };
 
 /// NestedList
