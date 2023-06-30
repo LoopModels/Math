@@ -63,10 +63,16 @@ template <typename Op, typename A> struct ElementwiseUnaryOp {
   [[nodiscard]] constexpr auto view() const { return *this; };
 };
 // scalars broadcast
-constexpr auto get(const auto &A, ptrdiff_t) { return A; }
-constexpr auto get(const auto &A, ptrdiff_t, ptrdiff_t) { return A; }
-constexpr auto get(const AbstractVector auto &A, ptrdiff_t i) { return A[i]; }
-constexpr auto get(const AbstractMatrix auto &A, ptrdiff_t i, ptrdiff_t j) {
+constexpr auto get(const auto &A, ptrdiff_t) -> decltype(auto) { return A; }
+constexpr auto get(const auto &A, ptrdiff_t, ptrdiff_t) -> decltype(auto) {
+  return A;
+}
+constexpr auto get(const AbstractVector auto &A, ptrdiff_t i)
+  -> decltype(auto) {
+  return A[i];
+}
+constexpr auto get(const AbstractMatrix auto &A, ptrdiff_t i, ptrdiff_t j)
+  -> decltype(auto) {
   return A(i, j);
 }
 
