@@ -84,7 +84,9 @@ ListIterator(T *, Op, Proj) -> ListIterator<T, Op, Proj>;
 template <typename T, class Op>
 ListIterator(T *, Op) -> ListIterator<T, Op, Identity>;
 
-template <typename T, class Op, class Proj> class ListRange {
+template <typename T, class Op, class Proj>
+class ListRange
+  : public std::ranges::view_interface<ListIterator<T, Op, Proj>> {
   T *begin_;
   [[no_unique_address]] Op op_{};
   [[no_unique_address]] Proj p_{};
@@ -270,15 +272,16 @@ public:
 /// range level is the head of the next iteration, i.e. it is useful
 /// for nested list-like data structures, rather than (for example)
 /// cartesian product iterators.
-template <std::ranges::forward_range O, class F> class NestedList {
-  static_assert(std::is_trivially_copyable_v<O>);
+template <std::ranges::forward_range O, class F>
+class NestedList : public std::ranges::view_interface<NestedList<O, F>> {
+  static_assert(std::ranges::view<O>);
   static_assert(std::is_trivially_destructible_v<O>);
   [[no_unique_address]] O outer;
   [[no_unique_address]] F inner;
 
 public:
   using InnerType = decltype(inner(*(outer.begin())));
-  static_assert(std::is_trivially_copyable_v<InnerType>);
+  static_assert(std::ranges::view<InnerType>);
   static_assert(std::is_trivially_destructible_v<InnerType>);
 
 private:

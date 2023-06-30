@@ -96,6 +96,38 @@ TEST(ListRangeTest, BasicAssertions) {
     EXPECT_EQ(s, 454545);
   }
   {
+    int s = 0;
+    auto tmp =
+      std::ranges::owning_view{utils::ListRange{listList, utils::GetNext{}}};
+    static_assert(std::ranges::input_range<decltype(tmp)>);
+    static_assert(std::is_trivially_copyable_v<decltype(tmp)>);
+    static_assert(std::is_trivially_destructible_v<decltype(tmp)>);
+    static_assert(std::ranges::enable_borrowed_range<decltype(tmp)>);
+    auto pred = [](List<List<int> *> *v) -> bool {
+      return v->getData()->getData() != 900;
+    };
+    static_assert(std::is_trivially_copyable_v<decltype(pred)>);
+    static_assert(std::ranges::enable_borrowed_range<decltype(tmp)>);
+    static_assert(std::ranges::view<
+                  std::ranges::filter_view<decltype(tmp), decltype(pred)>>);
+    // static_assert(std::is_trivially_copyable_v<
+    //               std::ranges::filter_view<decltype(tmp), decltype(pred)>>);
+    auto outer =
+      utils::ListRange{listList, utils::GetNext{}} | std::views::filter(pred);
+    static_assert(std::ranges::input_range<decltype(outer)>);
+    static_assert(std::is_trivially_destructible_v<decltype(outer)>);
+    static_assert(std::ranges::view<decltype(outer)>);
+    utils::NestedList nlr{outer, g};
+    static_assert(std::input_iterator<decltype(nlr.begin())>);
+    static_assert(std::ranges::input_range<decltype(nlr)>);
+    static_assert(std::ranges::view<decltype(outer)>);
+    static_assert(
+      std::ranges::enable_borrowed_range<typename decltype(nlr)::InnerType>);
+    static_assert(std::ranges::view<decltype(nlr)>);
+    for (auto *v : nlr) s += v->getData();
+    EXPECT_EQ(s, 450045);
+  }
+  {
     std::vector<int> destination;
     utils::NestedList nlr{utils::ListRange{listList, utils::GetNext{}}, g};
     static_assert(std::input_iterator<decltype(nlr.begin())>);
