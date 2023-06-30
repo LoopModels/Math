@@ -36,6 +36,36 @@ static_assert(DoCopy<PtrVector<int64_t>>);
 static_assert(DoCopy<DensePtrMatrix<int64_t>>);
 static_assert(!DoCopy<DenseMatrix<int64_t>>);
 
+struct Negate {
+  constexpr auto operator()(const auto &x) const -> decltype(auto) {
+    return -x;
+  }
+};
+struct Plus {
+  constexpr auto operator()(const auto &x, const auto &y) const
+    -> decltype(auto) {
+    return x + y;
+  }
+};
+struct Minus {
+  constexpr auto operator()(const auto &x, const auto &y) const
+    -> decltype(auto) {
+    return x - y;
+  }
+};
+struct Mul {
+  constexpr auto operator()(const auto &x, const auto &y) const
+    -> decltype(auto) {
+    return x * y;
+  }
+};
+struct Div {
+  constexpr auto operator()(const auto &x, const auto &y) const
+    -> decltype(auto) {
+    return x / y;
+  }
+};
+
 [[gnu::flatten]] constexpr auto operator==(const AbstractMatrix auto &A,
                                            const AbstractMatrix auto &B)
   -> bool {
@@ -52,8 +82,8 @@ template <typename Op, typename A> struct ElementwiseUnaryOp {
   using value_type = typename A::value_type;
   [[no_unique_address]] Op op;
   [[no_unique_address]] A a;
-  constexpr auto operator[](auto i) const { return op(a[i]); }
-  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const {
+  constexpr auto operator[](auto i) const -> decltype(auto) { return op(a[i]); }
+  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const -> decltype(auto) {
     return op(a(i, j));
   }
 
@@ -146,7 +176,9 @@ template <class Op, class A, class B> struct ElementwiseVectorBinaryOp {
   [[no_unique_address]] Op op;
   [[no_unique_address]] A a;
   [[no_unique_address]] B b;
-  constexpr auto operator[](auto i) const { return op(get(a, i), get(b, i)); }
+  constexpr auto operator[](auto i) const -> decltype(auto) {
+    return op(get(a, i), get(b, i));
+  }
   [[nodiscard]] constexpr auto size() const -> ptrdiff_t {
     if constexpr (AbstractVector<A> && AbstractVector<B>) {
       const ptrdiff_t N = a.size();
@@ -165,7 +197,7 @@ template <class Op, class A, class B> struct ElementwiseMatrixBinaryOp {
   [[no_unique_address]] Op op;
   [[no_unique_address]] A a;
   [[no_unique_address]] B b;
-  constexpr auto operator()(auto i, auto j) const {
+  constexpr auto operator()(auto i, auto j) const -> decltype(auto) {
     return op(get(a, i, j), get(b, i, j));
   }
   [[nodiscard]] constexpr auto numRow() const -> Row {
@@ -237,7 +269,7 @@ template <AbstractMatrix A, AbstractMatrix B> struct MatMatMul {
   [[no_unique_address]] B b;
   constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const -> value_type {
     static_assert(AbstractMatrix<B>, "B should be an AbstractMatrix");
-    value_type s{};
+    value_type s{}; // hopefully NRVO
     for (ptrdiff_t k = 0; k < ptrdiff_t(a.numCol()); ++k)
       s += a(i, k) * b(k, j);
     return s;
@@ -308,9 +340,8 @@ static_assert(!AbstractMatrix<StridedVector<int64_t>>);
 
 // static_assert(std::is_trivially_copyable_v<MutStridedVector<int64_t>>);
 static_assert(std::is_trivially_copyable_v<
-              ElementwiseUnaryOp<std::negate<>, StridedVector<int64_t>>>);
-static_assert(
-  Trivial<ElementwiseUnaryOp<std::negate<>, StridedVector<int64_t>>>);
+              ElementwiseUnaryOp<Negate, StridedVector<int64_t>>>);
+static_assert(Trivial<ElementwiseUnaryOp<Negate, StridedVector<int64_t>>>);
 
 constexpr auto allMatch(const AbstractVector auto &x0,
                         const AbstractVector auto &x1) -> bool {
@@ -404,9 +435,8 @@ static_assert(std::copy_constructible<PtrMatrix<int64_t>>);
 static_assert(std::is_trivially_copyable_v<PtrMatrix<int64_t>>);
 static_assert(Trivial<PtrMatrix<int64_t>>);
 static_assert(Trivial<int>);
-static_assert(TriviallyCopyable<std::multiplies<>>);
-static_assert(Trivial<ElementwiseMatrixBinaryOp<std::multiplies<>,
-                                                PtrMatrix<int64_t>, int>>);
+static_assert(TriviallyCopyable<Mul>);
+static_assert(Trivial<ElementwiseMatrixBinaryOp<Mul, PtrMatrix<int64_t>, int>>);
 static_assert(Trivial<MatMatMul<PtrMatrix<int64_t>, PtrMatrix<int64_t>>>);
 
 constexpr auto bin2(std::integral auto x) { return (x * (x - 1)) >> 1; }
@@ -444,13 +474,12 @@ inline auto operator<<(std::ostream &os, const T &A) -> std::ostream & {
 }
 
 constexpr auto operator-(const AbstractVector auto &a) {
-  return ElementwiseUnaryOp{std::negate<>{}, a};
+  return ElementwiseUnaryOp{Negate{}, a};
 }
 constexpr auto operator-(const AbstractMatrix auto &a) {
-  return ElementwiseUnaryOp{std::negate<>{}, a};
+  return ElementwiseUnaryOp{Negate{}, a};
 }
-static_assert(
-  AbstractMatrix<ElementwiseUnaryOp<std::negate<>, PtrMatrix<int64_t>>>);
+static_assert(AbstractMatrix<ElementwiseUnaryOp<Negate, PtrMatrix<int64_t>>>);
 static_assert(AbstractMatrix<Array<int64_t, SquareDims>>);
 static_assert(AbstractMatrix<ManagedArray<int64_t, SquareDims>>);
 
@@ -467,102 +496,101 @@ constexpr auto operator*(const AbstractMatrix auto &a,
 }
 constexpr auto operator*(const AbstractVector auto &a,
                          const AbstractVector auto &b) {
-  return ElementwiseVectorBinaryOp(std::multiplies<>{}, a, b);
+  return ElementwiseVectorBinaryOp(Mul{}, a, b);
 }
 
 template <AbstractVector M, utils::ElementOf<M> S>
 constexpr auto operator+(S a, const M &b) {
-  return ElementwiseVectorBinaryOp(std::plus<>{}, a, b);
+  return ElementwiseVectorBinaryOp(Plus{}, a, b);
 }
 template <AbstractVector M, utils::ElementOf<M> S>
 constexpr auto operator+(const M &b, S a) {
-  return ElementwiseVectorBinaryOp(std::plus<>{}, b, a);
+  return ElementwiseVectorBinaryOp(Plus{}, b, a);
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
 constexpr auto operator+(S a, const M &b) {
-  return ElementwiseMatrixBinaryOp(std::plus<>{}, a, b);
+  return ElementwiseMatrixBinaryOp(Plus{}, a, b);
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
 constexpr auto operator+(const M &b, S a) {
-  return ElementwiseMatrixBinaryOp(std::plus<>{}, b, a);
+  return ElementwiseMatrixBinaryOp(Plus{}, b, a);
 }
 
 template <AbstractVector M, utils::ElementOf<M> S>
 constexpr auto operator-(S a, const M &b) {
-  return ElementwiseVectorBinaryOp(std::minus<>{}, a, b);
+  return ElementwiseVectorBinaryOp(Minus{}, a, b);
 }
 template <AbstractVector M, utils::ElementOf<M> S>
 constexpr auto operator-(const M &b, S a) {
-  return ElementwiseVectorBinaryOp(std::minus<>{}, b, a);
+  return ElementwiseVectorBinaryOp(Minus{}, b, a);
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
 constexpr auto operator-(S a, const M &b) {
-  return ElementwiseMatrixBinaryOp(std::minus<>{}, a, b);
+  return ElementwiseMatrixBinaryOp(Minus{}, a, b);
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
 constexpr auto operator-(const M &b, S a) {
-  return ElementwiseMatrixBinaryOp(std::minus<>{}, b, a);
+  return ElementwiseMatrixBinaryOp(Minus{}, b, a);
 }
 
 template <AbstractVector M, utils::ElementOf<M> S>
 constexpr auto operator*(S a, const M &b) {
-  return ElementwiseVectorBinaryOp(std::multiplies<>{}, a, b);
+  return ElementwiseVectorBinaryOp(Mul{}, a, b);
 }
 template <AbstractVector M, utils::ElementOf<M> S>
 constexpr auto operator*(const M &b, S a) {
-  return ElementwiseVectorBinaryOp(std::multiplies<>{}, b, a);
+  return ElementwiseVectorBinaryOp(Mul{}, b, a);
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
 constexpr auto operator*(S a, const M &b) {
-  return ElementwiseMatrixBinaryOp(std::multiplies<>{}, a, b);
+  return ElementwiseMatrixBinaryOp(Mul{}, a, b);
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
 constexpr auto operator*(const M &b, S a) {
-  return ElementwiseMatrixBinaryOp(std::multiplies<>{}, b, a);
+  return ElementwiseMatrixBinaryOp(Mul{}, b, a);
 }
 
 template <AbstractVector M, utils::ElementOf<M> S>
 constexpr auto operator/(S a, const M &b) {
-  return ElementwiseVectorBinaryOp(std::divides<>{}, a, b);
+  return ElementwiseVectorBinaryOp(Div{}, a, b);
 }
 template <AbstractVector M, utils::ElementOf<M> S>
 constexpr auto operator/(const M &b, S a) {
-  return ElementwiseVectorBinaryOp(std::divides<>{}, b, a);
+  return ElementwiseVectorBinaryOp(Div{}, b, a);
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
 constexpr auto operator/(S a, const M &b) {
-  return ElementwiseMatrixBinaryOp(std::divides<>{}, a, b);
+  return ElementwiseMatrixBinaryOp(Div{}, a, b);
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
 constexpr auto operator/(const M &b, S a) {
-  return ElementwiseMatrixBinaryOp(std::divides<>{}, b, a);
+  return ElementwiseMatrixBinaryOp(Div{}, b, a);
 }
 
 constexpr auto operator+(const AbstractVector auto &a,
                          const AbstractVector auto &b) {
-  return ElementwiseVectorBinaryOp(std::plus<>{}, a, b);
+  return ElementwiseVectorBinaryOp(Plus{}, a, b);
 }
 constexpr auto operator+(const AbstractMatrix auto &a,
                          const AbstractMatrix auto &b) {
-  return ElementwiseMatrixBinaryOp(std::plus<>{}, a, b);
+  return ElementwiseMatrixBinaryOp(Plus{}, a, b);
 }
 constexpr auto operator-(const AbstractVector auto &a,
                          const AbstractVector auto &b) {
-  return ElementwiseVectorBinaryOp(std::minus<>{}, a, b);
+  return ElementwiseVectorBinaryOp(Minus{}, a, b);
 }
 constexpr auto operator-(const AbstractMatrix auto &a,
                          const AbstractMatrix auto &b) {
-  return ElementwiseMatrixBinaryOp(std::minus<>{}, a, b);
+  return ElementwiseMatrixBinaryOp(Minus{}, a, b);
 }
 
 constexpr auto operator/(const AbstractVector auto &a,
                          const AbstractVector auto &b) {
-  return ElementwiseVectorBinaryOp(std::divides<>{}, a, b);
+  return ElementwiseVectorBinaryOp(Div{}, a, b);
 }
 
 static_assert(
-  AbstractMatrix<
-    ElementwiseMatrixBinaryOp<std::multiplies<>, PtrMatrix<int64_t>, int>>,
+  AbstractMatrix<ElementwiseMatrixBinaryOp<Mul, PtrMatrix<int64_t>, int>>,
   "ElementwiseBinaryOp isa AbstractMatrix failed");
 
 static_assert(
