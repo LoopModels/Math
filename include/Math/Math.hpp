@@ -51,8 +51,10 @@ template <typename Op, typename A> struct ElementwiseUnaryOp {
   using value_type = typename A::value_type;
   [[no_unique_address]] Op op;
   [[no_unique_address]] A a;
-  constexpr auto operator[](ptrdiff_t i) const { return op(a[i]); }
-  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const {
+  constexpr auto operator[](ptrdiff_t i) const -> decltype(auto) {
+    return op(a[i]);
+  }
+  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const -> decltype(auto) {
     return op(a(i, j));
   }
 
@@ -116,7 +118,7 @@ template <typename Op, Trivial A, Trivial B> struct ElementwiseVectorBinaryOp {
   [[no_unique_address]] B b;
   constexpr ElementwiseVectorBinaryOp(Op _op, A _a, B _b)
     : op(_op), a(_a), b(_b) {}
-  constexpr auto operator[](ptrdiff_t i) const {
+  constexpr auto operator[](ptrdiff_t i) const -> decltype(auto) {
     return op(get(a, i), get(b, i));
   }
   [[nodiscard]] constexpr auto size() const -> ptrdiff_t {
@@ -140,7 +142,7 @@ template <typename Op, Trivial A, Trivial B> struct ElementwiseMatrixBinaryOp {
   [[no_unique_address]] B b;
   constexpr ElementwiseMatrixBinaryOp(Op _op, A _a, B _b)
     : op(_op), a(_a), b(_b) {}
-  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const {
+  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const -> decltype(auto) {
     return op(get(a, i, j), get(b, i, j));
   }
   [[nodiscard]] constexpr auto numRow() const -> Row {
