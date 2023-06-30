@@ -23,7 +23,7 @@
 /// that are evaluated upon assignments, e.g. `<<` or `+=`.
 ///
 /// All the PtrVector/PtrMatrix types are trivially destructible, copyable, etc
-/// Their lifetimes are governed by the BumpAlloc or RAII type used to back
+/// Their lifetimes are governed by the Arena or RAII type used to back
 /// them.
 namespace poly::math {
 using utils::invariant;

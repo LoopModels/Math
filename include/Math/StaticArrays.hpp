@@ -1,5 +1,6 @@
 #pragma once
 #include "Math/Array.hpp"
+#include <type_traits>
 #include <utility>
 
 namespace poly::math {
@@ -187,6 +188,11 @@ public:
   constexpr auto operator==(const StaticArray &rhs) const noexcept -> bool {
     return std::equal(begin(), end(), rhs.begin());
   }
+  template <std::size_t I> constexpr auto get() -> T & { return memory[I]; }
+  template <std::size_t I>
+  [[nodiscard]] constexpr auto get() const -> const T & {
+    return memory[I];
+  }
 };
 
 template <class T, ptrdiff_t N>
@@ -214,3 +220,12 @@ concept StaticallySizedInlineData =
 static_assert(!DoCopy<SVector<int64_t, 4>>);
 
 }; // namespace poly::math
+
+template <class T, ptrdiff_t N> // NOLINTNEXTLINE(cert-dcl58-cpp)
+struct std::tuple_size<::poly::math::SVector<T, N>>
+  : std::integral_constant<ptrdiff_t, N> {};
+
+template <size_t I, class T, ptrdiff_t N> // NOLINTNEXTLINE(cert-dcl58-cpp)
+struct std::tuple_element<I, poly::math::SVector<T, N>> {
+  using type = T;
+};

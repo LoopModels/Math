@@ -9,6 +9,7 @@
 #include "Math/MatrixDimensions.hpp"
 #include "Math/Rational.hpp"
 #include "Math/Vector.hpp"
+#include "Utilities/Allocators.hpp"
 #include "Utilities/Invariant.hpp"
 #include "Utilities/Optional.hpp"
 #include "Utilities/TypePromotion.hpp"
@@ -521,10 +522,13 @@ struct ResizeableView : MutArray<T, S> {
   constexpr ResizeableView() noexcept : BaseT(nullptr, 0), capacity(0) {}
   constexpr ResizeableView(T *p, S s, U c) noexcept
     : BaseT(p, s), capacity(c) {}
+  constexpr ResizeableView(utils::Arena<> *a, S s, U c) noexcept
+    : ResizeableView{a->template allocate<T>(c), s, c} {}
 
   [[nodiscard]] constexpr auto isFull() const -> bool {
     return U(this->sz) == capacity;
   }
+
   template <class... Args>
   constexpr auto emplace_back(Args &&...args) -> decltype(auto) {
     static_assert(std::is_integral_v<S>, "emplace_back requires integral size");
@@ -532,9 +536,24 @@ struct ResizeableView : MutArray<T, S> {
     return *std::construct_at(this->ptr + this->sz++,
                               std::forward<Args>(args)...);
   }
+  /// Allocates extra space if needed
+  /// Has a different name to make sure we avoid ambiguities.
+  template <class... Args>
+  constexpr auto emplace_backa(utils::Arena<> *alloc, Args &&...args)
+    -> decltype(auto) {
+    static_assert(std::is_integral_v<S>, "emplace_back requires integral size");
+    if (isFull()) reserve(alloc, (capacity + 1) * 2);
+    return *std::construct_at(this->ptr + this->sz++,
+                              std::forward<Args>(args)...);
+  }
   constexpr void push_back(T value) {
     static_assert(std::is_integral_v<S>, "push_back requires integral size");
     invariant(U(this->sz) < capacity);
+    std::construct_at<T>(this->ptr + this->sz++, std::move(value));
+  }
+  constexpr void push_back(utils::Arena<> *alloc, T value) {
+    static_assert(std::is_integral_v<S>, "push_back requires integral size");
+    if (isFull()) reserve(alloc, (capacity + 1) * 2);
     std::construct_at<T>(this->ptr + this->sz++, std::move(value));
   }
   constexpr void pop_back() {
@@ -686,12 +705,15 @@ struct ResizeableView : MutArray<T, S> {
     ++this->sz;
     return p;
   }
-  template <typename A> constexpr void reserve(A &alloc, U newCapacity) {
+  template <size_t SlabSize, bool BumpUp>
+  constexpr void reserve(utils::Arena<SlabSize, BumpUp> *alloc, U newCapacity) {
     if (newCapacity <= capacity) return;
-    T *oldPtr =
-      std::exchange(this->ptr, alloc.template allocate<T>(newCapacity));
-    std::copy_n(oldPtr, U(this->sz), this->ptr);
-    alloc.deallocate(oldPtr, capacity);
+    this->ptr = alloc->template reallocate<false, T>(this->ptr, capacity,
+                                                     newCapacity, U{this->sz});
+    // T *oldPtr =
+    //   std::exchange(this->ptr, alloc->template allocate<T>(newCapacity));
+    // std::copy_n(oldPtr, U(this->sz), this->ptr);
+    // alloc->deallocate(oldPtr, capacity);
     capacity = newCapacity;
   }
 
@@ -922,19 +944,6 @@ struct ReallocView : ResizeableView<T, S, U> {
   constexpr void extendOrAssertSize(Row R, Col C) {
     resizeForOverwrite(DenseDims{R, C});
   }
-  constexpr void moveLast(Col j) {
-    static_assert(MatrixDimension<S>);
-    if (j == this->numCol()) return;
-    Col Nd = this->numCol() - 1;
-    for (ptrdiff_t m = 0; m < this->numRow(); ++m) {
-      auto x = (*this)(m, j);
-      for (Col n = j; n < Nd;) {
-        Col o = n++;
-        (*this)(m, o) = (*this)(m, n);
-      }
-      (*this)(m, Nd) = x;
-    }
-  }
 
 protected:
   // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
@@ -1056,18 +1065,25 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     } else if constexpr (MatrixDimension<D> && MatrixDimension<S>) {
       invariant(b.numRow() == this->numRow());
       invariant(b.numCol() == this->numCol());
-      for (ptrdiff_t m = 0; m < this->numRow(); ++m)
+      for (ptrdiff_t m = 0; m < this->numRow(); ++m) {
+        POLYMATHVECTORIZE
         for (ptrdiff_t n = 0; n < this->numCol(); ++n) (*this)(m, n) = b(m, n);
+      }
     } else if constexpr (MatrixDimension<D>) {
       ptrdiff_t j = 0;
-      for (ptrdiff_t m = 0; m < b.numRow(); ++m)
+      for (ptrdiff_t m = 0; m < b.numRow(); ++m) {
+        POLYMATHVECTORIZE
         for (ptrdiff_t n = 0; n < b.numCol(); ++n) (*this)(j++) = b(m, n);
+      }
     } else if constexpr (MatrixDimension<S>) {
       ptrdiff_t j = 0;
-      for (ptrdiff_t m = 0; m < this->numRow(); ++m)
+      for (ptrdiff_t m = 0; m < this->numRow(); ++m) {
+        POLYMATHVECTORIZE
         for (ptrdiff_t n = 0; n < this->numCol(); ++n) (*this)(m, n) = b(j++);
+      }
     } else {
       T *p = this->data();
+      POLYMATHVECTORIZE
       for (ptrdiff_t i = 0; i < len; ++i) p[i] = b[i];
     }
   }
@@ -1182,7 +1198,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
   template <class D, std::unsigned_integral I>
   constexpr auto operator=(ManagedArray<T, D, N, A, I> &&b) noexcept
     -> ManagedArray & {
-    if (this->begin() == b.begin()) return *this;
+    if (this->data() == b.data()) return *this;
     // here, we commandeer `b`'s memory
     this->sz = b.dim();
     this->allocator = std::move(b.get_allocator());
@@ -1432,15 +1448,16 @@ inline auto operator<<(std::ostream &os, const AbstractVector auto &A)
   B << A;
   return printVector(os, B);
 }
-template <std::integral T> struct MaxPow10 {
-  static constexpr T value = (sizeof(T) == 1)   ? 3
-                             : (sizeof(T) == 2) ? 5
-                             : (sizeof(T) == 4)
-                               ? 10
-                               : (std::signed_integral<T> ? 19 : 20);
-};
+template <std::integral T> static constexpr auto maxPow10() -> size_t {
+  if constexpr (sizeof(T) == 1) return 3;
+  else if constexpr (sizeof(T) == 2) return 5;
+  else if constexpr (sizeof(T) == 4) return 10;
+  else if constexpr (std::signed_integral<T>) return 19;
+  else return 20;
+}
+
 template <std::unsigned_integral T> constexpr auto countDigits(T x) {
-  std::array<T, MaxPow10<T>::value + 1> powers;
+  std::array<T, maxPow10<T>() + 1> powers;
   powers[0] = 0;
   powers[1] = 10;
   for (ptrdiff_t i = 2; i < std::ssize(powers); i++)
