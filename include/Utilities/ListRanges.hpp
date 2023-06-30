@@ -78,6 +78,7 @@ public:
   constexpr ListIterator(T *state, Op op, Proj p) noexcept
     : state_{state}, op_{op}, p_{p} {}
   constexpr ListIterator() = default;
+  constexpr ListIterator(const ListIterator &) = default;
 };
 template <typename T, class Op, class Proj>
 ListIterator(T *, Op, Proj) -> ListIterator<T, Op, Proj>;
@@ -158,6 +159,8 @@ public:
     for (auto iter = other; iter != *this; ++iter) ++count;
     return count;
   }
+  constexpr NestedIterator() noexcept = default;
+  constexpr NestedIterator(const NestedIterator &) noexcept = default;
   constexpr NestedIterator(O o, I i, P p, J j, F f) noexcept
     : outer{o}, inner{i}, outerend{p}, innerend{j}, innerfun{f} {}
 };

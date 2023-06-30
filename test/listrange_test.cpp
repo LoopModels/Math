@@ -86,6 +86,8 @@ TEST(ListRangeTest, BasicAssertions) {
     utils::ListRange outer{listList, utils::GetNext{}};
     utils::NestedList nlr{outer, g};
     static_assert(std::input_iterator<decltype(nlr.begin())>);
+    static_assert(std::forward_iterator<decltype(nlr.begin())>);
+    static_assert(std::incrementable<decltype(nlr.begin())>);
     static_assert(std::ranges::input_range<decltype(nlr)>);
     static_assert(std::ranges::enable_borrowed_range<decltype(outer)>);
     static_assert(
