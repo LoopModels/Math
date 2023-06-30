@@ -15,6 +15,8 @@
 
 namespace poly::math {
 namespace simd {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuninitialized"
 
 template <ptrdiff_t W, ptrdiff_t N, typename P> struct Unroll {
   [[no_unique_address]] ptrdiff_t i;
@@ -602,4 +604,6 @@ constexpr auto ref(const T *p, simd::TileOffset<W, M, N, P> i)
   -> simd::TileRef<T, W, M, N, P> {
   return {p, i};
 }
+
+#pragma GCC diagnostic pop
 } // namespace poly::math
