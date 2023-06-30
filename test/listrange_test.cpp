@@ -31,25 +31,18 @@ public:
   }
 };
 
-auto f = [](List<List<int> *> *l) -> List<int> * { return l->getData(); };
+auto g = [](List<List<int> *> *l) {
+  return utils::ListRange{l->getData(), utils::GetNext{}};
+};
 using LI = utils::ListIterator<List<int>, utils::GetNext, utils::Identity>;
 using LR = utils::ListRange<List<int>, utils::GetNext, utils::Identity>;
-using NLI =
-  utils::NestedListIterator<List<List<int> *>, List<int>, utils::GetNext,
-                            utils::GetNext, decltype(f), utils::Identity>;
-using NLR =
-  utils::NestedListRange<List<List<int> *>, utils::GetNext, utils::GetNext,
-                         decltype(f), utils::Identity>;
+using LIO = utils::ListIterator<List<List<int> *>, utils::GetNext, decltype(g)>;
+static_assert(std::forward_iterator<LIO>);
 
 static_assert(std::input_iterator<LI>);
 static_assert(std::forward_iterator<LI>);
 static_assert(std::ranges::input_range<LR>);
 static_assert(std::ranges::forward_range<LR>);
-
-static_assert(std::input_iterator<NLI>);
-static_assert(std::forward_iterator<NLI>);
-static_assert(std::ranges::input_range<NLR>);
-static_assert(std::ranges::forward_range<NLR>);
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(ListRangeTest, BasicAssertions) {
@@ -72,6 +65,7 @@ TEST(ListRangeTest, BasicAssertions) {
   auto *listList = arena.create<List<List<int> *>>(list);
   listList = arena.create<List<List<int> *>>(list100)->setNext(listList);
   listList = arena.create<List<List<int> *>>(list10000)->setNext(listList);
+
   {
     int s = 0;
     for (auto *outer = listList; outer; outer = outer->getNext())
@@ -89,17 +83,25 @@ TEST(ListRangeTest, BasicAssertions) {
   }
   {
     int s = 0;
-    utils::NestedListRange nlr{listList, utils::GetNext{}, utils::GetNext{}, f};
-    static_assert(std::ranges::input_range<decltype(nlr)>);
+    utils::ListRange outer{listList, utils::GetNext{}};
+    utils::NestedList nlr{outer, g};
     static_assert(std::input_iterator<decltype(nlr.begin())>);
+    static_assert(std::ranges::input_range<decltype(nlr)>);
+    static_assert(std::ranges::enable_borrowed_range<decltype(outer)>);
+    static_assert(
+      std::ranges::enable_borrowed_range<typename decltype(nlr)::InnerType>);
+    static_assert(std::ranges::enable_borrowed_range<decltype(nlr)>);
+    static_assert(std::ranges::borrowed_range<decltype(nlr)>);
     for (auto *v : nlr) s += v->getData();
     EXPECT_EQ(s, 454545);
   }
   {
     std::vector<int> destination;
-    std::ranges::transform(
-      utils::NestedListRange{listList, utils::GetNext{}, utils::GetNext{}, f},
-      std::back_inserter(destination), [](auto *v) { return v->getData(); });
+    utils::NestedList nlr{utils::ListRange{listList, utils::GetNext{}}, g};
+    static_assert(std::input_iterator<decltype(nlr.begin())>);
+    static_assert(std::ranges::input_range<decltype(nlr)>);
+    std::ranges::transform(nlr, std::back_inserter(destination),
+                           [](auto *v) { return v->getData(); });
     // std::ostream_iterator<int>{std::cout, ", "},
     EXPECT_EQ(destination.size(), 3 * 10);
     int s = 0;
