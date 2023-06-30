@@ -63,10 +63,19 @@ template <typename Op, typename A> struct ElementwiseUnaryOp {
   [[nodiscard]] constexpr auto numCol() const -> Col { return a.numCol(); }
 };
 // scalars broadcast
-constexpr auto get(const Scalar auto &A, ptrdiff_t) { return A; }
-constexpr auto get(const Scalar auto &A, ptrdiff_t, ptrdiff_t) { return A; }
-constexpr auto get(const AbstractVector auto &A, ptrdiff_t i) { return A[i]; }
-constexpr auto get(const AbstractMatrix auto &A, ptrdiff_t i, ptrdiff_t j) {
+constexpr auto get(const Scalar auto &A, ptrdiff_t) -> decltype(auto) {
+  return A;
+}
+constexpr auto get(const Scalar auto &A, ptrdiff_t, ptrdiff_t)
+  -> decltype(auto) {
+  return A;
+}
+constexpr auto get(const AbstractVector auto &A, ptrdiff_t i)
+  -> decltype(auto) {
+  return A[i];
+}
+constexpr auto get(const AbstractMatrix auto &A, ptrdiff_t i, ptrdiff_t j)
+  -> decltype(auto) {
   return A(i, j);
 }
 
@@ -77,20 +86,24 @@ ElementwiseUnaryOp(Op, A) -> ElementwiseUnaryOp<Op, std::remove_cvref_t<A>>;
 
 // unroll index
 template <ptrdiff_t W, ptrdiff_t N, typename P>
-constexpr auto get(const PrimitiveScalar auto &A, simd::Unroll<W, N, P>) {
+constexpr auto get(const PrimitiveScalar auto &A, simd::Unroll<W, N, P>)
+  -> decltype(auto) {
   return A;
 }
 template <ptrdiff_t W, ptrdiff_t N, typename P>
-constexpr auto get(const AbstractVector auto &A, simd::Unroll<W, N, P> i) {
+constexpr auto get(const AbstractVector auto &A, simd::Unroll<W, N, P> i)
+  -> decltype(auto) {
   return A[i];
 }
 // tile index
 template <ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P>
-constexpr auto get(const PrimitiveScalar auto &A, simd::Tile<W, M, N, P>) {
+constexpr auto get(const PrimitiveScalar auto &A, simd::Tile<W, M, N, P>)
+  -> decltype(auto) {
   return A;
 }
 template <ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P>
-constexpr auto get(const AbstractMatrix auto &A, simd::Tile<W, M, N, P> i) {
+constexpr auto get(const AbstractMatrix auto &A, simd::Tile<W, M, N, P> i)
+  -> decltype(auto) {
   return A[i];
 }
 
