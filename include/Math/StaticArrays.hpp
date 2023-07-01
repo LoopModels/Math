@@ -28,9 +28,11 @@ public:
   using pointer = T *;
   using const_pointer = const T *;
   using concrete = std::true_type;
-  constexpr StaticArray() = default;
+  constexpr StaticArray(){}; // NOLINT(modernize-use-equals-default)
+  // constexpr StaticArray() = default;
   constexpr StaticArray(const T &x) noexcept {
-    std::fill_n(data(), capacity, x);
+    (*this) << x;
+    // std::fill_n(data(), capacity, x);
   }
   constexpr StaticArray(StaticArray const &) = default;
   constexpr StaticArray(StaticArray &&) noexcept = default;
