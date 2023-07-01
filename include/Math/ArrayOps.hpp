@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <eve/module/core.hpp>
 #include <type_traits>
+// #include <eve/module/algo.hpp>
 
 #if defined __GNUC__ && __GNUC__ >= 8
 #define POLYMATHVECTORIZE _Pragma("GCC ivdep")
@@ -132,7 +133,28 @@ public:
   template <std::convertible_to<T> Y>
   [[gnu::flatten]] constexpr auto operator<<(const Y b) -> P & {
     if constexpr (DenseLayout<S>) {
-      std::fill_n(data_(), ptrdiff_t(dim_()), T(b));
+      constexpr ptrdiff_t W = simd::vecWidth<T, S>();
+      if constexpr (PrimitiveScalar<T> && (W > 1)) {
+        // eve::algo::fill[eve::algo::allow_frequency_scaling](
+        //                                                     data_(), data_()
+        //                                                     +
+        //                                                     ptrdiff_t(dim_()),
+        //                                                     T(b));
+        ptrdiff_t L = ptrdiff_t(dim_());
+        ptrdiff_t i = 0, n = W;
+        auto &A{getThis()};
+        POLYMATHVECTORIZE
+        for (; n <= L; i = n, n += W) {
+          auto j = simd::unroll<W, 1>(i);
+          A[j] = b;
+        }
+        if (i < L) {
+          auto j = simd::unroll<W, 1>(i, L);
+          A[j] = b;
+        }
+      } else {
+        std::fill_n(data_(), ptrdiff_t(dim_()), T(b));
+      }
     } else if constexpr (std::is_same_v<S, StridedRange>) {
       POLYMATHVECTORIZE
       for (ptrdiff_t c = 0, L = size_(); c < L; ++c) index(c) = b;
@@ -178,10 +200,28 @@ public:
         for (ptrdiff_t c = 0; c < N; ++c) index(r, c) += Br;
       }
     } else {
-      ptrdiff_t L = size_();
-      invariant(L, ptrdiff_t(B.size()));
-      POLYMATHVECTORIZE
-      for (ptrdiff_t i = 0; i < L; ++i) index(i) += B[i];
+      constexpr ptrdiff_t W = simd::vecWidth<T, S>();
+      if constexpr (PrimitiveScalar<T> && (W > 1)) {
+        ptrdiff_t L = size_();
+        invariant(L, ptrdiff_t(B.size()));
+        ptrdiff_t i = 0, n = W;
+        auto &A{getThis()};
+        const auto &cA{getThis()};
+        POLYMATHVECTORIZE
+        for (; n <= L; i = n, n += W) {
+          auto j = simd::unroll<W, 1>(i);
+          A[j] = cA[j] + B[j];
+        }
+        if (i < L) {
+          auto j = simd::unroll<W, 1>(i, L);
+          A[j] = cA[j] + B[j];
+        }
+      } else {
+        ptrdiff_t L = size_();
+        invariant(L, ptrdiff_t(B.size()));
+        POLYMATHVECTORIZE
+        for (ptrdiff_t i = 0; i < L; ++i) index(i) += B[i];
+      }
     }
     return *static_cast<P *>(this);
   }
@@ -210,10 +250,28 @@ public:
         for (ptrdiff_t c = 0; c < N; ++c) index(r, c) -= Br;
       }
     } else {
-      ptrdiff_t L = size_();
-      invariant(L == B.size());
-      POLYMATHVECTORIZE
-      for (ptrdiff_t i = 0; i < L; ++i) index(i) -= B[i];
+      constexpr ptrdiff_t W = simd::vecWidth<T, S>();
+      if constexpr (PrimitiveScalar<T> && (W > 1)) {
+        ptrdiff_t L = size_();
+        invariant(L, ptrdiff_t(B.size()));
+        ptrdiff_t i = 0, n = W;
+        auto &A{getThis()};
+        const auto &cA{getThis()};
+        POLYMATHVECTORIZE
+        for (; n <= L; i = n, n += W) {
+          auto j = simd::unroll<W, 1>(i);
+          A[j] = cA[j] - B[j];
+        }
+        if (i < L) {
+          auto j = simd::unroll<W, 1>(i, L);
+          A[j] = cA[j] - B[j];
+        }
+      } else {
+        ptrdiff_t L = size_();
+        invariant(L == B.size());
+        POLYMATHVECTORIZE
+        for (ptrdiff_t i = 0; i < L; ++i) index(i) -= B[i];
+      }
     }
     return *static_cast<P *>(this);
   }
@@ -226,8 +284,25 @@ public:
         for (ptrdiff_t c = 0; c < N; ++c) index(r, c) *= b;
       }
     } else {
-      POLYMATHVECTORIZE
-      for (ptrdiff_t c = 0, L = ptrdiff_t(dim_()); c < L; ++c) index(c) *= b;
+      constexpr ptrdiff_t W = simd::vecWidth<T, S>();
+      if constexpr (PrimitiveScalar<T> && (W > 1)) {
+        ptrdiff_t L = ptrdiff_t(dim_());
+        ptrdiff_t i = 0, n = W;
+        auto &A{getThis()};
+        const auto &cA{getThis()};
+        POLYMATHVECTORIZE
+        for (; n <= L; i = n, n += W) {
+          auto j = simd::unroll<W, 1>(i);
+          A[j] = cA[j] * b;
+        }
+        if (i < L) {
+          auto j = simd::unroll<W, 1>(i, L);
+          A[j] = cA[j] * b;
+        }
+      } else {
+        POLYMATHVECTORIZE
+        for (ptrdiff_t c = 0, L = ptrdiff_t(dim_()); c < L; ++c) index(c) *= b;
+      }
     }
     return *static_cast<P *>(this);
   }
@@ -240,8 +315,25 @@ public:
         for (ptrdiff_t c = 0; c < N; ++c) index(r, c) /= b;
       }
     } else {
-      POLYMATHVECTORIZE
-      for (ptrdiff_t c = 0, L = ptrdiff_t(dim_()); c < L; ++c) index(c) /= b;
+      constexpr ptrdiff_t W = simd::vecWidth<T, S>();
+      if constexpr (std::floating_point<T> && (W > 1)) {
+        ptrdiff_t L = ptrdiff_t(dim_());
+        ptrdiff_t i = 0, n = W;
+        auto &A{getThis()};
+        const auto &cA{getThis()};
+        POLYMATHVECTORIZE
+        for (; n <= L; i = n, n += W) {
+          auto j = simd::unroll<W, 1>(i);
+          A[j] = cA[j] / b;
+        }
+        if (i < L) {
+          auto j = simd::unroll<W, 1>(i, L);
+          A[j] = cA[j] / b;
+        }
+      } else {
+        POLYMATHVECTORIZE
+        for (ptrdiff_t c = 0, L = ptrdiff_t(dim_()); c < L; ++c) index(c) /= b;
+      }
     }
     return *static_cast<P *>(this);
   }

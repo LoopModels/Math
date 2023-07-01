@@ -72,8 +72,16 @@ template <ptrdiff_t W, ptrdiff_t N, typename P>
 [[nodiscard]] inline constexpr auto calcOffset(ptrdiff_t len,
                                                simd::Unroll<W, N, P> i)
   -> simd::UnrollOffset<W, N, P> {
-  invariant((ptrdiff_t(i) + W * N - ptrdiff_t(i.p)) <= len);
+  if constexpr (std::is_same_v<P, simd::NoPredicate>)
+    invariant((ptrdiff_t(i) + W * N) <= len);
+  else invariant((ptrdiff_t(i) + W * (N - 1) + ptrdiff_t(i.p)) <= len);
   return {i.i, i.p};
+}
+template <ptrdiff_t W, ptrdiff_t N, typename P>
+[[nodiscard]] inline constexpr auto calcOffset(DenseDims dim,
+                                               simd::Unroll<W, N, P> i)
+  -> simd::UnrollOffset<W, N, P> {
+  return calcOffset(ptrdiff_t(dim), i);
 }
 template <ptrdiff_t W, ptrdiff_t N, typename P>
 constexpr auto calcOffset(StridedRange d, simd::Unroll<W, N, P> i)
@@ -94,8 +102,7 @@ template <ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P>
 }
 
 template <ptrdiff_t W, ptrdiff_t N, typename P>
-constexpr auto calcNewDim(VectorDimension auto, simd::Unroll<W, N, P>)
-  -> Empty {
+constexpr auto calcNewDim(DenseLayout auto, simd::Unroll<W, N, P>) -> Empty {
   return {};
 }
 template <ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P>
@@ -514,7 +521,6 @@ constexpr auto ref(const T *p, simd::TileOffset<W, M, N, P> i)
   for (ptrdiff_t m = 0; m < M; ++m) ret[m] = ref(p + x * m, j);
   return ret;
 }
-
 namespace simd {
 template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N, typename P>
 struct UnrollRef {
@@ -528,6 +534,17 @@ struct UnrollRef {
 #pragma GCC unroll 16
     for (ptrdiff_t n = 0; n < NN; ++n) eve::store(v[n], q + n * W);
     if constexpr (pred) eve::store[eve::keep_first(i.p)](v[NN], q + NN * W);
+    return *this;
+  }
+  constexpr auto operator=(std::convertible_to<T> auto x) -> UnrollRef & {
+    constexpr bool pred = !std::same_as<P, simd::NoPredicate>;
+    constexpr ptrdiff_t NN = N - pred;
+    T *q = p + i.offset();
+    // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=102855
+    eve::wide<T, eve::fixed<W>> v{x};
+#pragma GCC unroll 16
+    for (ptrdiff_t n = 0; n < NN; ++n) eve::store(v, q + n * W);
+    if constexpr (pred) eve::store[eve::keep_first(i.p)](v, q + NN * W);
     return *this;
   }
   constexpr operator Unrolled<T, W, N>() {
@@ -550,14 +567,28 @@ struct StridedUnrollRef {
 
     for (ptrdiff_t n = 0; n < NN; ++n) {
       eve::wide<T, eve::fixed<W>> vn = v[n];
-      for (ptrdiff_t w = 0; w < W; ++w)
-        p[n * W * i.stride + w * i.stride] = vn.get(w);
+      for (ptrdiff_t w = 0; w < W; ++w) p[(n * W + w) * i.stride] = vn.get(w);
     }
     if constexpr (pred) {
       eve::wide<T, eve::fixed<W>> vn = v[NN];
       for (ptrdiff_t w = 0; w < i.p; ++w)
-        p[NN * W * i.stride + w * i.stride] = vn.get(w);
+        p[(NN * W + w) * i.stride] = vn.get(w);
     }
+    return *this;
+  }
+  constexpr auto operator=(std::convertible_to<T> auto x)
+    -> StridedUnrollRef & {
+    std::array<eve::wide<T, eve::fixed<W>>, N> ret;
+    constexpr bool pred = !std::same_as<P, simd::NoPredicate>;
+    constexpr ptrdiff_t NN = N - pred;
+    p += i.offset();
+    // using I = std::conditional_t<sizeof(T) >= 8, ptrdiff_t, int32_t>;
+    // stride = i.stride;
+    // eve::wide<std::int32_t, eve::fixed<W>> s{[](auto i, auto) { return i; }};
+    // s *= stride;
+    ptrdiff_t L = NN * W;
+    if constexpr (!pred) L += i.p;
+    for (ptrdiff_t n = 0; n < L; ++n) p[n * i.stride] = x;
     return *this;
   }
   constexpr operator Unrolled<T, W, N>() {
@@ -579,6 +610,21 @@ struct TileRef {
       for (ptrdiff_t n = 0; n < NN; ++n) eve::store(v[m][n], q + n * W);
       if constexpr (pred)
         eve::store[eve::keep_first(i.p)](v[m][NN], q + NN * W);
+      q += i.stride();
+    }
+    return *this;
+  }
+  constexpr auto operator=(std::convertible_to<T> auto x) -> TileRef & {
+    constexpr bool pred = !std::same_as<P, simd::NoPredicate>;
+    constexpr ptrdiff_t NN = N - pred;
+    T *q = p + i.offset();
+    // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=102855
+    eve::wide<T, eve::fixed<W>> v{x};
+#pragma GCC unroll 16
+    for (ptrdiff_t m = 0; m < M; ++m) {
+#pragma GCC unroll 16
+      for (ptrdiff_t n = 0; n < NN; ++n) eve::store(v, q + n * W);
+      if constexpr (pred) eve::store[eve::keep_first(i.p)](v, q + NN * W);
       q += i.stride();
     }
     return *this;
