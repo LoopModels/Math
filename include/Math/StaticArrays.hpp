@@ -27,9 +27,10 @@ public:
   using pointer = T *;
   using const_pointer = const T *;
   using concrete = std::true_type;
-  constexpr StaticArray() = default;
+  constexpr StaticArray(){}; // NOLINT(modernize-use-equals-default)
   constexpr StaticArray(const T &x) noexcept {
-    std::fill_n(data(), capacity, x);
+    (*this) << x;
+    // std::fill_n(data(), capacity, x);
   }
   constexpr StaticArray(StaticArray const &) = default;
   constexpr StaticArray(StaticArray &&) noexcept = default;
@@ -208,7 +209,7 @@ inline constexpr auto view(const StaticArray<T, S> &x) {
   return x.view();
 }
 
-};                              // namespace poly::math
+}; // namespace poly::math
 
 template <class T, ptrdiff_t N> // NOLINTNEXTLINE(cert-dcl58-cpp)
 struct std::tuple_size<::poly::math::SVector<T, N>>

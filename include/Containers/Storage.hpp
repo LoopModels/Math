@@ -4,16 +4,17 @@
 namespace poly::containers {
 template <typename T, size_t N> struct Storage {
   alignas(T) char mem[N * sizeof(T)]; // NOLINT (modernize-avoid-c-style-arrays)
-  constexpr T *data() {
+  constexpr auto data() -> T * {
     void *p = mem;
     return (T *)p;
   }
-  constexpr const T *data() const {
+  constexpr auto data() const -> const T * {
     const void *p = mem;
     return (T *)p;
   }
+  constexpr Storage() {} // NOLINT (modernize-use-equals-default)
 };
 template <typename T> struct alignas(T) Storage<T, 0> {
-  static constexpr T *data() { return nullptr; }
+  static constexpr auto data() -> T * { return nullptr; }
 };
 } // namespace poly::containers
