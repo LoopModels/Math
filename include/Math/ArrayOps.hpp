@@ -130,8 +130,8 @@ public:
     }
     return *static_cast<P *>(this);
   }
-  template <std::convertible_to<T> Y>
-  [[gnu::flatten]] constexpr auto operator<<(const Y b) -> P & {
+  [[gnu::flatten]] constexpr auto
+  operator<<(const std::convertible_to<T> auto &b) -> P & {
     if constexpr (DenseLayout<S>) {
       constexpr ptrdiff_t W = simd::vecWidth<T, S>();
       if constexpr (PrimitiveScalar<T> && (W > 1)) {
@@ -161,7 +161,9 @@ public:
     } else {
       ptrdiff_t M = nr(), N = nc(), X = rs();
       T *p = data_();
-      for (ptrdiff_t r = 0; r < M; ++r, p += X) std::fill_n(p, N, T(b));
+      // for (ptrdiff_t r = 0; r < M; ++r, p += X) std::fill_n(p, N, b);
+      for (ptrdiff_t r = 0; r < M; ++r, p += X)
+        for (ptrdiff_t c = 0; c < N; ++c) p[c] = b;
     }
     return *static_cast<P *>(this);
   }
@@ -225,8 +227,8 @@ public:
     }
     return *static_cast<P *>(this);
   }
-  template <std::convertible_to<T> Y>
-  [[gnu::flatten]] constexpr auto operator+=(Y b) -> P & {
+  [[gnu::flatten]] constexpr auto
+  operator+=(const std::convertible_to<T> auto &b) -> P & {
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
       for (ptrdiff_t r = 0; r < M; ++r) {
@@ -275,8 +277,8 @@ public:
     }
     return *static_cast<P *>(this);
   }
-  template <std::convertible_to<T> Y>
-  [[gnu::flatten]] constexpr auto operator*=(Y b) -> P & {
+  [[gnu::flatten]] constexpr auto
+  operator*=(const std::convertible_to<T> auto &b) -> P & {
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
       for (ptrdiff_t r = 0; r < M; ++r) {
@@ -306,8 +308,8 @@ public:
     }
     return *static_cast<P *>(this);
   }
-  template <std::convertible_to<T> Y>
-  [[gnu::flatten]] constexpr auto operator/=(Y b) -> P & {
+  [[gnu::flatten]] constexpr auto
+  operator/=(const std::convertible_to<T> auto &b) -> P & {
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
       for (ptrdiff_t r = 0; r < M; ++r) {
