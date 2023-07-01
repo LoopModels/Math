@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Math/AxisTypes.hpp"
+#include "Math/Indexing.hpp"
 #include "Utilities/Invariant.hpp"
 #include <concepts>
 #include <cstddef>
@@ -189,9 +190,15 @@ static_assert(MatrixDimension<SquareDims>);
 static_assert(MatrixDimension<DenseDims>);
 static_assert(MatrixDimension<StridedDims>);
 
+template <typename T>
+concept StaticInt =
+  std::is_same_v<T, std::integral_constant<typename T::value_type, T::value>>;
+
+static_assert(StaticInt<std::integral_constant<unsigned int, 3>>);
+static_assert(!StaticInt<int64_t>);
 template <class T>
 concept DenseLayout = std::integral<T> || std::is_same_v<T, DenseDims> ||
-                      std::is_same_v<T, SquareDims>;
+                      std::is_same_v<T, SquareDims> || StaticInt<T>;
 
 template <std::integral T> constexpr auto dimension(Row r, Col) -> T {
   return T(r);

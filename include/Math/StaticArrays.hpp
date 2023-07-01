@@ -220,6 +220,7 @@ concept StaticallySizedInlineData =
   };
 
 static_assert(!DoCopy<SVector<int64_t, 4>>);
+static_assert(DenseLayout<std::integral_constant<ptrdiff_t, 4>>);
 
 }; // namespace poly::math
 
