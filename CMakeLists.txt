@@ -31,8 +31,12 @@ CPMAddPackage("gh:TheLartians/PackageProject.cmake@1.8.0")
 
 CPMAddPackage(
   NAME eve
-  URL https://github.com/jfalcou/eve/archive/refs/tags/v2023.02.15.zip
-  VERSION 2023.02.15 SYSTEM YES
+  GITHUB_REPOSITORY chriselrod/eve
+  GIT_TAG
+    origin/uninitializedmaskedload # URL
+                                   # https://github.com/jfalcou/eve/archive/refs/tags/v2023.02.15.zip
+    # VERSION 2023.02.15
+    SYSTEM YES
   OPTIONS "EVE_BUILD_TEST OFF" "EVE_BUILD_BENCHMARKS OFF" "EVE_BUILD_DOCUMENTATION OFF"
 )
 
