@@ -189,10 +189,6 @@ static_assert(MatrixDimension<SquareDims>);
 static_assert(MatrixDimension<DenseDims>);
 static_assert(MatrixDimension<StridedDims>);
 
-template <class T>
-concept DenseLayout = std::integral<T> || std::is_same_v<T, DenseDims> ||
-                      std::is_same_v<T, SquareDims>;
-
 template <std::integral T> constexpr auto dimension(Row r, Col) -> T {
   return T(r);
 }

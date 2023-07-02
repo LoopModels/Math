@@ -212,6 +212,10 @@ template <typename T>
 concept StaticInt =
   std::is_same_v<T, std::integral_constant<typename T::value_type, T::value>>;
 
+template <class T>
+concept DenseLayout = std::integral<T> || std::is_same_v<T, DenseDims> ||
+                      std::is_same_v<T, SquareDims> || StaticInt<T>;
+
 static_assert(StaticInt<std::integral_constant<unsigned int, 3>>);
 static_assert(!StaticInt<int64_t>);
 
