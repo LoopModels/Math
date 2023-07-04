@@ -27,14 +27,14 @@ public:
   using pointer = T *;
   using const_pointer = const T *;
   using concrete = std::true_type;
-  constexpr StaticArray(){}; // NOLINT(modernize-use-equals-default)
-  constexpr StaticArray(const T &x) noexcept {
+  constexpr explicit StaticArray(){}; // NOLINT(modernize-use-equals-default)
+  constexpr explicit StaticArray(const T &x) noexcept {
     (*this) << x;
     // std::fill_n(data(), capacity, x);
   }
-  constexpr StaticArray(StaticArray const &) = default;
-  constexpr StaticArray(StaticArray &&) noexcept = default;
-  constexpr StaticArray(const std::initializer_list<T> &list) {
+  constexpr explicit StaticArray(StaticArray const &) = default;
+  constexpr explicit StaticArray(StaticArray &&) noexcept = default;
+  constexpr explicit StaticArray(const std::initializer_list<T> &list) {
     invariant(list.size(), size_t(capacity));
     std::copy(list.begin(), list.end(), data());
   }

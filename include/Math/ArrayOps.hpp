@@ -96,7 +96,7 @@ public:
     return *static_cast<P *>(this);
   }
   template <std::convertible_to<T> Y>
-  [[gnu::flatten]] constexpr auto operator<<(const Y b) -> P & {
+  [[gnu::flatten]] constexpr auto operator<<(const Y &b) -> P & {
     if constexpr (DenseLayout<S>) {
       std::fill_n(data_(), ptrdiff_t(dim_()), T(b));
     } else if constexpr (std::is_same_v<S, StridedRange>) {
