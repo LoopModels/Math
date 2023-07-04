@@ -32,6 +32,10 @@ public:
     (*this) << x;
     // std::fill_n(data(), capacity, x);
   }
+  constexpr explicit StaticArray(
+    const std::convertible_to<T> auto &x) noexcept {
+    (*this) << x;
+  }
   constexpr explicit StaticArray(StaticArray const &) = default;
   constexpr explicit StaticArray(StaticArray &&) noexcept = default;
   constexpr explicit StaticArray(const std::initializer_list<T> &list) {
