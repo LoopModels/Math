@@ -35,6 +35,10 @@ public:
   constexpr explicit StaticArray(StaticArray const &) = default;
   constexpr explicit StaticArray(StaticArray &&) noexcept = default;
   constexpr explicit StaticArray(const std::initializer_list<T> &list) {
+    if (list.size() == 1) {
+      (*this) << *list.begin();
+      return;
+    }
     invariant(list.size(), size_t(capacity));
     std::copy(list.begin(), list.end(), data());
   }
