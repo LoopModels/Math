@@ -12,7 +12,7 @@ template <typename T, size_t N> struct Storage {
     const void *p = mem;
     return (T *)p;
   }
-  constexpr Storage(){}; // NOLINT (modernize-use-equals-default)
+  constexpr Storage() {} // NOLINT (modernize-use-equals-default)
 };
 template <typename T> struct alignas(T) Storage<T, 0> {
   static constexpr auto data() -> T * { return nullptr; }
