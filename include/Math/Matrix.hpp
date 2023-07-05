@@ -26,6 +26,10 @@ concept HasDataPtr = requires(T t) {
   { t.data() } -> std::same_as<utils::eltype_t<T> *>;
 };
 template <typename T>
+concept Trivial =
+  std::is_trivially_destructible_v<T> && std::is_trivially_copyable_v<T>;
+
+template <typename T>
 concept DataMatrix = AbstractMatrix<T> && HasDataPtr<T>;
 template <typename T>
 concept TemplateMatrix = AbstractMatrix<T> && (!HasDataPtr<T>);

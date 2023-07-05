@@ -149,10 +149,6 @@ static_assert(utils::ElementOf<int64_t, DenseMatrix<double>>);
 static_assert(!utils::ElementOf<DenseMatrix<double>, DenseMatrix<double>>);
 
 template <typename T>
-concept Trivial =
-  std::is_trivially_destructible_v<T> && std::is_trivially_copyable_v<T>;
-
-template <typename T>
 concept HasConcreteSize = requires(T) {
   std::is_same_v<typename std::remove_reference_t<T>::concrete, std::true_type>;
 };
