@@ -77,7 +77,8 @@ template <typename A, ElementOf<A> B> struct PromoteEltype<A, B> {
 //   using value_type = eltype_t<B>;
 // };
 template <typename A, typename B>
-using promote_eltype_t = typename PromoteEltype<A, B>::value_type;
+using promote_eltype_t =
+  std::remove_cvref_t<typename PromoteEltype<A, B>::value_type>;
 
 struct Rational;
 template <> struct GetEltype<Rational> {
