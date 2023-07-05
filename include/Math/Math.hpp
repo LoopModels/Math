@@ -165,8 +165,6 @@ using is_concrete_t =
                      std::false_type>;
 template <class Op, class A, class B> struct ElementwiseVectorBinaryOp {
   using value_type = utils::promote_eltype_t<A, B>;
-  // using value_type =
-  // std::common_type_t<utils::eltype_t<A>,utils::eltype_t<B>>;
   using concrete = is_concrete_t<A, B>;
 
   [[no_unique_address]] Op op;
@@ -263,7 +261,7 @@ template <AbstractMatrix A, AbstractMatrix B> struct MatMatMul {
   using concrete = is_concrete_t<A, B>;
   [[no_unique_address]] A a;
   [[no_unique_address]] B b;
-  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const -> value_type {
+  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const -> decltype(auto) {
     static_assert(AbstractMatrix<B>, "B should be an AbstractMatrix");
     value_type s{}; // hopefully NRVO
     for (ptrdiff_t k = 0; k < ptrdiff_t(a.numCol()); ++k)
@@ -288,7 +286,7 @@ template <AbstractMatrix A, AbstractVector B> struct MatVecMul {
   using concrete = is_concrete_t<A, B>;
   [[no_unique_address]] const A &a;
   [[no_unique_address]] const B &b;
-  constexpr auto operator[](ptrdiff_t i) const -> value_type {
+  constexpr auto operator[](ptrdiff_t i) const -> decltype(auto) {
     static_assert(AbstractVector<B>, "B should be an AbstractVector");
     value_type s = 0;
     for (ptrdiff_t k = 0; k < a.numCol(); ++k) s += a(i, k) * b[k];

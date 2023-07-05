@@ -77,8 +77,6 @@ template <typename A, typename B>
 using promote_type_t = typename PromoteType<A, B>::value_type;
 
 template <typename A, typename B> struct PromoteEltype {
-
-  // using value_type = promote_type_t<eltype_t<A>, eltype_t<B>>;
   using elta = eltype_t<A>;
   using eltb = eltype_t<B>;
   using value_type = std::conditional_t<std::convertible_to<A, eltb>, eltb,

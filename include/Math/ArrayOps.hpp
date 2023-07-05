@@ -128,6 +128,7 @@ public:
                   DenseLayout<std::remove_cvref_t<decltype(B.dim())>>) {
       std::copy_n(B.data(), M * N, data_());
     } else {
+      POLYMATHVECTORIZE
       for (ptrdiff_t i = 0; i < M; ++i) {
         POLYMATHVECTORIZE
         for (ptrdiff_t j = 0; j < N; ++j) index(i, j) = B(i, j);
@@ -167,8 +168,11 @@ public:
       ptrdiff_t M = nr(), N = nc(), X = rs();
       T *p = data_();
       // for (ptrdiff_t r = 0; r < M; ++r, p += X) std::fill_n(p, N, b);
-      for (ptrdiff_t r = 0; r < M; ++r, p += X)
+      POLYMATHVECTORIZE
+      for (ptrdiff_t r = 0; r < M; ++r, p += X) {
+        POLYMATHVECTORIZE
         for (ptrdiff_t c = 0; c < N; ++c) p[c] = b;
+      }
     }
     return *static_cast<P *>(this);
   }
@@ -178,6 +182,7 @@ public:
     ptrdiff_t M = nr(), N = nc();
     invariant(M, ptrdiff_t(B.numRow()));
     invariant(N, ptrdiff_t(B.numCol()));
+    POLYMATHVECTORIZE
     for (ptrdiff_t r = 0; r < M; ++r) {
       POLYMATHVECTORIZE
       for (ptrdiff_t c = 0; c < N; ++c) index(r, c) += B(r, c);
@@ -190,6 +195,7 @@ public:
     ptrdiff_t M = nr(), N = nc();
     invariant(M, ptrdiff_t(B.numRow()));
     invariant(N, ptrdiff_t(B.numCol()));
+    POLYMATHVECTORIZE
     for (ptrdiff_t r = 0; r < M; ++r) {
       POLYMATHVECTORIZE
       for (ptrdiff_t c = 0; c < N; ++c) index(r, c) -= B(r, c);
@@ -201,6 +207,7 @@ public:
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
       invariant(M, B.size());
+      POLYMATHVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         auto Br = B[r];
         POLYMATHVECTORIZE
@@ -236,6 +243,7 @@ public:
   operator+=(const std::convertible_to<T> auto &b) -> P & {
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
+      POLYMATHVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHVECTORIZE
         for (ptrdiff_t c = 0; c < N; ++c) index(r, c) += b;
@@ -251,6 +259,7 @@ public:
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
       invariant(M == B.size());
+      POLYMATHVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         auto Br = B[r];
         POLYMATHVECTORIZE
@@ -259,9 +268,8 @@ public:
     } else {
       constexpr ptrdiff_t W = simd::vecWidth<T, S>();
       if constexpr (PrimitiveScalar<T> && (W > 1)) {
-        ptrdiff_t L = size_();
+        ptrdiff_t L = size_(), i = 0, n = W;
         invariant(L, ptrdiff_t(B.size()));
-        ptrdiff_t i = 0, n = W;
         auto &A{getThis()};
         const auto &cA{getThis()};
         POLYMATHVECTORIZE
@@ -286,6 +294,7 @@ public:
   operator*=(const std::convertible_to<T> auto &b) -> P & {
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
+      POLYMATHVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHVECTORIZE
         for (ptrdiff_t c = 0; c < N; ++c) index(r, c) *= b;
@@ -293,8 +302,7 @@ public:
     } else {
       constexpr ptrdiff_t W = simd::vecWidth<T, S>();
       if constexpr (PrimitiveScalar<T> && (W > 1)) {
-        ptrdiff_t L = ptrdiff_t(dim_());
-        ptrdiff_t i = 0, n = W;
+        ptrdiff_t L = ptrdiff_t(dim_()), i = 0, n = W;
         auto &A{getThis()};
         const auto &cA{getThis()};
         POLYMATHVECTORIZE
@@ -317,6 +325,7 @@ public:
   operator/=(const std::convertible_to<T> auto &b) -> P & {
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
+      POLYMATHVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHVECTORIZE
         for (ptrdiff_t c = 0; c < N; ++c) index(r, c) /= b;
