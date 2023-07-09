@@ -26,6 +26,28 @@
 #include <numeric>
 #include <type_traits>
 #include <utility>
+
+// https://llvm.org/doxygen/Compiler_8h_source.html#l00307
+#ifndef POLY_MATH_HAS_CPP_ATTRIBUTE
+#if defined(__cplusplus) && defined(__has_cpp_attribute)
+#define POLY_MATH_HAS_CPP_ATTRIBUTE(x) __has_cpp_attribute(x)
+#else
+#define POLY_MATH_HAS_CPP_ATTRIBUTE(x) 0
+#endif
+#endif
+#if POLY_MATH_HAS_CPP_ATTRIBUTE(gsl::Owner)
+#define POLY_MATH_GSL_OWNER [[gsl::Owner]]
+#else
+#define POLY_MATH_GSL_OWNER
+#endif
+/// POLY_MATH_GSL_POINTER - Apply this to non-owning classes like
+/// StringRef to enable lifetime warnings.
+#if POLY_MATH_HAS_CPP_ATTRIBUTE(gsl::Pointer)
+#define POLY_MATH_GSL_POINTER [[gsl::Pointer]]
+#else
+#define POLY_MATH_GSL_POINTER
+#endif
+
 namespace poly::math {
 template <class T, class S, size_t N = PreAllocStorage<T>(),
           class A = std::allocator<T>,
@@ -45,7 +67,7 @@ void print_obj(std::ostream &os, const std::pair<F, S> &x) {
 using utils::NotNull, utils::Optional;
 
 /// Constant Array
-template <class T, class S> struct Array {
+template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   static_assert(!std::is_const_v<T>, "T shouldn't be const");
   static_assert(std::is_trivially_destructible_v<T>,
                 "maybe should add support for destroying");
@@ -278,7 +300,8 @@ protected:
 };
 
 template <class T, class S>
-struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
+struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
+                                        ArrayOps<T, S, MutArray<T, S>> {
   using BaseT = Array<T, S>;
   // using BaseT::BaseT;
   using BaseT::operator[], BaseT::operator(), BaseT::data, BaseT::begin,
@@ -520,7 +543,7 @@ static_assert(std::convertible_to<MutArray<int64_t, DenseDims>,
 /// but not of re-allocating in case the capacity is exceeded.
 template <class T, class S,
           std::unsigned_integral U = default_capacity_type_t<S>>
-struct ResizeableView : MutArray<T, S> {
+struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
   using BaseT = MutArray<T, S>;
 
   constexpr ResizeableView() noexcept : BaseT(nullptr, 0), capacity(0) {}
@@ -732,7 +755,7 @@ protected:
 template <class T, class S, class P, class A = std::allocator<T>,
 
           std::unsigned_integral U = default_capacity_type_t<S>>
-struct ReallocView : ResizeableView<T, S, U> {
+struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S, U> {
   using BaseT = ResizeableView<T, S, U>;
 
   constexpr ReallocView(T *p, S s, U c) noexcept : BaseT(p, s, c) {}
@@ -1015,7 +1038,8 @@ concept AbstractSimilar =
 /// This caused invalid frees, as the pointer still pointed to the old
 /// stack memory.
 template <class T, class S, size_t N, class A, std::unsigned_integral U>
-struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
+struct POLY_MATH_GSL_OWNER ManagedArray
+  : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
   static_assert(std::is_trivially_destructible_v<T>);
   using BaseT = ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U>;
   // We're deliberately not initializing storage.
@@ -1132,7 +1156,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     : BaseT{memory.data(), b.dim(), U(N), b.get_allocator()} {
     if (b.isSmall()) { // copy
       std::copy_n(b.data(), ptrdiff_t(b.dim()), this->data());
-    } else {           // steal
+    } else { // steal
       this->ptr = b.data();
       this->capacity = b.getCapacity();
     }
@@ -1143,7 +1167,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     if constexpr (N > 0) {
       if (b.isSmall()) { // copy
         std::copy_n(b.data(), ptrdiff_t(b.dim()), this->data());
-      } else {           // steal
+      } else { // steal
         this->ptr = b.data();
         this->capacity = b.getCapacity();
       }
@@ -1158,7 +1182,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     : BaseT{memory.data(), s, U(N), b.get_allocator()} {
     if (b.isSmall()) { // copy
       std::copy_n(b.data(), ptrdiff_t(b.dim()), this->data());
-    } else {           // steal
+    } else { // steal
       this->ptr = b.data();
       this->capacity = b.getCapacity();
     }
