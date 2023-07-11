@@ -43,6 +43,7 @@ static_assert(std::input_iterator<LI>);
 static_assert(std::forward_iterator<LI>);
 static_assert(std::ranges::input_range<LR>);
 static_assert(std::ranges::forward_range<LR>);
+static_assert(std::ranges::range<LR>);
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(ListRangeTest, BasicAssertions) {
@@ -94,6 +95,7 @@ TEST(ListRangeTest, BasicAssertions) {
       std::ranges::enable_borrowed_range<typename decltype(nlr)::InnerType>);
     static_assert(std::ranges::enable_borrowed_range<decltype(nlr)>);
     static_assert(std::ranges::borrowed_range<decltype(nlr)>);
+    static_assert(std::ranges::range<decltype(nlr)>);
     for (auto *v : nlr) s += v->getData();
     EXPECT_EQ(s, 454545);
   }

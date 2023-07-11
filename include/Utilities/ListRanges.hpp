@@ -108,6 +108,11 @@ public:
   constexpr ListRange(T *begin, Op next) noexcept
     : begin_{begin}, next_{next} {}
   constexpr ListRange(T *begin) noexcept : begin_{begin} {}
+  constexpr ListRange() noexcept = default;
+  constexpr ListRange(const ListRange &) noexcept = default;
+  constexpr ListRange(ListRange &&) noexcept = default;
+  constexpr auto operator=(const ListRange &) noexcept -> ListRange & = default;
+  constexpr auto operator=(ListRange &&) noexcept -> ListRange & = default;
 };
 template <typename T, class Op, class Proj>
 ListRange(T *, Op, Proj) -> ListRange<T, Op, Proj>;
@@ -206,6 +211,11 @@ public:
   static constexpr auto end() noexcept -> End { return {}; }
   constexpr NestedList(O out, F inn) noexcept
     : outer{std::move(out)}, inner{std::move(inn)} {}
+  constexpr NestedList(const NestedList &) noexcept = default;
+  constexpr NestedList(NestedList &&) noexcept = default;
+  constexpr auto operator=(const NestedList &) noexcept
+    -> NestedList & = default;
+  constexpr auto operator=(NestedList &&) noexcept -> NestedList & = default;
 };
 template <std::ranges::forward_range O, class F>
 NestedList(O, F) -> NestedList<O, F>;
