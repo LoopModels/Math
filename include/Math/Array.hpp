@@ -258,11 +258,19 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   }
   // FIXME: strided should skip over elements
   [[nodiscard]] constexpr auto norm2() const noexcept -> value_type {
-    return std::transform_reduce(begin(), end(), begin(), 0.0);
+    static_assert(DenseLayout<S>);
+    value_type ret{0};
+    for (auto x : *this) ret += x * x;
+    return ret;
+    // return std::transform_reduce(begin(), end(), begin(), 0.0);
   }
   // FIXME: strided should skips over elements
   [[nodiscard]] constexpr auto sum() const noexcept -> value_type {
-    return std::reduce(begin(), end());
+    static_assert(DenseLayout<S>);
+    value_type ret{0};
+    for (auto x : *this) ret += x;
+    return ret;
+    // return std::reduce(begin(), end());
   }
   friend inline void PrintTo(const Array &x, ::std::ostream *os) { *os << x; }
 #ifndef NDEBUG
