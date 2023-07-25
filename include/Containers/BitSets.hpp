@@ -85,6 +85,8 @@ template <typename T = math::Vector<uint64_t, 1>> struct BitSet {
   //     return data[i];
   // } // allow `getindex` but not `setindex`
   constexpr explicit BitSet() = default;
+  constexpr explicit BitSet(T &&_data) : data{std::move(_data)} {}
+  constexpr explicit BitSet(const T &_data) : data{_data} {}
   static constexpr auto numElementsNeeded(ptrdiff_t N) -> unsigned {
     return unsigned(((N + 63) >> 6));
   }
