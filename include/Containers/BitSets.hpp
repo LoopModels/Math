@@ -286,6 +286,7 @@ template <typename T = math::Vector<uint64_t, 1>> struct BitSet {
     os << "]";
     return os;
   }
+  constexpr void clear() { std::fill_n(data.begin(), std::ssize(data), 0); }
   [[nodiscard]] constexpr auto isEmpty() const -> bool {
     return std::ranges::all_of(data, [](auto u) { return u == 0; });
     // for (auto u : data)
