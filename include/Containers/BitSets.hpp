@@ -77,9 +77,16 @@ public:
   }
 };
 
+template <typename T>
+concept Collection = requires(T t) {
+  { std::size(t) } -> std::convertible_to<std::size_t>;
+  { std::ssize(t) } -> std::convertible_to<std::ptrdiff_t>;
+  { *t.begin() } -> std::convertible_to<uint64_t>;
+};
+
 /// A set of `ptrdiff_t` elements.
 /// Initially constructed
-template <typename T = math::Vector<uint64_t, 1>> struct BitSet {
+template <Collection T = math::Vector<uint64_t, 1>> struct BitSet {
   [[no_unique_address]] T data{};
   // ptrdiff_t operator[](ptrdiff_t i) const {
   //     return data[i];
@@ -130,8 +137,10 @@ template <typename T = math::Vector<uint64_t, 1>> struct BitSet {
   // BitSet::Iterator(std::vector<std::uint64_t> &seta)
   //     : set(seta), didx(0), offset(0), state(seta[0]), count(0) {};
   [[nodiscard]] constexpr auto begin() const -> BitSetIterator {
-    const uint64_t *b{data.begin()};
-    const uint64_t *e{data.end()};
+    auto be = data.begin();
+    auto de = data.end();
+    const uint64_t *b{be};
+    const uint64_t *e{de};
     if (b == e) return BitSetIterator{b, e, 0};
     BitSetIterator it{b, e, *b};
     return ++it;
