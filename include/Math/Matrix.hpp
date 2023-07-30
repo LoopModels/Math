@@ -11,9 +11,9 @@ namespace poly::math {
 template <typename T>
 concept AbstractMatrixCore = utils::HasEltype<T> && requires(T t, ptrdiff_t i) {
   { t(i, i) } -> std::convertible_to<utils::eltype_t<T>>;
-  { t.numRow() } -> SameOrBroadcast<Row>;
-  { t.numCol() } -> SameOrBroadcast<Col>;
-  { t.size() } -> SameOrBroadcast<CartesianIndex<Row, Col>>;
+  { t.numRow() } -> std::same_as<Row>;
+  { t.numCol() } -> std::same_as<Col>;
+  { t.size() } -> std::same_as<CartesianIndex<Row, Col>>;
   { t.dim() } -> std::convertible_to<StridedDims>;
   // {
   //     std::remove_reference_t<T>::canResize

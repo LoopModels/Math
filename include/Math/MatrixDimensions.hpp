@@ -189,19 +189,4 @@ static_assert(MatrixDimension<SquareDims>);
 static_assert(MatrixDimension<DenseDims>);
 static_assert(MatrixDimension<StridedDims>);
 
-template <std::integral T> constexpr auto dimension(Row r, Col) -> T {
-  return T(r);
-}
-template <MatrixDimension T> constexpr auto dimension(Row r, Col c) -> T {
-  return DenseDims(r, c);
-}
-
-struct Broadcast {
-  constexpr operator StridedDims() const { return {0, 0, 0}; }
-  constexpr auto operator==(const auto &) const -> bool { return true; }
-};
-
-template <class T, class U>
-concept SameOrBroadcast = std::same_as<T, U> || std::is_same_v<T, Broadcast>;
-
 } // namespace poly::math
