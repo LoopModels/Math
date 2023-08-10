@@ -16,7 +16,7 @@ public:
   List(const List &) = delete;
   constexpr List(T d) : data(d) {}
   constexpr auto getData() -> T & { return data; }
-  constexpr auto getNext() -> List * { return next; }
+  [[nodiscard]] constexpr auto getNext() const -> List * { return next; }
   constexpr auto getPrev() -> List * { return prev; }
   constexpr void setData(T d) { data = d; }
   constexpr auto setNext(List *n) -> List * {
@@ -43,6 +43,7 @@ static_assert(std::input_iterator<LI>);
 static_assert(std::forward_iterator<LI>);
 static_assert(std::ranges::input_range<LR>);
 static_assert(std::ranges::forward_range<LR>);
+static_assert(std::ranges::range<LR>);
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(ListRangeTest, BasicAssertions) {
@@ -94,6 +95,7 @@ TEST(ListRangeTest, BasicAssertions) {
       std::ranges::enable_borrowed_range<typename decltype(nlr)::InnerType>);
     static_assert(std::ranges::enable_borrowed_range<decltype(nlr)>);
     static_assert(std::ranges::borrowed_range<decltype(nlr)>);
+    static_assert(std::ranges::range<decltype(nlr)>);
     for (auto *v : nlr) s += v->getData();
     EXPECT_EQ(s, 454545);
   }

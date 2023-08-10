@@ -43,8 +43,10 @@ public:
   }
 };
 
+/// Safe for removing current iter from `list` while iterating.
 template <typename T, class Op, class Proj> class ListIterator {
   T *state_;
+  T *next_{nullptr};
   [[no_unique_address]] Op op_{};
   [[no_unique_address]] Proj p_{};
 
@@ -54,12 +56,14 @@ public:
   // constexpr auto operator->() const noexcept -> T * { return state_; }
   constexpr auto getState() const noexcept -> T * { return state_; }
   constexpr auto operator++() noexcept -> ListIterator & {
-    state_ = op_(state_);
+    state_ = next_;
+    if (next_) next_ = op_(next_);
     return *this;
   }
   constexpr auto operator++(int) noexcept -> ListIterator {
     ListIterator tmp{*this};
-    state_ = op_(state_);
+    state_ = next_;
+    if (next_) next_ = op_(next_);
     return tmp;
   }
   constexpr auto operator-(ListIterator const &other) const noexcept
@@ -74,13 +78,16 @@ public:
   constexpr auto operator==(End) const noexcept -> bool {
     return state_ == nullptr;
   }
-  constexpr ListIterator(T *state) noexcept : state_{state} {}
+  constexpr ListIterator(T *state) noexcept
+    : state_{state}, next_{state ? Op{}(state) : nullptr} {}
   constexpr ListIterator(T *state, Op op, Proj p) noexcept
-    : state_{state}, op_{op}, p_{p} {}
+    : state_{state}, next_{state ? op(state) : nullptr}, op_{op}, p_{p} {}
   constexpr ListIterator() noexcept = default;
   constexpr ListIterator(const ListIterator &) noexcept = default;
   constexpr ListIterator(ListIterator &&) noexcept = default;
   constexpr auto operator=(const ListIterator &) noexcept
+    -> ListIterator & = default;
+  constexpr auto operator=(ListIterator &&) noexcept
     -> ListIterator & = default;
 };
 template <typename T, class Op, class Proj>
@@ -108,6 +115,11 @@ public:
   constexpr ListRange(T *begin, Op next) noexcept
     : begin_{begin}, next_{next} {}
   constexpr ListRange(T *begin) noexcept : begin_{begin} {}
+  constexpr ListRange() noexcept = default;
+  constexpr ListRange(const ListRange &) noexcept = default;
+  constexpr ListRange(ListRange &&) noexcept = default;
+  constexpr auto operator=(const ListRange &) noexcept -> ListRange & = default;
+  constexpr auto operator=(ListRange &&) noexcept -> ListRange & = default;
 };
 template <typename T, class Op, class Proj>
 ListRange(T *, Op, Proj) -> ListRange<T, Op, Proj>;
@@ -169,6 +181,8 @@ public:
   constexpr NestedIterator(NestedIterator &&) noexcept = default;
   constexpr auto operator=(const NestedIterator &) noexcept
     -> NestedIterator & = default;
+  constexpr auto operator=(NestedIterator &&) noexcept
+    -> NestedIterator & = default;
 };
 
 /// NestedList
@@ -206,6 +220,11 @@ public:
   static constexpr auto end() noexcept -> End { return {}; }
   constexpr NestedList(O out, F inn) noexcept
     : outer{std::move(out)}, inner{std::move(inn)} {}
+  constexpr NestedList(const NestedList &) noexcept = default;
+  constexpr NestedList(NestedList &&) noexcept = default;
+  constexpr auto operator=(const NestedList &) noexcept
+    -> NestedList & = default;
+  constexpr auto operator=(NestedList &&) noexcept -> NestedList & = default;
 };
 template <std::ranges::forward_range O, class F>
 NestedList(O, F) -> NestedList<O, F>;

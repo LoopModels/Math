@@ -421,7 +421,8 @@ public:
   constexpr explicit WArena(const WArena &other) = default;
   template <typename U>
   constexpr explicit WArena(WArena<U> other) : A(other.get_allocator()) {}
-  [[nodiscard]] constexpr auto get_allocator() const -> NotNull<Alloc> {
+  [[nodiscard, gnu::returns_nonnull]] constexpr auto get_allocator() const
+    -> Alloc * {
     return A;
   }
   constexpr void deallocate(T *p, ptrdiff_t n) { A->deallocate(p, n); }

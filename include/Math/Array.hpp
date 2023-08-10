@@ -26,6 +26,28 @@
 #include <numeric>
 #include <type_traits>
 #include <utility>
+
+// https://llvm.org/doxygen/Compiler_8h_source.html#l00307
+#ifndef POLY_MATH_HAS_CPP_ATTRIBUTE
+#if defined(__cplusplus) && defined(__has_cpp_attribute)
+#define POLY_MATH_HAS_CPP_ATTRIBUTE(x) __has_cpp_attribute(x)
+#else
+#define POLY_MATH_HAS_CPP_ATTRIBUTE(x) 0
+#endif
+#endif
+#if POLY_MATH_HAS_CPP_ATTRIBUTE(gsl::Owner)
+#define POLY_MATH_GSL_OWNER [[gsl::Owner]]
+#else
+#define POLY_MATH_GSL_OWNER
+#endif
+/// POLY_MATH_GSL_POINTER - Apply this to non-owning classes like
+/// StringRef to enable lifetime warnings.
+#if POLY_MATH_HAS_CPP_ATTRIBUTE(gsl::Pointer)
+#define POLY_MATH_GSL_POINTER [[gsl::Pointer]]
+#else
+#define POLY_MATH_GSL_POINTER
+#endif
+
 namespace poly::math {
 template <class T, class S, size_t N = PreAllocStorage<T>(),
           class A = std::allocator<T>,
@@ -45,7 +67,7 @@ void print_obj(std::ostream &os, const std::pair<F, S> &x) {
 using utils::NotNull, utils::Optional;
 
 /// Constant Array
-template <class T, class S> struct Array {
+template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   static_assert(!std::is_const_v<T>, "T shouldn't be const");
   static_assert(std::is_trivially_destructible_v<T>,
                 "maybe should add support for destroying");
@@ -65,16 +87,15 @@ template <class T, class S> struct Array {
   constexpr Array(Array &&) noexcept = default;
   constexpr auto operator=(const Array &) -> Array & = default;
   constexpr auto operator=(Array &&) noexcept -> Array & = default;
-  constexpr Array(T *p, S s) : ptr(p), sz(s) {}
-  constexpr Array(NotNull<T> p, S s) : ptr(p), sz(s) {}
-  constexpr Array(T *p, Row r, Col c) : ptr(p), sz(dimension<S>(r, c)) {}
-  constexpr Array(NotNull<T> p, Row r, Col c)
+  constexpr Array(const T *p, S s) : ptr(p), sz(s) {}
+  constexpr Array(NotNull<const T> p, S s) : ptr(p), sz(s) {}
+  constexpr Array(const T *p, Row r, Col c) : ptr(p), sz(dimension<S>(r, c)) {}
+  constexpr Array(NotNull<const T> p, Row r, Col c)
     : ptr(p), sz(dimension<S>(r, c)) {}
   template <std::convertible_to<S> V>
-  constexpr Array(Array<T, V> a) : ptr(a.wrappedPtr()), sz(a.dim()) {}
+  constexpr Array(Array<T, V> a) : ptr(a.data()), sz(a.dim()) {}
   template <size_t N>
-  constexpr Array(const std::array<T, N> &a)
-    : ptr(const_cast<T *>(a.data())), sz(N) {}
+  constexpr Array(const std::array<T, N> &a) : ptr(a.data()), sz(N) {}
   [[nodiscard, gnu::returns_nonnull]] constexpr auto data() const noexcept
     -> const T * {
     invariant(ptr != nullptr);
@@ -233,11 +254,19 @@ template <class T, class S> struct Array {
   }
   // FIXME: strided should skip over elements
   [[nodiscard]] constexpr auto norm2() const noexcept -> value_type {
-    return std::transform_reduce(begin(), end(), begin(), 0.0);
+    static_assert(DenseLayout<S>);
+    value_type ret{0};
+    for (auto x : *this) ret += x * x;
+    return ret;
+    // return std::transform_reduce(begin(), end(), begin(), 0.0);
   }
   // FIXME: strided should skips over elements
   [[nodiscard]] constexpr auto sum() const noexcept -> value_type {
-    return std::reduce(begin(), end());
+    static_assert(DenseLayout<S>);
+    value_type ret{0};
+    for (auto x : *this) ret += x;
+    return ret;
+    // return std::reduce(begin(), end());
   }
   friend inline void PrintTo(const Array &x, ::std::ostream *os) { *os << x; }
 #ifndef NDEBUG
@@ -268,13 +297,14 @@ template <class T, class S> struct Array {
 #endif
 protected:
   // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
-  [[no_unique_address]] T *ptr;
+  const T *ptr;
   // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
   [[no_unique_address]] S sz{};
 };
 
 template <class T, class S>
-struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
+struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
+                                        ArrayOps<T, S, MutArray<T, S>> {
   using BaseT = Array<T, S>;
   // using BaseT::BaseT;
   using BaseT::operator[], BaseT::operator(), BaseT::data, BaseT::begin,
@@ -359,14 +389,14 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
   constexpr MutArray(std::array<T, N> &a) : Array<T, S>(a.data(), N) {}
   [[nodiscard, gnu::returns_nonnull]] constexpr auto data() noexcept -> T * {
     invariant(this->ptr != nullptr);
-    return this->ptr;
+    return const_cast<T *>(this->ptr);
   }
   [[nodiscard]] constexpr auto wrappedPtr() noexcept -> NotNull<T> {
-    return this->ptr;
+    return data();
   }
 
   [[nodiscard]] constexpr auto begin() noexcept {
-    T *p = this->ptr;
+    T *p = const_cast<T *>(this->ptr);
     if constexpr (std::is_same_v<S, StridedRange>)
       return StridedIterator{p, this->sz.stride};
     else return p;
@@ -395,8 +425,8 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
     auto offset = calcOffset(this->sz, i);
     auto newDim = calcNewDim(this->sz, i);
     if constexpr (std::is_same_v<decltype(newDim), Empty>)
-      return ref(this->ptr, offset);
-    else return MutArray<T, decltype(newDim)>{this->ptr + offset, newDim};
+      return ref(data(), offset);
+    else return MutArray<T, decltype(newDim)>{data() + offset, newDim};
   }
   // TODO: switch to operator[] when we enable c++23
   template <class R, class C>
@@ -411,19 +441,19 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
   [[nodiscard]] constexpr auto diag() noexcept {
     StridedRange r{unsigned(min(Row{this->sz}, Col{this->sz})),
                    unsigned(RowStride{this->sz}) + 1};
-    return MutArray<T, StridedRange>{this->ptr, r};
+    return MutArray<T, StridedRange>{data(), r};
   }
   [[nodiscard]] constexpr auto antiDiag() noexcept {
     Col c = Col{this->sz};
     StridedRange r{unsigned(min(Row{this->sz}, c)),
                    unsigned(RowStride{this->sz}) - 1};
-    return MutArray<T, StridedRange>{this->ptr + ptrdiff_t(c) - 1, r};
+    return MutArray<T, StridedRange>{data() + ptrdiff_t(c) - 1, r};
   }
   constexpr void erase(S i) {
     static_assert(std::integral<S>, "erase requires integral size");
     S oldLen = this->sz--;
     if (i < this->sz)
-      std::copy(this->data() + i + 1, this->ptr + oldLen, this->data() + i);
+      std::copy(this->data() + i + 1, data() + oldLen, this->data() + i);
   }
   constexpr void erase(Row r) {
     if constexpr (std::integral<S>) {
@@ -436,14 +466,14 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
       if ((col == 0) || (r == newRow)) return;
       invariant(col <= stride);
       if ((col + (512 / (sizeof(T)))) <= stride) {
-        T *dst = this->ptr + r * stride;
+        T *dst = data() + r * stride;
         for (ptrdiff_t m = *r; m < newRow; ++m) {
           T *src = dst + stride;
           std::copy_n(src, col, dst);
           dst = src;
         }
       } else {
-        T *dst = this->ptr + r * stride;
+        T *dst = data() + r * stride;
         std::copy_n(dst + stride, (newRow - unsigned(r)) * stride, dst);
       }
     } else { // if constexpr (std::is_same_v<S, DenseDims>) {
@@ -452,7 +482,7 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
       auto col = unsigned{Col{this->sz}}, newRow = unsigned{Row{this->sz}} - 1;
       this->sz.set(Row{newRow});
       if ((col == 0) || (r == newRow)) return;
-      T *dst = this->ptr + r * col;
+      T *dst = data() + r * col;
       std::copy_n(dst + col, (newRow - unsigned(r)) * col, dst);
     }
   }
@@ -467,7 +497,7 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
       if ((colsToCopy == 0) || (row == 0)) return;
       // we only need to copy if memory shifts position
       for (ptrdiff_t m = 0; m < row; ++m) {
-        T *dst = this->ptr + m * stride + unsigned(c);
+        T *dst = data() + m * stride + unsigned(c);
         std::copy_n(dst + 1, colsToCopy, dst);
       }
     } else { // if constexpr (std::is_same_v<S, DenseDims>) {
@@ -480,8 +510,8 @@ struct MutArray : Array<T, S>, ArrayOps<T, S, MutArray<T, S>> {
       if ((colsToCopy == 0) || (row == 0)) return;
       // we only need to copy if memory shifts position
       for (ptrdiff_t m = 0; m < row; ++m) {
-        T *dst = this->ptr + m * newCol + unsigned(c);
-        T *src = this->ptr + m * oldCol + unsigned(c) + 1;
+        T *dst = data() + m * newCol + unsigned(c);
+        T *src = data() + m * oldCol + unsigned(c) + 1;
         std::copy_n(src, colsToCopy, dst);
       }
     }
@@ -516,7 +546,7 @@ static_assert(std::convertible_to<MutArray<int64_t, DenseDims>,
 /// but not of re-allocating in case the capacity is exceeded.
 template <class T, class S,
           std::unsigned_integral U = default_capacity_type_t<S>>
-struct ResizeableView : MutArray<T, S> {
+struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
   using BaseT = MutArray<T, S>;
 
   constexpr ResizeableView() noexcept : BaseT(nullptr, 0), capacity(0) {}
@@ -533,7 +563,7 @@ struct ResizeableView : MutArray<T, S> {
   constexpr auto emplace_back(Args &&...args) -> decltype(auto) {
     static_assert(std::is_integral_v<S>, "emplace_back requires integral size");
     invariant(U(this->sz) < capacity);
-    return *std::construct_at(this->ptr + this->sz++,
+    return *std::construct_at(this->data() + this->sz++,
                               std::forward<Args>(args)...);
   }
   /// Allocates extra space if needed
@@ -543,29 +573,29 @@ struct ResizeableView : MutArray<T, S> {
     -> decltype(auto) {
     static_assert(std::is_integral_v<S>, "emplace_back requires integral size");
     if (isFull()) reserve(alloc, (capacity + 1) * 2);
-    return *std::construct_at(this->ptr + this->sz++,
+    return *std::construct_at(this->data() + this->sz++,
                               std::forward<Args>(args)...);
   }
   constexpr void push_back(T value) {
     static_assert(std::is_integral_v<S>, "push_back requires integral size");
     invariant(U(this->sz) < capacity);
-    std::construct_at<T>(this->ptr + this->sz++, std::move(value));
+    std::construct_at<T>(this->data() + this->sz++, std::move(value));
   }
   constexpr void push_back(utils::Arena<> *alloc, T value) {
     static_assert(std::is_integral_v<S>, "push_back requires integral size");
     if (isFull()) reserve(alloc, (capacity + 1) * 2);
-    std::construct_at<T>(this->ptr + this->sz++, std::move(value));
+    std::construct_at<T>(this->data() + this->sz++, std::move(value));
   }
   constexpr void pop_back() {
     static_assert(std::is_integral_v<S>, "pop_back requires integral size");
     invariant(this->sz > 0);
     if constexpr (std::is_trivially_destructible_v<T>) --this->sz;
-    else this->ptr[--this->sz].~T();
+    else this->data()[--this->sz].~T();
   }
   constexpr auto pop_back_val() -> T {
     static_assert(std::is_integral_v<S>, "pop_back requires integral size");
     invariant(this->sz > 0);
-    return std::move(this->ptr[--this->sz]);
+    return std::move(this->data()[--this->sz]);
   }
   // behavior
   // if S is StridedDims, then we copy data.
@@ -600,7 +630,7 @@ struct ResizeableView : MutArray<T, S> {
       if ((rowsToCopy) && (copyCols || fillCount)) {
         if (forwardCopy) {
           // truncation, we need to copy rows to increase stride
-          T *src = this->ptr + oldX;
+          T *src = this->data() + oldX;
           T *dst = npt + newX;
           do {
             if (copyCols) std::copy_n(src, colsToCopy, dst);
@@ -613,7 +643,7 @@ struct ResizeableView : MutArray<T, S> {
           // reallocating, which should be comparatively uncommon.
           // Should probably benchmark or determine actual frequency
           // before adding `[[unlikely]]`.
-          T *src = this->ptr + (rowsToCopy + 1) * oldX;
+          T *src = this->data() + (rowsToCopy + 1) * oldX;
           T *dst = npt + (rowsToCopy + 1) * newX;
           do {
             src -= oldX;
@@ -696,11 +726,12 @@ struct ResizeableView : MutArray<T, S> {
   }
   constexpr auto insert(T *p, T x) -> T * {
     static_assert(std::is_same_v<S, unsigned>);
-    invariant(p >= this->ptr);
-    invariant(p <= this->ptr + this->sz);
+    invariant(p >= this->data());
+    invariant(p <= this->data() + this->sz);
     invariant(this->sz < capacity);
-    if (p < this->ptr + this->sz)
-      std::copy_backward(p, this->ptr + this->sz, this->ptr + this->sz + 1);
+    if (p < this->data() + this->sz)
+      std::copy_backward(p, this->data() + this->sz,
+                         this->data() + this->sz + 1);
     *p = x;
     ++this->sz;
     return p;
@@ -708,11 +739,11 @@ struct ResizeableView : MutArray<T, S> {
   template <size_t SlabSize, bool BumpUp>
   constexpr void reserve(utils::Arena<SlabSize, BumpUp> *alloc, U newCapacity) {
     if (newCapacity <= capacity) return;
-    this->ptr = alloc->template reallocate<false, T>(this->ptr, capacity,
-                                                     newCapacity, U{this->sz});
+    this->ptr = alloc->template reallocate<false, T>(
+      const_cast<T *>(this->ptr), capacity, newCapacity, U{this->sz});
     // T *oldPtr =
-    //   std::exchange(this->ptr, alloc->template allocate<T>(newCapacity));
-    // std::copy_n(oldPtr, U(this->sz), this->ptr);
+    //   std::exchange(this->data(), alloc->template allocate<T>(newCapacity));
+    // std::copy_n(oldPtr, U(this->sz), this->data());
     // alloc->deallocate(oldPtr, capacity);
     capacity = newCapacity;
   }
@@ -728,7 +759,7 @@ protected:
 template <class T, class S, class P, class A = std::allocator<T>,
 
           std::unsigned_integral U = default_capacity_type_t<S>>
-struct ReallocView : ResizeableView<T, S, U> {
+struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S, U> {
   using BaseT = ResizeableView<T, S, U>;
 
   constexpr ReallocView(T *p, S s, U c) noexcept : BaseT(p, s, c) {}
@@ -743,14 +774,14 @@ struct ReallocView : ResizeableView<T, S, U> {
     static_assert(std::is_integral_v<S>, "emplace_back requires integral size");
     if (this->sz == this->capacity) [[unlikely]]
       reserve(newCapacity());
-    return *std::construct_at<T>(this->ptr + this->sz++,
+    return *std::construct_at<T>(this->data() + this->sz++,
                                  std::forward<Args>(args)...);
   }
   constexpr void push_back(T value) {
     static_assert(std::is_integral_v<S>, "push_back requires integral size");
     if (this->sz == this->capacity) [[unlikely]]
       reserve(newCapacity());
-    std::construct_at<T>(this->ptr + this->sz++, std::move(value));
+    std::construct_at<T>(this->data() + this->sz++, std::move(value));
   }
   // behavior
   // if S is StridedDims, then we copy data.
@@ -809,7 +840,7 @@ struct ReallocView : ResizeableView<T, S, U> {
       if ((rowsToCopy) && (copyCols || fillCount)) {
         if (forwardCopy) {
           // truncation, we need to copy rows to increase stride
-          T *src = this->ptr;
+          T *src = this->data();
           T *dst = npt;
           do {
             if (copyCols && (!inPlace)) std::copy_n(src, colsToCopy, dst);
@@ -824,7 +855,7 @@ struct ReallocView : ResizeableView<T, S, U> {
           // Should probably benchmark or determine actual frequency
           // before adding `[[unlikely]]`.
           invariant(inPlace);
-          T *src = this->ptr + (rowsToCopy + inPlace) * oldX;
+          T *src = this->data() + (rowsToCopy + inPlace) * oldX;
           T *dst = npt + (rowsToCopy + inPlace) * newX;
           do {
             src -= oldX;
@@ -971,7 +1002,7 @@ protected:
   // this method should only be called from the destructor
   // (and the implementation taking the new ptr and capacity)
   constexpr void maybeDeallocate() noexcept {
-    if (wasAllocated()) allocator.deallocate(this->ptr, this->capacity);
+    if (wasAllocated()) allocator.deallocate(this->data(), this->capacity);
   }
   // this method should be called whenever the buffer lives
   constexpr void maybeDeallocate(T *newPtr, U newCapacity) noexcept {
@@ -989,8 +1020,8 @@ protected:
     this->capacity = M;
 #ifndef NDEBUG
     if constexpr (std::numeric_limits<T>::has_signaling_NaN)
-      std::fill_n(this->ptr, M, std::numeric_limits<T>::signaling_NaN());
-    else std::fill_n(this->ptr, M, std::numeric_limits<T>::min());
+      std::fill_n(this->data(), M, std::numeric_limits<T>::signaling_NaN());
+    else std::fill_n(this->data(), M, std::numeric_limits<T>::min());
 #endif
   }
 };
@@ -1011,7 +1042,8 @@ concept AbstractSimilar =
 /// This caused invalid frees, as the pointer still pointed to the old
 /// stack memory.
 template <class T, class S, size_t N, class A, std::unsigned_integral U>
-struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
+struct POLY_MATH_GSL_OWNER ManagedArray
+  : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
   static_assert(std::is_trivially_destructible_v<T>);
   using BaseT = ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U>;
   // We're deliberately not initializing storage.
@@ -1026,9 +1058,9 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
 #ifndef NDEBUG
     if (!N) return;
     if constexpr (std::numeric_limits<T>::has_signaling_NaN)
-      std::fill_n(this->ptr, N, std::numeric_limits<T>::signaling_NaN());
+      std::fill_n(this->data(), N, std::numeric_limits<T>::signaling_NaN());
     else if constexpr (std::numeric_limits<T>::is_specialized)
-      std::fill_n(this->ptr, N, std::numeric_limits<T>::min());
+      std::fill_n(this->data(), N, std::numeric_limits<T>::min());
 #endif
   }
   constexpr ManagedArray(S s) noexcept : BaseT{memory.data(), s, N} {
@@ -1037,9 +1069,9 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
 #ifndef NDEBUG
     if (!len) return;
     if constexpr (std::numeric_limits<T>::has_signaling_NaN)
-      std::fill_n(this->ptr, len, std::numeric_limits<T>::signaling_NaN());
+      std::fill_n(this->data(), len, std::numeric_limits<T>::signaling_NaN());
     else if constexpr (std::numeric_limits<T>::is_specialized)
-      std::fill_n(this->ptr, len, std::numeric_limits<T>::min());
+      std::fill_n(this->data(), len, std::numeric_limits<T>::min());
 #endif
   }
   constexpr ManagedArray(S s, T x) noexcept : BaseT{memory.data(), s, N} {
@@ -1233,7 +1265,7 @@ struct ManagedArray : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
     return *this;
   }
   [[nodiscard]] constexpr auto isSmall() const -> bool {
-    return this->ptr == memory.data();
+    return this->data() == memory.data();
   }
   constexpr void resetNoFree() {
     this->ptr = memory.data();

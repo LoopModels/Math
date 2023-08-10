@@ -29,7 +29,7 @@ invariant(const T &x, const T &y,
   }
 }
 // we want gdb-friendly builtin trap
-#define ASSERT(condition) poly::utils::invariant(condition)
+#define ASSERT(condition) ::poly::utils::invariant(condition)
 } // namespace poly::utils
 #else // ifdef NDEBUG
 #if __cplusplus >= 202202L
