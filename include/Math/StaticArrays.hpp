@@ -247,8 +247,9 @@ public:
   }
 };
 
-template <class T, ptrdiff_t N>
-using SVector = StaticArray<T, std::integral_constant<ptrdiff_t, N>>;
+template <class T, ptrdiff_t N,
+          ptrdiff_t P = calcCapacity<std::integral_constant<ptrdiff_t, N>>()>
+using SVector = StaticArray<T, std::integral_constant<ptrdiff_t, N>, P>;
 
 static_assert(AbstractVector<SVector<int64_t, 3>>);
 
