@@ -74,8 +74,8 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   static_assert(std::is_trivially_destructible_v<T>,
                 "maybe should add support for destroying");
   using value_type = utils::uncompressed_t<T>;
-  using reference = T &;
-  using const_reference = const T &;
+  using reference = decltype(ref((T *)nullptr, 0));
+  using const_reference = decltype(ref((const T *)nullptr, 0));
   using size_type = unsigned;
   using difference_type = int;
   using iterator = T *;

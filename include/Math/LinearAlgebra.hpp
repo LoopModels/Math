@@ -220,6 +220,7 @@ template <size_t L>
   return Fact<Rational, L>{std::move(A), std::move(ipiv)};
 }
 template <typename S> constexpr auto factImpl(MutSquarePtrMatrix<S> A) {
+  using T = MutSquarePtrMatrix<S>::value_type;
   Row M = A.numRow();
   auto ipiv{vector(std::allocator<unsigned>{}, unsigned(M))};
   invariant(ptrdiff_t(ipiv.size()), ptrdiff_t(M));
@@ -227,13 +228,13 @@ template <typename S> constexpr auto factImpl(MutSquarePtrMatrix<S> A) {
   for (ptrdiff_t k = 0; k < M; ++k) {
     ptrdiff_t kp = k;
     for (; kp < M; ++kp) {
-      if (A(kp, k) == 0) continue;
+      if (A(kp, k) == T(0)) continue;
       ipiv[k] = kp;
       break;
     }
     if (kp != k)
       for (ptrdiff_t j = 0; j < M; ++j) std::swap(A(kp, j), A(k, j));
-    S invAkk = 1.0 / A(k, k);
+    T invAkk = 1.0 / A(k, k);
     for (ptrdiff_t i = k + 1; i < M; ++i) A(i, k) = A(i, k) * invAkk;
     for (ptrdiff_t i = k + 1; i < M; ++i)
       for (ptrdiff_t j = k + 1; j < M; ++j)

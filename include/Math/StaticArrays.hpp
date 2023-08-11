@@ -1,6 +1,7 @@
 #pragma once
 #include "Math/Array.hpp"
 #include "Math/SIMDWidth.hpp"
+#include "Utilities/TypeCompression.hpp"
 #include <cstddef>
 #include <type_traits>
 #include <utility>
@@ -26,11 +27,11 @@ class StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
   T memory[Capacity]; // NOLINT(modernize-avoid-c-arrays)
 
 public:
-  using value_type = T;
-  using reference = T &;
-  using const_reference = const T &;
+  using value_type = utils::uncompressed_t<T>;
+  using reference = decltype(ref((T *)nullptr, 0));
+  using const_reference = decltype(ref((const T *)nullptr, 0));
   using size_type = unsigned;
-  using difference_type = int;
+  using difference_type = ptrdiff_t;
   using iterator = T *;
   using const_iterator = const T *;
   using pointer = T *;
