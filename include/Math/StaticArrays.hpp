@@ -211,7 +211,7 @@ public:
   [[nodiscard]] constexpr auto get() const -> const T & {
     return memory[I];
   }
-  static constexpr auto decompress(StaticArray *p) -> decltype(auto) {
+  static constexpr auto decompress(const StaticArray *p) -> decltype(auto) {
     constexpr ptrdiff_t W =
       math::simd::vecWidth<T, std::integral_constant<ptrdiff_t, len>>();
     constexpr ptrdiff_t P = ((len + W - 1) / W) * W;
@@ -219,7 +219,7 @@ public:
     else {
       StaticArray<T, std::integral_constant<ptrdiff_t, P>> result;
       ptrdiff_t i = 0, n = W;
-      auto &A{*p};
+      const auto &A{*p};
       POLYMATHVECTORIZE
       for (; n <= len; i = n, n += W) {
         auto j = simd::unroll<W, 1>(i);
