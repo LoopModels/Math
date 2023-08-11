@@ -88,6 +88,9 @@ template <typename Op, typename A> struct ElementwiseUnaryOp {
   }
 
   [[nodiscard]] constexpr auto size() const { return a.size(); }
+  [[nodiscard]] constexpr auto paddedlength() const -> ptrdiff_t {
+    return paddedlen(a);
+  }
   [[nodiscard]] constexpr auto dim() const { return a.dim(); }
   [[nodiscard]] constexpr auto numRow() const -> Row { return a.numRow(); }
   [[nodiscard]] constexpr auto numCol() const -> Col { return a.numCol(); }
@@ -175,6 +178,12 @@ template <class Op, class A, class B> struct ElementwiseVectorBinaryOp {
   constexpr auto operator[](auto i) const -> decltype(auto) {
     return op(get(a, i), get(b, i));
   }
+  [[nodiscard]] constexpr auto paddedlength() const -> ptrdiff_t {
+    if constexpr (AbstractVector<A> && AbstractVector<B>)
+      return std::min<ptrdiff_t>(paddedlen(a), paddedlen(b));
+    else if constexpr (AbstractVector<A>) return paddedlen(a);
+    else return paddedlen(b);
+  }
   [[nodiscard]] constexpr auto size() const -> ptrdiff_t {
     if constexpr (AbstractVector<A> && AbstractVector<B>) {
       const ptrdiff_t N = a.size();
@@ -186,6 +195,7 @@ template <class Op, class A, class B> struct ElementwiseVectorBinaryOp {
       return b.size();
     }
   }
+  [[nodiscard]] constexpr auto dim() const -> ptrdiff_t { return size(); }
 }; // namespace poly::math
 template <class Op, class A, class B> struct ElementwiseMatrixBinaryOp {
   using value_type = utils::promote_eltype_t<A, B>;
@@ -308,6 +318,9 @@ template <AbstractMatrix A, AbstractVector B> struct MatVecMul {
     return s;
   }
   [[nodiscard]] constexpr auto size() const -> ptrdiff_t {
+    return ptrdiff_t(a.numRow());
+  }
+  [[nodiscard]] constexpr auto dim() const -> ptrdiff_t {
     return ptrdiff_t(a.numRow());
   }
 };
@@ -644,6 +657,7 @@ template <typename T, typename I> struct SliceView {
   auto operator[](ptrdiff_t j) -> T & { return a[i[j]]; }
   auto operator[](ptrdiff_t j) const -> const T & { return a[i[j]]; }
   [[nodiscard]] constexpr auto size() const -> ptrdiff_t { return i.size(); }
+  [[nodiscard]] constexpr auto dim() const -> ptrdiff_t { return i.size(); }
 };
 
 static_assert(AbstractVector<SliceView<int64_t, unsigned>>);

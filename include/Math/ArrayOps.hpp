@@ -4,11 +4,13 @@
 #include "Math/Matrix.hpp"
 #include "Math/MatrixDimensions.hpp"
 #include "Math/SIMD.hpp"
+#include "Math/SIMDWidth.hpp"
 #include "Math/UniformScaling.hpp"
 #include "Math/Vector.hpp"
 #include <algorithm>
 #include <bit>
 #include <cstddef>
+#include <cstdint>
 #include <eve/module/core.hpp>
 #include <type_traits>
 // #include <eve/module/algo.hpp>
@@ -24,21 +26,23 @@
 #endif
 
 namespace poly::math {
-namespace simd {
-template <typename T, typename S>
-inline constexpr auto vecWidth() -> ptrdiff_t {
-  if constexpr (PrimitiveScalar<T>) {
-    constexpr ptrdiff_t W = eve::wide<T>::size();
-    if constexpr (StaticInt<S>) {
-      if constexpr (S::value < W) {
-        constexpr size_t L = S::value;
-        return 1 << (8 * sizeof(size_t) - std::countl_zero(L - 1));
-      }
-    }
-    return W;
-  } else return 1;
+
+template <typename T>
+concept HasLength = requires(T x) {
+  { ptrdiff_t(x.dim()) } -> std::same_as<ptrdiff_t>;
+};
+template <typename T>
+concept HasPaddedLength = HasLength<T> && requires(T x) {
+  { x.paddedlength() } -> std::convertible_to<ptrdiff_t>;
+};
+
+constexpr auto paddedlen(const HasPaddedLength auto &x) -> ptrdiff_t {
+  return ptrdiff_t(x.paddedlength());
 }
-} // namespace simd
+constexpr auto paddedlen(const HasLength auto &x) -> ptrdiff_t {
+  return ptrdiff_t(x.dim());
+}
+
 template <typename T> class SmallSparseMatrix;
 template <class T, class S, class P> class ArrayOps {
   [[gnu::returns_nonnull]] constexpr auto data_() -> T * {
@@ -48,6 +52,9 @@ template <class T, class S, class P> class ArrayOps {
     return static_cast<const P *>(this)->data();
   }
   constexpr auto size_() const { return static_cast<const P *>(this)->size(); }
+  constexpr auto paddedlen_() const {
+    return paddedlen(*static_cast<const P *>(this));
+  }
   constexpr auto dim_() const -> S {
     return static_cast<const P *>(this)->dim();
   }
@@ -89,8 +96,8 @@ public:
     } else {
       constexpr ptrdiff_t W = simd::vecWidth<T, S>();
       if constexpr (PrimitiveScalar<T> && (W > 1)) {
-        ptrdiff_t L = size_();
-        invariant(L, ptrdiff_t(B.size()));
+        invariant(ptrdiff_t(size_()), ptrdiff_t(B.size()));
+        ptrdiff_t L = std::min<ptrdiff_t>(paddedlen_(), paddedlen(B));
         ptrdiff_t i = 0, n = W;
         auto &A{getThis()};
         POLYMATHVECTORIZE
@@ -146,7 +153,7 @@ public:
         //                                                     +
         //                                                     ptrdiff_t(dim_()),
         //                                                     T(b));
-        ptrdiff_t L = ptrdiff_t(dim_());
+        ptrdiff_t L = paddedlen_();
         ptrdiff_t i = 0, n = W;
         auto &A{getThis()};
         POLYMATHVECTORIZE
@@ -216,8 +223,8 @@ public:
     } else {
       constexpr ptrdiff_t W = simd::vecWidth<T, S>();
       if constexpr (PrimitiveScalar<T> && (W > 1)) {
-        ptrdiff_t L = size_();
-        invariant(L, ptrdiff_t(B.size()));
+        invariant(ptrdiff_t(size_()), ptrdiff_t(B.size()));
+        ptrdiff_t L = std::min<ptrdiff_t>(paddedlen_(), paddedlen(B));
         ptrdiff_t i = 0, n = W;
         auto &A{getThis()};
         const auto &cA{getThis()};
@@ -268,7 +275,9 @@ public:
     } else {
       constexpr ptrdiff_t W = simd::vecWidth<T, S>();
       if constexpr (PrimitiveScalar<T> && (W > 1)) {
-        ptrdiff_t L = size_(), i = 0, n = W;
+        invariant(ptrdiff_t(size_()), ptrdiff_t(B.size()));
+        ptrdiff_t L = std::min<ptrdiff_t>(paddedlen_(), paddedlen(B)), i = 0,
+                  n = W;
         invariant(L, ptrdiff_t(B.size()));
         auto &A{getThis()};
         const auto &cA{getThis()};
@@ -302,7 +311,7 @@ public:
     } else {
       constexpr ptrdiff_t W = simd::vecWidth<T, S>();
       if constexpr (PrimitiveScalar<T> && (W > 1)) {
-        ptrdiff_t L = ptrdiff_t(dim_()), i = 0, n = W;
+        ptrdiff_t L = paddedlen_(), i = 0, n = W;
         auto &A{getThis()};
         const auto &cA{getThis()};
         POLYMATHVECTORIZE
@@ -333,7 +342,7 @@ public:
     } else {
       constexpr ptrdiff_t W = simd::vecWidth<T, S>();
       if constexpr (std::floating_point<T> && (W > 1)) {
-        ptrdiff_t L = ptrdiff_t(dim_());
+        ptrdiff_t L = paddedlen_();
         ptrdiff_t i = 0, n = W;
         auto &A{getThis()};
         const auto &cA{getThis()};

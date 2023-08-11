@@ -3,6 +3,7 @@
 #include "Math/AxisTypes.hpp"
 #include "Math/Indexing.hpp"
 #include "Math/MatrixDimensions.hpp"
+#include "Utilities/TypeCompression.hpp"
 #include "Utilities/TypePromotion.hpp"
 #include <array>
 #include <concepts>
@@ -110,9 +111,25 @@ constexpr auto calcNewDim(MatrixDimension auto, simd::Tile<W, M, N, P>)
   -> Empty {
   return {};
 }
-template <class T> constexpr auto ref(T *p, ptrdiff_t i) -> T & { return p[i]; }
-template <class T> constexpr auto ref(const T *p, ptrdiff_t i) -> const T & {
-  return p[i];
+
+template <typename T> struct Reference {
+  using U = utils::uncompressed_t<T>;
+  T *t;
+  constexpr operator U() const { return T::decompress(t); }
+  constexpr auto operator=(U u) const -> Reference & {
+    T::compress(t, u);
+    return *this;
+  }
+};
+
+template <class T> constexpr auto ref(T *p, ptrdiff_t i) -> decltype(auto) {
+  if constexpr (utils::Compressible<T>) return Reference<T>{p + i};
+  else return p[i];
+}
+template <class T>
+constexpr auto ref(const T *p, ptrdiff_t i) -> decltype(auto) {
+  if constexpr (utils::Compressible<T>) return T::decompress(p + i);
+  else return p[i];
 }
 
 template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N> struct Unrolled {

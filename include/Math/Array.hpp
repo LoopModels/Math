@@ -12,6 +12,7 @@
 #include "Utilities/Allocators.hpp"
 #include "Utilities/Invariant.hpp"
 #include "Utilities/Optional.hpp"
+#include "Utilities/TypeCompression.hpp"
 #include "Utilities/TypePromotion.hpp"
 #include "Utilities/Valid.hpp"
 #include <algorithm>
@@ -49,6 +50,7 @@
 #endif
 
 namespace poly::math {
+
 template <class T, class S, size_t N = PreAllocStorage<T>(),
           class A = std::allocator<T>,
           std::unsigned_integral U = default_capacity_type_t<S>>
@@ -71,7 +73,7 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   static_assert(!std::is_const_v<T>, "T shouldn't be const");
   static_assert(std::is_trivially_destructible_v<T>,
                 "maybe should add support for destroying");
-  using value_type = T;
+  using value_type = utils::uncompressed_t<T>;
   using reference = T &;
   using const_reference = const T &;
   using size_type = unsigned;
@@ -1669,5 +1671,5 @@ template <typename T, class S>
 constexpr auto len(Array<T, S> const &A) -> ptrdiff_t {
   return ptrdiff_t(A.dim());
 }
-
+static_assert(HasLength<poly::math::MutArray<int64_t, poly::math::DenseDims>>);
 } // namespace poly::math

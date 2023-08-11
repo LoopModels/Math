@@ -1,5 +1,7 @@
 #pragma once
 #include "Math/Array.hpp"
+#include "Math/SIMDWidth.hpp"
+#include <cstddef>
 #include <type_traits>
 #include <utility>
 
@@ -12,10 +14,16 @@ static_assert(
 template <typename T>
 concept StaticSize = StaticInt<T>;
 
-template <class T, StaticSize S>
+template <typename S> consteval auto calcCapacity() -> ptrdiff_t {
+  return ptrdiff_t{S{}};
+}
+
+template <class T, StaticSize S, ptrdiff_t Capacity = calcCapacity<S>()>
 class StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
-  static constexpr ptrdiff_t capacity = ptrdiff_t{S{}};
-  T memory[capacity]; // NOLINT(modernize-avoid-c-arrays)
+  // Capacity may be larger than `len` to allow for padding.
+  static constexpr ptrdiff_t len = ptrdiff_t{S{}};
+  static_assert(Capacity >= len);
+  T memory[Capacity]; // NOLINT(modernize-avoid-c-arrays)
 
 public:
   using value_type = T;
@@ -44,7 +52,7 @@ public:
       (*this) << *list.begin();
       return;
     }
-    invariant(list.size(), size_t(capacity));
+    invariant(list.size(), size_t(len));
     std::copy(list.begin(), list.end(), data());
   }
   template <AbstractSimilar<S> V> constexpr StaticArray(const V &b) noexcept {
@@ -59,9 +67,7 @@ public:
   constexpr auto operator=(StaticArray &&) noexcept -> StaticArray & = default;
 
   [[nodiscard]] constexpr auto begin() const noexcept { return data(); }
-  [[nodiscard]] constexpr auto end() const noexcept {
-    return begin() + capacity;
-  }
+  [[nodiscard]] constexpr auto end() const noexcept { return begin() + len; }
   [[nodiscard]] constexpr auto rbegin() const noexcept {
     return std::reverse_iterator(end());
   }
@@ -131,10 +137,13 @@ public:
   [[nodiscard]] constexpr auto rowStride() const noexcept -> RowStride {
     return RowStride{S{}};
   }
-  [[nodiscard]] static constexpr auto empty() -> bool { return capacity == 0; }
+  [[nodiscard]] static constexpr auto empty() -> bool { return len == 0; }
   [[nodiscard]] static constexpr auto size() noexcept {
     if constexpr (StaticInt<S>) return S{};
     else return CartesianIndex{Row{S{}}, Col{S{}}};
+  }
+  [[nodiscard]] static constexpr auto paddedlength() noexcept -> ptrdiff_t {
+    return Capacity;
   }
   [[nodiscard]] static constexpr auto dim() noexcept -> S { return S{}; }
   [[nodiscard]] constexpr auto transpose() const { return Transpose{*this}; }
@@ -158,7 +167,7 @@ public:
       return StridedIterator{data(), S{}.stride};
     else return data();
   }
-  [[nodiscard]] constexpr auto end() noexcept { return begin() + capacity; }
+  [[nodiscard]] constexpr auto end() noexcept { return begin() + len; }
   [[nodiscard]] constexpr auto rbegin() noexcept {
     return std::reverse_iterator(end());
   }
@@ -202,6 +211,40 @@ public:
   [[nodiscard]] constexpr auto get() const -> const T & {
     return memory[I];
   }
+  static constexpr auto decompress(StaticArray *p) -> decltype(auto) {
+    constexpr ptrdiff_t W =
+      math::simd::vecWidth<T, std::integral_constant<ptrdiff_t, len>>();
+    constexpr ptrdiff_t P = ((len + W - 1) / W) * W;
+    if constexpr (P == len) return *p;
+    StaticArray<T, std::integral_constant<ptrdiff_t, P>> result;
+    ptrdiff_t i = 0, n = W;
+    auto &A{*p};
+    POLYMATHVECTORIZE
+    for (; n <= len; i = n, n += W) {
+      auto j = simd::unroll<W, 1>(i);
+      result[j] = A[j];
+    }
+    result[simd::unroll<W, 1>(i)] = A[simd::unroll<W, 1>(i, len)];
+    return result;
+  }
+  template <StaticSize U, ptrdiff_t C>
+  static constexpr void compress(StaticArray *p,
+                                 const StaticArray<T, U, C> &rhs) {
+    constexpr ptrdiff_t W =
+      math::simd::vecWidth<T, std::integral_constant<ptrdiff_t, len>>();
+    if constexpr (W == 1) {
+      *p << rhs;
+      return;
+    }
+    ptrdiff_t i = 0, n = W;
+    auto &A{*p};
+    POLYMATHVECTORIZE
+    for (; n <= len; i = n, n += W) {
+      auto j = simd::unroll<W, 1>(i);
+      A[j] = rhs[j];
+    }
+    if (i < len) A[simd::unroll<W, 1>(i, len)] = rhs[simd::unroll<W, 1>(i)];
+  }
 };
 
 template <class T, ptrdiff_t N>
@@ -230,6 +273,13 @@ static_assert(!DoCopy<SVector<int64_t, 4>>);
 static_assert(DenseLayout<std::integral_constant<ptrdiff_t, 4>>);
 
 }; // namespace poly::math
+
+namespace poly::utils {
+
+static_assert(std::same_as<uncompressed_t<math::SVector<int64_t, 15>>,
+                           math::SVector<int64_t, 16>>);
+
+}; // namespace poly::utils
 
 template <class T, ptrdiff_t N> // NOLINTNEXTLINE(cert-dcl58-cpp)
 struct std::tuple_size<::poly::math::SVector<T, N>>
