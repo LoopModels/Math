@@ -58,10 +58,10 @@ template <class T, class S, class P> class ArrayOps {
   constexpr auto dim_() const -> S {
     return static_cast<const P *>(this)->dim();
   }
-  constexpr auto index(ptrdiff_t i) -> T & {
+  constexpr auto index(ptrdiff_t i) -> decltype(auto) {
     return (*static_cast<P *>(this))[i];
   }
-  constexpr auto index(ptrdiff_t i, ptrdiff_t j) -> T & {
+  constexpr auto index(ptrdiff_t i, ptrdiff_t j) -> decltype(auto) {
     return (*static_cast<P *>(this))(i, j);
   }
   [[nodiscard]] constexpr auto nr() const -> ptrdiff_t {
