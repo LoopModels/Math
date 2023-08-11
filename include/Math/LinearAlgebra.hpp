@@ -228,7 +228,7 @@ template <typename S> constexpr auto factImpl(MutSquarePtrMatrix<S> A) {
   for (ptrdiff_t k = 0; k < M; ++k) {
     ptrdiff_t kp = k;
     for (; kp < M; ++kp) {
-      if (A(kp, k) == T(0)) continue;
+      if (T(A(kp, k)) == T(0)) continue;
       ipiv[k] = kp;
       break;
     }
