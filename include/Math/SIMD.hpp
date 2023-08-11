@@ -116,7 +116,7 @@ template <typename T> struct Reference {
   using U = utils::uncompressed_t<T>;
   T *t;
   constexpr operator U() const { return T::decompress(t); }
-  constexpr auto operator=(U u) const -> Reference & {
+  constexpr auto operator=(U u) -> Reference & {
     T::compress(t, u);
     return *this;
   }
