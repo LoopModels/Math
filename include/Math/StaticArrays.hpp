@@ -216,16 +216,18 @@ public:
       math::simd::vecWidth<T, std::integral_constant<ptrdiff_t, len>>();
     constexpr ptrdiff_t P = ((len + W - 1) / W) * W;
     if constexpr (P == len) return *p;
-    StaticArray<T, std::integral_constant<ptrdiff_t, P>> result;
-    ptrdiff_t i = 0, n = W;
-    auto &A{*p};
-    POLYMATHVECTORIZE
-    for (; n <= len; i = n, n += W) {
-      auto j = simd::unroll<W, 1>(i);
-      result[j] = A[j];
+    else {
+      StaticArray<T, std::integral_constant<ptrdiff_t, P>> result;
+      ptrdiff_t i = 0, n = W;
+      auto &A{*p};
+      POLYMATHVECTORIZE
+      for (; n <= len; i = n, n += W) {
+        auto j = simd::unroll<W, 1>(i);
+        result[j] = A[j];
+      }
+      result[simd::unroll<W, 1>(i)] = A[simd::unroll<W, 1>(i, len)];
+      return result;
     }
-    result[simd::unroll<W, 1>(i)] = A[simd::unroll<W, 1>(i, len)];
-    return result;
   }
   template <StaticSize U, ptrdiff_t C>
   static constexpr void compress(StaticArray *p,
