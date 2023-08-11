@@ -32,7 +32,7 @@ concept Compressible =
 
 template <typename T> constexpr auto decompress(T *t) -> decltype(auto) {
   if constexpr (Compressible<T>) return T::decompress(t);
-  else return t;
+  else return *t;
 }
 template <typename T>
 constexpr void compress(T *t, const uncompressed_t<T> &u) {
