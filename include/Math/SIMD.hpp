@@ -120,6 +120,46 @@ template <typename T> struct Reference {
     T::compress(t, u);
     return *this;
   }
+  constexpr auto operator+=(const auto x) -> Reference & {
+    T::compress(t, U(*this) + x);
+    return *this;
+  }
+  constexpr auto operator-=(const auto x) -> Reference & {
+    T::compress(t, U(*this) - x);
+    return *this;
+  }
+  constexpr auto operator*=(const auto x) -> Reference & {
+    T::compress(t, U(*this) * x);
+    return *this;
+  }
+  constexpr auto operator/=(const auto x) -> Reference & {
+    T::compress(t, U(*this) / x);
+    return *this;
+  }
+  constexpr auto operator%=(const auto x) -> Reference & {
+    T::compress(t, U(*this) % x);
+    return *this;
+  }
+  constexpr auto operator<<=(const auto x) -> Reference & {
+    T::compress(t, U(*this) << x);
+    return *this;
+  }
+  constexpr auto operator>>=(const auto x) -> Reference & {
+    T::compress(t, U(*this) >> x);
+    return *this;
+  }
+  constexpr auto operator&=(const auto x) -> Reference & {
+    T::compress(t, U(*this) & x);
+    return *this;
+  }
+  constexpr auto operator^=(const auto x) -> Reference & {
+    T::compress(t, U(*this) ^ x);
+    return *this;
+  }
+  constexpr auto operator|=(const auto x) -> Reference & {
+    T::compress(t, U(*this) | x);
+    return *this;
+  }
 };
 
 template <class T> constexpr auto ref(T *p, ptrdiff_t i) -> decltype(auto) {
