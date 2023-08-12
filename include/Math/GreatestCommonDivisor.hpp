@@ -6,8 +6,9 @@
 #include <concepts>
 #include <cstdint>
 #include <limits>
+#include <utility>
 namespace poly::math {
-using utils::invariant;
+using std::swap, utils::invariant;
 constexpr inline auto constexpr_abs(std::signed_integral auto x) noexcept {
   return x < 0 ? -x : x;
 }
@@ -64,9 +65,9 @@ constexpr auto dgcdx(T a, T b)
     rOld -= quotient * r;
     sOld -= quotient * s;
     tOld -= quotient * t;
-    std::swap(r, rOld);
-    std::swap(s, sOld);
-    std::swap(t, tOld);
+    swap(r, rOld);
+    swap(s, sOld);
+    swap(t, tOld);
   }
   // Solving for `t` at the end has 1 extra division, but lets us remove
   // the `t` updates in the loop:

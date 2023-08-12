@@ -16,7 +16,7 @@ namespace poly::math::LU {
   for (ptrdiff_t i = 0; i < M; ++i) {
     unsigned ip = ipiv[i];
     if (i != ip)
-      for (ptrdiff_t j = 0; j < M; ++j) std::swap(rhs(ip, j), rhs(i, j));
+      for (ptrdiff_t j = 0; j < M; ++j) swap(rhs(ip, j), rhs(i, j));
   }
   // LU x = rhs
   // L y = rhs // L is UnitLowerTriangular
@@ -49,7 +49,7 @@ constexpr void ldiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
   for (ptrdiff_t i = 0; i < M; ++i) {
     unsigned ip = ipiv[i];
     if (i != ip)
-      for (ptrdiff_t j = 0; j < M; ++j) std::swap(rhs(ip, j), rhs(i, j));
+      for (ptrdiff_t j = 0; j < M; ++j) swap(rhs(ip, j), rhs(i, j));
   }
   // LU x = rhs
   // L y = rhs // L is UnitLowerTriangular
@@ -102,7 +102,7 @@ constexpr void ldiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
   for (auto j = ptrdiff_t(N); j--;) {
     unsigned jp = ipiv[j];
     if (j != jp)
-      for (ptrdiff_t i = 0; i < M; ++i) std::swap(rhs(i, jp), rhs(i, j));
+      for (ptrdiff_t i = 0; i < M; ++i) swap(rhs(i, jp), rhs(i, j));
   }
 
   return false;
@@ -135,7 +135,7 @@ constexpr void rdiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
   for (auto j = ptrdiff_t(N); j--;) {
     unsigned jp = ipiv[j];
     if (j != jp)
-      for (ptrdiff_t i = 0; i < M; ++i) std::swap(rhs(i, jp), rhs(i, j));
+      for (ptrdiff_t i = 0; i < M; ++i) swap(rhs(i, jp), rhs(i, j));
   }
 }
 
@@ -175,7 +175,7 @@ public:
     Col M = F.numCol();
     Vector<unsigned> perm;
     for (ptrdiff_t m = 0; m < M; ++m) perm.push_back(m);
-    for (ptrdiff_t m = 0; m < M; ++m) std::swap(perm[m], perm[ipiv[m]]);
+    for (ptrdiff_t m = 0; m < M; ++m) swap(perm[m], perm[ipiv[m]]);
     return perm;
   }
   friend auto operator<<(std::ostream &os, const Fact &lu) -> std::ostream & {
@@ -200,7 +200,7 @@ template <size_t L>
       break;
     }
     if (kp != k)
-      for (ptrdiff_t j = 0; j < M; ++j) std::swap(A(kp, j), A(k, j));
+      for (ptrdiff_t j = 0; j < M; ++j) swap(A(kp, j), A(k, j));
     Rational invAkk = A(k, k).inv();
     for (ptrdiff_t i = k + 1; i < M; ++i)
       if (std::optional<Rational> Aik = A(i, k).safeMul(invAkk)) A(i, k) = *Aik;
@@ -233,7 +233,7 @@ template <typename S> constexpr auto factImpl(MutSquarePtrMatrix<S> A) {
       break;
     }
     if (kp != k)
-      for (ptrdiff_t j = 0; j < M; ++j) std::swap(A(kp, j), A(k, j));
+      for (ptrdiff_t j = 0; j < M; ++j) swap(A(kp, j), A(k, j));
     T invAkk = 1.0 / A(k, k);
     for (ptrdiff_t i = k + 1; i < M; ++i) A(i, k) = A(i, k) * invAkk;
     for (ptrdiff_t i = k + 1; i < M; ++i)

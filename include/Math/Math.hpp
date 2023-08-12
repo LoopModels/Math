@@ -367,13 +367,13 @@ constexpr void swap(MutPtrMatrix<int64_t> A, Row i, Row j) {
   if (i == j) return;
   Col N = A.numCol();
   invariant((i < A.numRow()) && (j < A.numRow()));
-  for (Col n = 0; n < N; ++n) std::swap(A(i, n), A(j, n));
+  for (Col n = 0; n < N; ++n) swap(A(i, n), A(j, n));
 }
 constexpr void swap(MutPtrMatrix<int64_t> A, Col i, Col j) {
   if (i == j) return;
   Row M = A.numRow();
   invariant((i < A.numCol()) && (j < A.numCol()));
-  for (Row m = 0; m < M; ++m) std::swap(A(m, i), A(m, j));
+  for (Row m = 0; m < M; ++m) swap(A(m, i), A(m, j));
 }
 
 template <int Bits, class T>

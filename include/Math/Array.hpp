@@ -1565,6 +1565,7 @@ constexpr auto getMaxDigits(PtrMatrix<T> A) -> Vector<T> {
 }
 
 template <typename T>
+requires std::integral<T> || std::same_as<T, Rational>
 inline auto printMatrix(std::ostream &os, PtrMatrix<T> A) -> std::ostream & {
   // std::ostream &printMatrix(std::ostream &os, T const &A) {
   auto [M, N] = A.size();
@@ -1593,8 +1594,8 @@ inline auto printMatrix(std::ostream &os, PtrMatrix<T> A) -> std::ostream & {
 // to avoid allocations. We can use a Vector with a lot of initial capacity,
 // and then resize based on a conservative estimate of the number of chars per
 // elements.
-inline auto printMatrix(std::ostream &os, PtrMatrix<double> A)
-  -> std::ostream & {
+template <std::floating_point T>
+inline auto printMatrix(std::ostream &os, PtrMatrix<T> A) -> std::ostream & {
   // std::ostream &printMatrix(std::ostream &os, T const &A) {
   auto [M, N] = A.size();
   if ((!M) || (!N)) return os << "[ ]";
@@ -1607,7 +1608,7 @@ inline auto printMatrix(std::ostream &os, PtrMatrix<double> A)
   char *pEnd = digits.end();
   for (ptrdiff_t m = 0; m < M; m++) {
     for (ptrdiff_t n = 0; n < N; n++) {
-      auto Aij = A(m, n);
+      double Aij = A(m, n);
       while (true) {
         auto [p, ec] = std::to_chars(ptr, pEnd, Aij);
         if (ec == std::errc()) [[likely]] {
@@ -1647,6 +1648,27 @@ inline auto printMatrix(std::ostream &os, PtrMatrix<double> A)
       if (j != ptrdiff_t(N) - 1) os << " ";
       else if (i != ptrdiff_t(M) - 1) os << "\n";
       ptr += nD;
+    }
+  }
+  return os << " ]";
+}
+
+// fallback where columns aren't aligned
+template <typename T>
+inline auto printMatrix(std::ostream &os, PtrMatrix<T> A) -> std::ostream & {
+  // std::ostream &printMatrix(std::ostream &os, T const &A) {
+  auto [M, N] = A.size();
+  if ((!M) || (!N)) return os << "[ ]";
+  // first, we determine the number of digits needed per column
+  for (Row i = 0; i < M; i++) {
+    if (i) os << "  ";
+    else os << "\n[ ";
+    for (ptrdiff_t j = 0; j < N; j++) {
+      T Aij = A(i, j);
+      os << " ";
+      os << Aij;
+      if (j != ptrdiff_t(N) - 1) os << " ";
+      else if (i != ptrdiff_t(M) - 1) os << "\n";
     }
   }
   return os << " ]";

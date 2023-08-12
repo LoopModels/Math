@@ -88,13 +88,17 @@ public:
   //   auto
   // }
   constexpr auto operator[](Index<S> auto i) const noexcept -> decltype(auto) {
-    auto offset = calcOffset(S{}, i);
     auto newDim = calcNewDim(S{}, i);
     auto ptr = data();
     invariant(ptr != nullptr);
-    if constexpr (std::is_same_v<decltype(newDim), Empty>)
-      return ref(static_cast<const T *>(ptr), offset);
-    else return Array<T, decltype(newDim)>{ptr + offset, newDim};
+    if constexpr (simd::IsSimdScalarIndex<decltype(i)>::value)
+      return ref(static_cast<const T *>(ptr), calcOffset(Capacity, i));
+    else {
+      auto offset = calcOffset(S{}, i);
+      if constexpr (std::is_same_v<decltype(newDim), Empty>)
+        return ref(static_cast<const T *>(ptr), offset);
+      else return Array<T, decltype(newDim)>{ptr + offset, newDim};
+    }
   }
   // TODO: switch to operator[] when we enable c++23
   // for vectors, we just drop the column, essentially broadcasting
@@ -178,11 +182,15 @@ public:
   constexpr auto front() noexcept -> T & { return *begin(); }
   constexpr auto back() noexcept -> T & { return *(end() - 1); }
   constexpr auto operator[](Index<S> auto i) noexcept -> decltype(auto) {
-    auto offset = calcOffset(S{}, i);
     auto newDim = calcNewDim(S{}, i);
-    if constexpr (std::is_same_v<decltype(newDim), Empty>)
-      return ref(data(), offset);
-    else return MutArray<T, decltype(newDim)>{data() + offset, newDim};
+    if constexpr (simd::IsSimdScalarIndex<decltype(i)>::value)
+      return ref(data(), calcOffset(Capacity, i));
+    else {
+      auto offset = calcOffset(S{}, i);
+      if constexpr (std::is_same_v<decltype(newDim), Empty>)
+        return ref(data(), offset);
+      else return MutArray<T, decltype(newDim)>{data() + offset, newDim};
+    }
   }
   // TODO: switch to operator[] when we enable c++23
   template <class R, class C>
@@ -218,7 +226,7 @@ public:
     constexpr ptrdiff_t P = ((len + W - 1) / W) * W;
     if constexpr (P == len) return *p;
     else {
-      StaticArray<T, std::integral_constant<ptrdiff_t, P>> result;
+      StaticArray<T, S, P> result;
       ptrdiff_t i = 0, n = W;
       const auto &A{*p};
       POLYMATHVECTORIZE
@@ -281,7 +289,9 @@ static_assert(DenseLayout<std::integral_constant<ptrdiff_t, 4>>);
 namespace poly::utils {
 
 static_assert(std::same_as<uncompressed_t<math::SVector<int64_t, 15>>,
-                           math::SVector<int64_t, 16>>);
+                           math::SVector<int64_t, 15, 16>>);
+static_assert(std::same_as<uncompressed_t<math::SVector<int64_t, 15, 15>>,
+                           math::SVector<int64_t, 15, 16>>);
 
 }; // namespace poly::utils
 

@@ -548,7 +548,7 @@ constexpr auto updateForNewRow(MutPtrMatrix<int64_t> A) -> ptrdiff_t {
   // swap A(i,_(j,end)) with A(MM,_(j,end))
   if (j <= NN) { // we could do with a lot less copying...
     for (ptrdiff_t l = i; l < MM; ++l)
-      for (ptrdiff_t k = j; k < N; ++k) std::swap(A(l, k), A(MM, k));
+      for (ptrdiff_t k = j; k < N; ++k) swap(A(l, k), A(MM, k));
   } else {
     // maybe there is a non-zero value
     j = n;

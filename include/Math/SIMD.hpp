@@ -15,6 +15,7 @@
 #include <type_traits>
 
 namespace poly::math {
+using std::swap;
 namespace simd {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wuninitialized"
@@ -116,6 +117,7 @@ template <typename T> struct Reference {
   using U = utils::uncompressed_t<T>;
   T *t;
   constexpr operator U() const { return T::decompress(t); }
+  // constexpr operator T &() const { return *t; }
   constexpr auto operator=(U u) -> Reference & {
     T::compress(t, u);
     return *this;
@@ -160,8 +162,23 @@ template <typename T> struct Reference {
     T::compress(t, U(*this) | x);
     return *this;
   }
+  constexpr auto operator[](auto i) -> decltype(auto) { return (*t)[i]; }
+  constexpr auto operator[](auto i) const -> decltype(auto) { return (*t)[i]; }
+  constexpr auto operator()(auto x) -> decltype(auto) { return (*t)(x); }
+  constexpr auto operator()(auto x) const -> decltype(auto) { return (*t)(x); }
+  constexpr auto operator()(auto x, auto y) -> decltype(auto) {
+    return (*t)(x, y);
+  }
+  constexpr auto operator()(auto x, auto y) const -> decltype(auto) {
+    return (*t)(x, y);
+  }
+  friend constexpr void swap(Reference x, Reference y) {
+    U oldx = x;
+    U oldy = y;
+    x = oldy;
+    y = oldx;
+  }
 };
-
 template <class T> constexpr auto ref(T *p, ptrdiff_t i) -> decltype(auto) {
   if constexpr (utils::Compressible<T>) return Reference<T>{p + i};
   else return p[i];
