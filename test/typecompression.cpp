@@ -1,12 +1,14 @@
 #include "Math/Array.hpp"
+#include "Math/Math.hpp"
 #include "Math/StaticArrays.hpp"
+#include "Utilities/TypePromotion.hpp"
 #include <gtest/gtest.h>
 #include <random>
 #include <utility>
 
 template <typename T>
-constexpr void swap(poly::math::Reference<T> x, poly::math::Reference<T> y) {
-  typename poly::math::Reference<T>::U temp = x;
+constexpr void swap(poly::utils::Reference<T> x, poly::utils::Reference<T> y) {
+  typename poly::utils::Reference<T>::U temp = x;
   x = y;
   y = temp;
 }
@@ -39,4 +41,21 @@ TEST(TypeCompressionTest, BasicAssertions) {
     for (ptrdiff_t j = 0; j < 3; ++j) swap(A(i, j), B(i, j));
   EXPECT_FALSE(A == C);
   EXPECT_TRUE(B == C);
+  M oldA = A;
+  M oldB = B;
+  M D = C + C;
+  for (ptrdiff_t i = 0; i < 3; ++i) {
+    for (ptrdiff_t j = 0; j < 3; ++j) {
+      A(i, j) = A(i, j) + 2;
+      B(i, j) = 2 + B(i, j);
+      C(i, j) = C(i, j) + C(i, j);
+    }
+  }
+  EXPECT_TRUE(C == D);
+  poly::utils::eltype_t<M> a;
+  a << 2;
+  EXPECT_FALSE(A == a + A);
+  EXPECT_FALSE(B == B + a);
+  EXPECT_TRUE(A == a + oldA);
+  EXPECT_TRUE(B == oldB + a);
 }

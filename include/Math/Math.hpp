@@ -206,7 +206,9 @@ template <class Op, class A, class B> struct ElementwiseMatrixBinaryOp {
   constexpr ElementwiseMatrixBinaryOp(Op _op, A _a, B _b)
     : op(_op), a(_a), b(_b) {}
   constexpr auto operator()(auto i, auto j) const -> decltype(auto) {
-    return op(get(a, i, j), get(b, i, j));
+    if constexpr (utils::ElementOf<A, B>) return op(a, get(b, i, j));
+    else if constexpr (utils::ElementOf<B, A>) return op(get(a, i, j), b);
+    else return op(get(a, i, j), get(b, i, j));
   }
   [[nodiscard]] constexpr auto numRow() const -> Row {
     // static_assert(AbstractMatrix<A> || std::integral<A> ||

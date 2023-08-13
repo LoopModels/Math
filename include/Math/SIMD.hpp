@@ -3,6 +3,7 @@
 #include "Math/AxisTypes.hpp"
 #include "Math/Indexing.hpp"
 #include "Math/MatrixDimensions.hpp"
+#include "Utilities/Reference.hpp"
 #include "Utilities/TypeCompression.hpp"
 #include "Utilities/TypePromotion.hpp"
 #include <array>
@@ -113,74 +114,8 @@ constexpr auto calcNewDim(MatrixDimension auto, simd::Tile<W, M, N, P>)
   return {};
 }
 
-template <typename T> struct Reference {
-  using U = utils::uncompressed_t<T>;
-  T *t;
-  constexpr operator U() const { return T::decompress(t); }
-  // constexpr operator T &() const { return *t; }
-  constexpr auto operator=(U u) -> Reference & {
-    T::compress(t, u);
-    return *this;
-  }
-  constexpr auto operator+=(const auto x) -> Reference & {
-    T::compress(t, U(*this) + x);
-    return *this;
-  }
-  constexpr auto operator-=(const auto x) -> Reference & {
-    T::compress(t, U(*this) - x);
-    return *this;
-  }
-  constexpr auto operator*=(const auto x) -> Reference & {
-    T::compress(t, U(*this) * x);
-    return *this;
-  }
-  constexpr auto operator/=(const auto x) -> Reference & {
-    T::compress(t, U(*this) / x);
-    return *this;
-  }
-  constexpr auto operator%=(const auto x) -> Reference & {
-    T::compress(t, U(*this) % x);
-    return *this;
-  }
-  constexpr auto operator<<=(const auto x) -> Reference & {
-    T::compress(t, U(*this) << x);
-    return *this;
-  }
-  constexpr auto operator>>=(const auto x) -> Reference & {
-    T::compress(t, U(*this) >> x);
-    return *this;
-  }
-  constexpr auto operator&=(const auto x) -> Reference & {
-    T::compress(t, U(*this) & x);
-    return *this;
-  }
-  constexpr auto operator^=(const auto x) -> Reference & {
-    T::compress(t, U(*this) ^ x);
-    return *this;
-  }
-  constexpr auto operator|=(const auto x) -> Reference & {
-    T::compress(t, U(*this) | x);
-    return *this;
-  }
-  constexpr auto operator[](auto i) -> decltype(auto) { return (*t)[i]; }
-  constexpr auto operator[](auto i) const -> decltype(auto) { return (*t)[i]; }
-  constexpr auto operator()(auto x) -> decltype(auto) { return (*t)(x); }
-  constexpr auto operator()(auto x) const -> decltype(auto) { return (*t)(x); }
-  constexpr auto operator()(auto x, auto y) -> decltype(auto) {
-    return (*t)(x, y);
-  }
-  constexpr auto operator()(auto x, auto y) const -> decltype(auto) {
-    return (*t)(x, y);
-  }
-  friend constexpr void swap(Reference x, Reference y) {
-    U oldx = x;
-    U oldy = y;
-    x = oldy;
-    y = oldx;
-  }
-};
 template <class T> constexpr auto ref(T *p, ptrdiff_t i) -> decltype(auto) {
-  if constexpr (utils::Compressible<T>) return Reference<T>{p + i};
+  if constexpr (utils::Compressible<T>) return utils::Reference<T>{p + i};
   else return p[i];
 }
 template <class T>
