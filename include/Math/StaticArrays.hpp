@@ -20,7 +20,7 @@ template <typename S> consteval auto calcCapacity() -> ptrdiff_t {
 }
 
 template <class T, StaticSize S, ptrdiff_t Capacity = calcCapacity<S>()>
-class StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
+class StaticArray : public ArrayOps<T, S, StaticArray<T, S, Capacity>> {
   // Capacity may be larger than `len` to allow for padding.
   static constexpr ptrdiff_t len = ptrdiff_t{S{}};
   static_assert(Capacity >= len);
@@ -66,6 +66,11 @@ public:
 
   constexpr auto operator=(StaticArray const &) -> StaticArray & = default;
   constexpr auto operator=(StaticArray &&) noexcept -> StaticArray & = default;
+  template <AbstractSimilar<S> V>
+  constexpr auto operator=(const V &b) noexcept -> StaticArray & {
+    (*this) << b;
+    return *this;
+  }
 
   [[nodiscard]] constexpr auto begin() const noexcept { return data(); }
   [[nodiscard]] constexpr auto end() const noexcept { return begin() + len; }
@@ -224,8 +229,7 @@ public:
     constexpr ptrdiff_t W =
       math::simd::vecWidth<T, std::integral_constant<ptrdiff_t, len>>();
     constexpr ptrdiff_t P = ((len + W - 1) / W) * W;
-    if constexpr (P == len) return *p;
-    else {
+    if constexpr (P != len) {
       StaticArray<T, S, P> result;
       ptrdiff_t i = 0, n = W;
       const auto &A{*p};
@@ -236,25 +240,23 @@ public:
       }
       result[simd::unroll<W, 1>(i)] = A[simd::unroll<W, 1>(i, len)];
       return result;
-    }
+    } else return *p;
   }
   template <StaticSize U, ptrdiff_t C>
   static constexpr void compress(StaticArray *p,
                                  const StaticArray<T, U, C> &rhs) {
     constexpr ptrdiff_t W =
       math::simd::vecWidth<T, std::integral_constant<ptrdiff_t, len>>();
-    if constexpr (W == 1) {
-      *p << rhs;
-      return;
-    }
-    ptrdiff_t i = 0, n = W;
-    auto &A{*p};
-    POLYMATHVECTORIZE
-    for (; n <= len; i = n, n += W) {
-      auto j = simd::unroll<W, 1>(i);
-      A[j] = rhs[j];
-    }
-    if (i < len) A[simd::unroll<W, 1>(i, len)] = rhs[simd::unroll<W, 1>(i)];
+    if constexpr (W != 1) {
+      ptrdiff_t i = 0, n = W;
+      auto &A{*p};
+      POLYMATHVECTORIZE
+      for (; n <= len; i = n, n += W) {
+        auto j = simd::unroll<W, 1>(i);
+        A[j] = rhs[j];
+      }
+      if (i < len) A[simd::unroll<W, 1>(i, len)] = rhs[simd::unroll<W, 1>(i)];
+    } else *p << rhs;
   }
 };
 

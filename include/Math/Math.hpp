@@ -37,31 +37,25 @@ static_assert(DoCopy<DensePtrMatrix<int64_t>>);
 static_assert(!DoCopy<DenseMatrix<int64_t>>);
 
 struct Negate {
-  constexpr auto operator()(const auto &x) const -> decltype(auto) {
-    return -x;
-  }
+  constexpr auto operator()(auto &&x) const -> decltype(auto) { return -x; }
 };
 struct Plus {
-  constexpr auto operator()(const auto &x, const auto &y) const
-    -> decltype(auto) {
+  constexpr auto operator()(auto &&x, auto &&y) const -> decltype(auto) {
     return x + y;
   }
 };
 struct Minus {
-  constexpr auto operator()(const auto &x, const auto &y) const
-    -> decltype(auto) {
+  constexpr auto operator()(auto &&x, auto &&y) const -> decltype(auto) {
     return x - y;
   }
 };
 struct Mul {
-  constexpr auto operator()(const auto &x, const auto &y) const
-    -> decltype(auto) {
+  constexpr auto operator()(auto &&x, auto &&y) const -> decltype(auto) {
     return x * y;
   }
 };
 struct Div {
-  constexpr auto operator()(const auto &x, const auto &y) const
-    -> decltype(auto) {
+  constexpr auto operator()(auto &&x, auto &&y) const -> decltype(auto) {
     return x / y;
   }
 };
@@ -96,18 +90,14 @@ template <typename Op, typename A> struct ElementwiseUnaryOp {
   [[nodiscard]] constexpr auto numCol() const -> Col { return a.numCol(); }
 };
 // scalars broadcast
-constexpr auto get(const Scalar auto &A, ptrdiff_t) -> decltype(auto) {
+constexpr auto get(Scalar auto &&A, ptrdiff_t) -> decltype(auto) { return A; }
+constexpr auto get(Scalar auto &&A, ptrdiff_t, ptrdiff_t) -> decltype(auto) {
   return A;
 }
-constexpr auto get(const Scalar auto &A, ptrdiff_t, ptrdiff_t)
-  -> decltype(auto) {
-  return A;
-}
-constexpr auto get(const AbstractVector auto &A, ptrdiff_t i)
-  -> decltype(auto) {
+constexpr auto get(AbstractVector auto &&A, ptrdiff_t i) -> decltype(auto) {
   return A[i];
 }
-constexpr auto get(const AbstractMatrix auto &A, ptrdiff_t i, ptrdiff_t j)
+constexpr auto get(AbstractMatrix auto &&A, ptrdiff_t i, ptrdiff_t j)
   -> decltype(auto) {
   return A(i, j);
 }
@@ -119,23 +109,23 @@ ElementwiseUnaryOp(Op, A) -> ElementwiseUnaryOp<Op, std::remove_cvref_t<A>>;
 
 // unroll index
 template <ptrdiff_t W, ptrdiff_t N, typename P>
-constexpr auto get(const PrimitiveScalar auto &A, simd::Unroll<W, N, P>)
+constexpr auto get(PrimitiveScalar auto A, simd::Unroll<W, N, P>)
   -> decltype(auto) {
   return A;
 }
 template <ptrdiff_t W, ptrdiff_t N, typename P>
-constexpr auto get(const AbstractVector auto &A, simd::Unroll<W, N, P> i)
+constexpr auto get(AbstractVector auto &&A, simd::Unroll<W, N, P> i)
   -> decltype(auto) {
   return A[i];
 }
 // tile index
 template <ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P>
-constexpr auto get(const PrimitiveScalar auto &A, simd::Tile<W, M, N, P>)
+constexpr auto get(PrimitiveScalar auto A, simd::Tile<W, M, N, P>)
   -> decltype(auto) {
   return A;
 }
 template <ptrdiff_t W, ptrdiff_t M, ptrdiff_t N, typename P>
-constexpr auto get(const AbstractMatrix auto &A, simd::Tile<W, M, N, P> i)
+constexpr auto get(AbstractMatrix auto &&A, simd::Tile<W, M, N, P> i)
   -> decltype(auto) {
   return A[i];
 }
@@ -176,7 +166,10 @@ template <class Op, class A, class B> struct ElementwiseVectorBinaryOp {
   constexpr ElementwiseVectorBinaryOp(Op _op, A _a, B _b)
     : op(_op), a(_a), b(_b) {}
   constexpr auto operator[](auto i) const -> decltype(auto) {
-    return op(get(a, i), get(b, i));
+    if constexpr (utils::ElementOf<A, B>) return op(value_type(a), get(b, i));
+    else if constexpr (utils::ElementOf<B, A>)
+      return op(get(a, i), value_type(b));
+    else return op(get(a, i), get(b, i));
   }
   [[nodiscard]] constexpr auto paddedlength() const -> ptrdiff_t {
     if constexpr (AbstractVector<A> && AbstractVector<B>)
@@ -206,8 +199,10 @@ template <class Op, class A, class B> struct ElementwiseMatrixBinaryOp {
   constexpr ElementwiseMatrixBinaryOp(Op _op, A _a, B _b)
     : op(_op), a(_a), b(_b) {}
   constexpr auto operator()(auto i, auto j) const -> decltype(auto) {
-    if constexpr (utils::ElementOf<A, B>) return op(a, get(b, i, j));
-    else if constexpr (utils::ElementOf<B, A>) return op(get(a, i, j), b);
+    if constexpr (utils::ElementOf<A, B>)
+      return op(value_type(a), get(b, i, j));
+    else if constexpr (utils::ElementOf<B, A>)
+      return op(get(a, i, j), value_type(b));
     else return op(get(a, i, j), get(b, i, j));
   }
   [[nodiscard]] constexpr auto numRow() const -> Row {

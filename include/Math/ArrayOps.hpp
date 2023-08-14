@@ -75,19 +75,18 @@ template <class T, class S, class P> class ArrayOps {
   }
 
 public:
-  constexpr auto getThis() -> P & { return *static_cast<P *>(this); }
+  constexpr auto self() -> P & { return *static_cast<P *>(this); }
   template <std::convertible_to<T> Y>
   [[gnu::flatten]] constexpr auto operator<<(const UniformScaling<Y> &B)
     -> P & {
     static_assert(MatrixDimension<S>);
     std::fill_n(data_(), ptrdiff_t(this->dim()), T{});
     this->diag() << B.value;
-    return *static_cast<P *>(this);
+    return self();
   }
   [[gnu::flatten]] constexpr auto operator<<(const SmallSparseMatrix<T> &B)
     -> P &;
-  [[gnu::flatten]] constexpr auto operator<<(const AbstractVector auto &B)
-    -> P & {
+  [[gnu::flatten]] constexpr auto operator<<(AbstractVector auto &&B) -> P & {
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr();
       invariant(M, B.size());
@@ -99,7 +98,7 @@ public:
         invariant(ptrdiff_t(size_()), ptrdiff_t(B.size()));
         ptrdiff_t L = std::min<ptrdiff_t>(paddedlen_(), paddedlen(B));
         ptrdiff_t i = 0, n = W;
-        auto &A{getThis()};
+        auto &A{self()};
         POLYMATHVECTORIZE
         for (; n <= L; i = n, n += W) {
           auto j = simd::unroll<W, 1>(i);
@@ -121,11 +120,10 @@ public:
         }
       }
     }
-    return *static_cast<P *>(this);
+    return self();
   }
 
-  [[gnu::flatten]] constexpr auto operator<<(const AbstractMatrix auto &B)
-    -> P & {
+  [[gnu::flatten]] constexpr auto operator<<(AbstractMatrix auto &&B) -> P & {
     static_assert(MatrixDimension<S>);
     ptrdiff_t M = nr(), N = nc();
     invariant(M, ptrdiff_t(B.numRow()));
@@ -141,10 +139,10 @@ public:
         for (ptrdiff_t j = 0; j < N; ++j) index(i, j) = B(i, j);
       }
     }
-    return *static_cast<P *>(this);
+    return self();
   }
-  [[gnu::flatten]] constexpr auto
-  operator<<(const std::convertible_to<T> auto &b) -> P & {
+  [[gnu::flatten]] constexpr auto operator<<(std::convertible_to<T> auto &&b)
+    -> P & {
     if constexpr (DenseLayout<S>) {
       constexpr ptrdiff_t W = simd::vecWidth<T, S>();
       if constexpr (PrimitiveScalar<T> && (W > 1)) {
@@ -155,7 +153,7 @@ public:
         //                                                     T(b));
         ptrdiff_t L = paddedlen_();
         ptrdiff_t i = 0, n = W;
-        auto &A{getThis()};
+        auto &A{self()};
         POLYMATHVECTORIZE
         for (; n <= L; i = n, n += W) {
           auto j = simd::unroll<W, 1>(i);
@@ -181,10 +179,9 @@ public:
         for (ptrdiff_t c = 0; c < N; ++c) p[c] = b;
       }
     }
-    return *static_cast<P *>(this);
+    return self();
   }
-  [[gnu::flatten]] constexpr auto operator+=(const AbstractMatrix auto &B)
-    -> P & {
+  [[gnu::flatten]] constexpr auto operator+=(AbstractMatrix auto &&B) -> P & {
     static_assert(MatrixDimension<S>);
     ptrdiff_t M = nr(), N = nc();
     invariant(M, ptrdiff_t(B.numRow()));
@@ -194,10 +191,9 @@ public:
       POLYMATHVECTORIZE
       for (ptrdiff_t c = 0; c < N; ++c) index(r, c) += B(r, c);
     }
-    return *static_cast<P *>(this);
+    return self();
   }
-  [[gnu::flatten]] constexpr auto operator-=(const AbstractMatrix auto &B)
-    -> P & {
+  [[gnu::flatten]] constexpr auto operator-=(AbstractMatrix auto &&B) -> P & {
     static_assert(MatrixDimension<S>);
     ptrdiff_t M = nr(), N = nc();
     invariant(M, ptrdiff_t(B.numRow()));
@@ -207,10 +203,9 @@ public:
       POLYMATHVECTORIZE
       for (ptrdiff_t c = 0; c < N; ++c) index(r, c) -= B(r, c);
     }
-    return *static_cast<P *>(this);
+    return self();
   }
-  [[gnu::flatten]] constexpr auto operator+=(const AbstractVector auto &B)
-    -> P & {
+  [[gnu::flatten]] constexpr auto operator+=(AbstractVector auto &&B) -> P & {
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
       invariant(M, B.size());
@@ -226,8 +221,8 @@ public:
         invariant(ptrdiff_t(size_()), ptrdiff_t(B.size()));
         ptrdiff_t L = std::min<ptrdiff_t>(paddedlen_(), paddedlen(B));
         ptrdiff_t i = 0, n = W;
-        auto &A{getThis()};
-        const auto &cA{getThis()};
+        auto &A{self()};
+        const auto &cA{self()};
         POLYMATHVECTORIZE
         for (; n <= L; i = n, n += W) {
           auto j = simd::unroll<W, 1>(i);
@@ -244,10 +239,10 @@ public:
         for (ptrdiff_t i = 0; i < L; ++i) index(i) += B[i];
       }
     }
-    return *static_cast<P *>(this);
+    return self();
   }
-  [[gnu::flatten]] constexpr auto
-  operator+=(const std::convertible_to<T> auto &b) -> P & {
+  [[gnu::flatten]] constexpr auto operator+=(std::convertible_to<T> auto &&b)
+    -> P & {
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
       POLYMATHVECTORIZE
@@ -259,10 +254,9 @@ public:
       POLYMATHVECTORIZE
       for (ptrdiff_t i = 0, L = size_(); i < L; ++i) index(i) += b;
     }
-    return *static_cast<P *>(this);
+    return self();
   }
-  [[gnu::flatten]] constexpr auto operator-=(const AbstractVector auto &B)
-    -> P & {
+  [[gnu::flatten]] constexpr auto operator-=(AbstractVector auto &&B) -> P & {
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
       invariant(M == B.size());
@@ -279,8 +273,8 @@ public:
         ptrdiff_t L = std::min<ptrdiff_t>(paddedlen_(), paddedlen(B)), i = 0,
                   n = W;
         invariant(L, ptrdiff_t(B.size()));
-        auto &A{getThis()};
-        const auto &cA{getThis()};
+        auto &A{self()};
+        const auto &cA{self()};
         POLYMATHVECTORIZE
         for (; n <= L; i = n, n += W) {
           auto j = simd::unroll<W, 1>(i);
@@ -297,10 +291,10 @@ public:
         for (ptrdiff_t i = 0; i < L; ++i) index(i) -= B[i];
       }
     }
-    return *static_cast<P *>(this);
+    return self();
   }
-  [[gnu::flatten]] constexpr auto
-  operator*=(const std::convertible_to<T> auto &b) -> P & {
+  [[gnu::flatten]] constexpr auto operator*=(std::convertible_to<T> auto &&b)
+    -> P & {
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
       POLYMATHVECTORIZE
@@ -312,8 +306,8 @@ public:
       constexpr ptrdiff_t W = simd::vecWidth<T, S>();
       if constexpr (PrimitiveScalar<T> && (W > 1)) {
         ptrdiff_t L = paddedlen_(), i = 0, n = W;
-        auto &A{getThis()};
-        const auto &cA{getThis()};
+        auto &A{self()};
+        const auto &cA{self()};
         POLYMATHVECTORIZE
         for (; n <= L; i = n, n += W) {
           auto j = simd::unroll<W, 1>(i);
@@ -328,10 +322,10 @@ public:
         for (ptrdiff_t c = 0, L = ptrdiff_t(dim_()); c < L; ++c) index(c) *= b;
       }
     }
-    return *static_cast<P *>(this);
+    return self();
   }
-  [[gnu::flatten]] constexpr auto
-  operator/=(const std::convertible_to<T> auto &b) -> P & {
+  [[gnu::flatten]] constexpr auto operator/=(std::convertible_to<T> auto &&b)
+    -> P & {
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
       POLYMATHVECTORIZE
@@ -344,8 +338,8 @@ public:
       if constexpr (std::floating_point<T> && (W > 1)) {
         ptrdiff_t L = paddedlen_();
         ptrdiff_t i = 0, n = W;
-        auto &A{getThis()};
-        const auto &cA{getThis()};
+        auto &A{self()};
+        const auto &cA{self()};
         POLYMATHVECTORIZE
         for (; n <= L; i = n, n += W) {
           auto j = simd::unroll<W, 1>(i);
@@ -360,7 +354,7 @@ public:
         for (ptrdiff_t c = 0, L = ptrdiff_t(dim_()); c < L; ++c) index(c) /= b;
       }
     }
-    return *static_cast<P *>(this);
+    return self();
   }
 };
 } // namespace poly::math

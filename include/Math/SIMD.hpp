@@ -496,7 +496,8 @@ constexpr auto ref(const T *p, simd::UnrollOffset<W, N, P> i)
   for (ptrdiff_t n = 0; n < NN; ++n)
     ret[n] = eve::load(p + W * n, eve::lane<W>);
   if constexpr (pred)
-    ret[NN] = eve::load[eve::keep_first(i.p)](p + W * NN, eve::lane<W>);
+    ret[NN] =
+      eve::load[eve::keep_first(i.p).else_(0)](p + W * NN, eve::lane<W>);
   return ret;
 }
 template <PrimitiveScalar T, ptrdiff_t W, ptrdiff_t N, typename P>
@@ -514,7 +515,7 @@ constexpr auto ref(const T *p, simd::StridedUnrollOffset<W, N, P> i)
 #pragma GCC unroll 16
   for (ptrdiff_t n = 0; n < NN; ++n) ret[n] = eve::gather(p + W * n, s);
   if constexpr (pred)
-    ret[NN] = eve::gather[eve::keep_first(i.p)](p + W * NN, s);
+    ret[NN] = eve::gather[eve::keep_first(i.p).else_(0)](p + W * NN, s);
   return ret;
 }
 
