@@ -96,14 +96,12 @@ public:
     auto newDim = calcNewDim(S{}, i);
     auto ptr = data();
     invariant(ptr != nullptr);
-    if constexpr (simd::IsSimdScalarIndex<decltype(i)>::value)
-      return ref(static_cast<const T *>(ptr), calcOffset(Capacity, i));
-    else {
+    if constexpr (!simd::IsSimdScalarIndex<decltype(i)>::value) {
       auto offset = calcOffset(S{}, i);
       if constexpr (std::is_same_v<decltype(newDim), Empty>)
         return ref(static_cast<const T *>(ptr), offset);
       else return Array<T, decltype(newDim)>{ptr + offset, newDim};
-    }
+    } else return ref(static_cast<const T *>(ptr), calcOffset(Capacity, i));
   }
   // TODO: switch to operator[] when we enable c++23
   // for vectors, we just drop the column, essentially broadcasting
@@ -283,7 +281,6 @@ concept StaticallySizedInlineData =
     { t.size() } -> std::same_as<ptrdiff_t>;
   };
 
-static_assert(!DoCopy<SVector<int64_t, 4>>);
 static_assert(DenseLayout<std::integral_constant<ptrdiff_t, 4>>);
 
 }; // namespace poly::math

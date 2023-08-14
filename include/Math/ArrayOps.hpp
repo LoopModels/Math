@@ -86,7 +86,8 @@ public:
   }
   [[gnu::flatten]] constexpr auto operator<<(const SmallSparseMatrix<T> &B)
     -> P &;
-  [[gnu::flatten]] constexpr auto operator<<(AbstractVector auto &&B) -> P & {
+  [[gnu::flatten]] constexpr auto operator<<(const AbstractVector auto &B)
+    -> P & {
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr();
       invariant(M, B.size());
@@ -123,7 +124,8 @@ public:
     return self();
   }
 
-  [[gnu::flatten]] constexpr auto operator<<(AbstractMatrix auto &&B) -> P & {
+  [[gnu::flatten]] constexpr auto operator<<(const AbstractMatrix auto &B)
+    -> P & {
     static_assert(MatrixDimension<S>);
     ptrdiff_t M = nr(), N = nc();
     invariant(M, ptrdiff_t(B.numRow()));
@@ -141,8 +143,8 @@ public:
     }
     return self();
   }
-  [[gnu::flatten]] constexpr auto operator<<(std::convertible_to<T> auto &&b)
-    -> P & {
+  [[gnu::flatten]] constexpr auto
+  operator<<(const std::convertible_to<T> auto &b) -> P & {
     if constexpr (DenseLayout<S>) {
       constexpr ptrdiff_t W = simd::vecWidth<T, S>();
       if constexpr (PrimitiveScalar<T> && (W > 1)) {
@@ -181,7 +183,8 @@ public:
     }
     return self();
   }
-  [[gnu::flatten]] constexpr auto operator+=(AbstractMatrix auto &&B) -> P & {
+  [[gnu::flatten]] constexpr auto operator+=(const AbstractMatrix auto &B)
+    -> P & {
     static_assert(MatrixDimension<S>);
     ptrdiff_t M = nr(), N = nc();
     invariant(M, ptrdiff_t(B.numRow()));
@@ -193,7 +196,8 @@ public:
     }
     return self();
   }
-  [[gnu::flatten]] constexpr auto operator-=(AbstractMatrix auto &&B) -> P & {
+  [[gnu::flatten]] constexpr auto operator-=(const AbstractMatrix auto &B)
+    -> P & {
     static_assert(MatrixDimension<S>);
     ptrdiff_t M = nr(), N = nc();
     invariant(M, ptrdiff_t(B.numRow()));
@@ -205,7 +209,8 @@ public:
     }
     return self();
   }
-  [[gnu::flatten]] constexpr auto operator+=(AbstractVector auto &&B) -> P & {
+  [[gnu::flatten]] constexpr auto operator+=(const AbstractVector auto &B)
+    -> P & {
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
       invariant(M, B.size());
@@ -241,8 +246,8 @@ public:
     }
     return self();
   }
-  [[gnu::flatten]] constexpr auto operator+=(std::convertible_to<T> auto &&b)
-    -> P & {
+  [[gnu::flatten]] constexpr auto
+  operator+=(const std::convertible_to<T> auto &b) -> P & {
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
       POLYMATHVECTORIZE
@@ -256,7 +261,8 @@ public:
     }
     return self();
   }
-  [[gnu::flatten]] constexpr auto operator-=(AbstractVector auto &&B) -> P & {
+  [[gnu::flatten]] constexpr auto operator-=(const AbstractVector auto &B)
+    -> P & {
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
       invariant(M == B.size());
@@ -293,8 +299,8 @@ public:
     }
     return self();
   }
-  [[gnu::flatten]] constexpr auto operator*=(std::convertible_to<T> auto &&b)
-    -> P & {
+  [[gnu::flatten]] constexpr auto
+  operator*=(const std::convertible_to<T> auto &b) -> P & {
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
       POLYMATHVECTORIZE
@@ -324,8 +330,8 @@ public:
     }
     return self();
   }
-  [[gnu::flatten]] constexpr auto operator/=(std::convertible_to<T> auto &&b)
-    -> P & {
+  [[gnu::flatten]] constexpr auto
+  operator/=(const std::convertible_to<T> auto &b) -> P & {
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
       POLYMATHVECTORIZE

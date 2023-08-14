@@ -67,75 +67,45 @@ template <typename T> struct Reference {
     x = oldy;
     y = oldx;
   }
-  constexpr auto operator+(const auto &x) -> decltype(auto) {
-    return T::decompress(t) + x;
-  }
-  constexpr auto operator-(const auto &x) -> decltype(auto) {
-    return T::decompress(t) - x;
-  }
-  constexpr auto operator*(const auto &x) -> decltype(auto) {
-    return T::decompress(t) * x;
-  }
-  constexpr auto operator/(const auto &x) -> decltype(auto) {
-    return T::decompress(t) / x;
-  }
-  constexpr auto operator%(const auto &x) -> decltype(auto) {
-    return T::decompress(t) % x;
-  }
-  constexpr auto operator>>(const auto &x) -> decltype(auto) {
-    return T::decompress(t) >> x;
-  }
-  constexpr auto operator<<(const auto &x) -> decltype(auto) {
-    return T::decompress(t) << x;
-  }
-  constexpr auto operator&(const auto &x) -> decltype(auto) {
-    return T::decompress(t) & x;
-  }
-  constexpr auto operator^(const auto &x) -> decltype(auto) {
-    return T::decompress(t) ^ x;
-  }
-  constexpr auto operator|(const auto &x) -> decltype(auto) {
-    return T::decompress(t) | x;
-  }
+  constexpr auto operator+(const auto &x) { return T::decompress(t) + x; }
+  constexpr auto operator-(const auto &x) { return T::decompress(t) - x; }
+  constexpr auto operator*(const auto &x) { return T::decompress(t) * x; }
+  constexpr auto operator/(const auto &x) { return T::decompress(t) / x; }
+  constexpr auto operator%(const auto &x) { return T::decompress(t) % x; }
+  constexpr auto operator>>(const auto &x) { return T::decompress(t) >> x; }
+  constexpr auto operator<<(const auto &x) { return T::decompress(t) << x; }
+  constexpr auto operator&(const auto &x) { return T::decompress(t) & x; }
+  constexpr auto operator^(const auto &x) { return T::decompress(t) ^ x; }
+  constexpr auto operator|(const auto &x) { return T::decompress(t) | x; }
 
-  friend constexpr auto operator+(const auto &x, Reference y)
-    -> decltype(auto) {
+  friend constexpr auto operator+(const auto &x, Reference y) {
     return x + T::decompress(y.t);
   }
-  friend constexpr auto operator-(const auto &x, Reference y)
-    -> decltype(auto) {
+  friend constexpr auto operator-(const auto &x, Reference y) {
     return x - T::decompress(y.t);
   }
-  friend constexpr auto operator*(const auto &x, Reference y)
-    -> decltype(auto) {
+  friend constexpr auto operator*(const auto &x, Reference y) {
     return x * T::decompress(y.t);
   }
-  friend constexpr auto operator/(const auto &x, Reference y)
-    -> decltype(auto) {
+  friend constexpr auto operator/(const auto &x, Reference y) {
     return x / T::decompress(y.t);
   }
-  friend constexpr auto operator%(const auto &x, Reference y)
-    -> decltype(auto) {
+  friend constexpr auto operator%(const auto &x, Reference y) {
     return x % T::decompress(y.t);
   }
-  friend constexpr auto operator>>(const auto &x, Reference y)
-    -> decltype(auto) {
+  friend constexpr auto operator>>(const auto &x, Reference y) {
     return x >> T::decompress(y.t);
   }
-  friend constexpr auto operator<<(const auto &x, Reference y)
-    -> decltype(auto) {
+  friend constexpr auto operator<<(const auto &x, Reference y) {
     return x << T::decompress(y.t);
   }
-  friend constexpr auto operator&(const auto &x, Reference y)
-    -> decltype(auto) {
+  friend constexpr auto operator&(const auto &x, Reference y) {
     return x & T::decompress(y.t);
   }
-  friend constexpr auto operator^(const auto &x, Reference y)
-    -> decltype(auto) {
+  friend constexpr auto operator^(const auto &x, Reference y) {
     return x ^ T::decompress(y.t);
   }
-  friend constexpr auto operator|(const auto &x, Reference y)
-    -> decltype(auto) {
+  friend constexpr auto operator|(const auto &x, Reference y) {
     return x | T::decompress(y.t);
   }
 };

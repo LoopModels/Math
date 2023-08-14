@@ -96,11 +96,4 @@ static_assert(StaticallySized<std::array<int64_t, 3>>);
 static_assert(sizeof(std::array<int64_t, 5>) == 5 * sizeof(int64_t));
 static_assert(sizeof(const std::array<int64_t, 5> &) == 5 * sizeof(int64_t));
 
-template <typename T>
-concept DoCopy = Scalar<std::remove_cvref_t<T>> ||
-                 (std::is_trivially_destructible_v<std::remove_cvref_t<T>> &&
-                  std::is_trivially_copyable_v<std::remove_cvref_t<T>> &&
-                  (!StaticallySized<std::remove_cvref_t<T>>)) ||
-                 (sizeof(T) <= sizeof(uintptr_t));
-
 } // namespace poly::math
