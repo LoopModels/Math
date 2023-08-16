@@ -1,5 +1,6 @@
 #pragma once
 
+#include <type_traits>
 namespace poly::utils {
 
 /// The idea here is that some types may have a compression/decompression that
@@ -25,13 +26,13 @@ using uncompressed_t = typename Uncompressed<T>::uncompressed;
 
 template <typename T>
 concept Compressible =
-  !std::same_as<T, Uncompressed<T>> && requires(T *t, uncompressed_t<T> u) {
+  !std::same_as<T, uncompressed_t<T>> && requires(T *t, uncompressed_t<T> u) {
     { T::decompress(t) } -> std::same_as<uncompressed_t<T>>;
     { T::compress(t, u) };
   };
 
 template <typename T> constexpr auto decompress(T *t) -> decltype(auto) {
-  if constexpr (Compressible<T>) return T::decompress(t);
+  if constexpr (Compressible<std::remove_cvref_t<T>>) return T::decompress(t);
   else return *t;
 }
 template <typename T>

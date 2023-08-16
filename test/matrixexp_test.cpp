@@ -1,3 +1,5 @@
+#include "Math/Math.hpp"
+#include "Utilities/TypeCompression.hpp"
 #include <Containers/TinyVector.hpp>
 #include <Math/Array.hpp>
 #include <Math/LinearAlgebra.hpp>
@@ -16,15 +18,18 @@
 
 namespace poly::math {
 
-template <class T, ptrdiff_t N, ptrdiff_t P = N> class Dual {
+template <class T, ptrdiff_t N, ptrdiff_t P> class Dual {
   T val{};
   SVector<T, N, P> partials{T{}};
 
+public:
+  using PaddedValues = utils::uncompressed_t<T>;
   using PaddedPartials = decltype(SVector<T, N, P>::decompress(nullptr));
   static constexpr ptrdiff_t L =
     std::remove_cvref_t<PaddedPartials>::paddedlength();
+  using PaddedDual = Dual<PaddedValues, N, L>;
+  static_assert(std::popcount(size_t(L)) == 1);
 
-public:
   static constexpr bool is_scalar = true;
   using val_type = T;
   static constexpr ptrdiff_t num_partials = N;
@@ -35,25 +40,39 @@ public:
   constexpr Dual(T v, SVector<T, N, P> g) : val(v) { partials << g; }
   constexpr Dual(std::integral auto v) : val(v) {}
   constexpr Dual(std::floating_point auto v) : val(v) {}
-  constexpr auto value() -> T & { return val; }
-  constexpr auto gradient() -> SVector<T, N, P> & { return partials; }
-  [[nodiscard]] constexpr auto value() const -> const T & { return val; }
-  [[nodiscard]] constexpr auto gradient() const -> const SVector<T, N, P> & {
-    return partials;
+  [[nodiscard]] constexpr auto value() const -> PaddedValues {
+    if constexpr (!std::same_as<T, PaddedValues>)
+      return utils::decompress(&(this->val));
+    else return val;
   }
+  [[nodiscard]] constexpr auto gradient() const {
+    return SVector<T, N, P>::decompress(&(this->partials));
+  }
+  constexpr void setvalue(T v) { val = v; }
+  constexpr void setgradient(T v, ptrdiff_t i) { partials[i] = v; }
 
-  static constexpr auto decompress(const Dual *x) -> Dual<T, N, L> {
+  static constexpr auto decompress(const Dual *x) -> PaddedDual {
     const T *v = &(x->val);
     const SVector<T, N, P> *p = &(x->partials);
     return {utils::decompress(v), SVector<T, N, P>::decompress(p)};
   }
-  static constexpr void compress(Dual *x, const Dual<T, N, L> &rhs) {
-    T *v = &(x->val);
-    SVector<T, N, P> *p = &(x->partials);
-    utils::compress(v, rhs.value());
-    SVector<T, N, P>::compress(p, rhs.gradient());
+  template <typename U, ptrdiff_t K>
+  static constexpr void compress(Dual *x, const Dual<U, N, K> &rhs) {
+    if constexpr (std::same_as<PaddedValues, U> && (K == L)) {
+      T *v = &(x->val);
+      SVector<T, N, P> *p = &(x->partials);
+      utils::compress(v, rhs.value());
+      SVector<T, N, P>::compress(p, rhs.gradient());
+    } else {
+      static_assert(std::same_as<T, U> && (K == P));
+      *x = rhs;
+    }
   }
-
+  constexpr Dual(const Dual &) = default;
+  constexpr auto operator=(const Dual &) -> Dual & = default;
+  // constexpr auto operator=(const PaddedDual &x) -> Dual & {
+  //   compress(this, x);
+  // }
   constexpr auto operator-() const & -> Dual { return {-val, -partials}; }
   constexpr auto operator+(const Dual &other) const & -> Dual {
     static_assert(std::popcount(size_t(P)) == 1);
@@ -172,14 +191,14 @@ static_assert(
 // static_assert(Scalar<Dual<double, 4>>);
 static_assert(std::convertible_to<int, Dual<double, 4, 4>>);
 static_assert(std::convertible_to<int, Dual<Dual<double, 4, 4>, 2, 2>>);
-static_assert(std::same_as<Dual<double, 1, 1>, Dual<double, 1>>);
+// static_assert(std::same_as<Dual<double, 1, 1>, Dual<double, 1>>);
 
 template <class D> struct URand {
   using T = typename D::val_type;
   static constexpr ptrdiff_t N = D::num_partials;
   auto operator()(std::mt19937_64 &mt) -> D {
     D x{URand<T>{}(mt)};
-    for (ptrdiff_t i = 0; i < N; ++i) x.gradient()[i] = URand<T>{}(mt);
+    for (ptrdiff_t i = 0; i < N; ++i) x.setgradient(URand<T>{}(mt), i);
     return x;
   }
 };
@@ -335,10 +354,11 @@ using poly::math::expm, poly::math::Dual;
 template <ptrdiff_t N, ptrdiff_t M>
 using DDual = Dual<Dual<double, N, N>, M, M>;
 
-static_assert(
-  std::same_as<
-    double, decltype(poly::math::opnorm1(
-              std::declval<poly::math::MutSquarePtrMatrix<DDual<7, 2>>>()))>);
+// static_assert(
+//   std::same_as<
+//     double, decltype(poly::math::opnorm1(
+//               std::declval<poly::math::MutSquarePtrMatrix<DDual<7,
+//               2>>>()))>);
 // void expmf64d7d2(DDual<7, 2> *A, DDual<7, 2> *B, ptrdiff_t N) { expm(A, B,
 // N); }
 
@@ -353,13 +373,54 @@ auto expwork(const auto &A) {
 }
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
+TEST(MatrixExpd3Test, BasicAssertions) {
+  constexpr int dim = 3;
+
+  std::mt19937_64 mt(0);
+  using D = Dual<double, 3, 3>;
+  static_assert(
+    std::same_as<Dual<double, 3, 4>, poly::utils::uncompressed_t<D>>);
+
+  poly::math::SquareMatrix<D> A{poly::math::SquareDims{dim}};
+  static_assert(
+    std::same_as<poly::utils::eltype_t<poly::math::SquarePtrMatrix<D>>,
+                 Dual<double, 3, 4>>);
+  static_assert(
+    std::same_as<
+      poly::math::MatMatMul<poly::math::SquarePtrMatrix<D>,
+                            poly::math::SquarePtrMatrix<D>>::value_type,
+      Dual<double, 3, 4>>);
+  for (auto &a : A) a = poly::math::URand<D>{}(mt);
+
+  poly::math::SquareMatrix<D> B{poly::math::SquareDims{dim}};
+  B.fill(D{0});
+  B += expwork(A);
+  EXPECT_TRUE(B(0, 0) != 0);
+}
+
+// NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(MatrixExpTest, BasicAssertions) {
   constexpr int dim = 3;
 
   std::mt19937_64 mt(0);
-  // using D = Dual<Dual<double, 4>, 2>;
-  using D = Dual<double, 3>;
+  using D = Dual<Dual<double, 3, 3>, 2, 2>;
+
+  static_assert(std::same_as<D::PaddedValues, Dual<double, 3, 4>>);
+
+  static_assert(std::same_as<poly::utils::uncompressed_t<D>,
+                             Dual<Dual<double, 3, 4>, 2, 2>>);
+  // using D = Dual<double, 3>;
   poly::math::SquareMatrix<D> A{poly::math::SquareDims{dim}};
+
+  static_assert(
+    std::same_as<poly::utils::eltype_t<poly::math::SquarePtrMatrix<D>>,
+                 Dual<Dual<double, 3, 4>, 2, 2>>);
+
+  static_assert(
+    std::same_as<
+      poly::math::MatMatMul<poly::math::SquarePtrMatrix<D>,
+                            poly::math::SquarePtrMatrix<D>>::value_type,
+      Dual<Dual<double, 3, 4>, 2, 2>>);
   for (auto &a : A) a = poly::math::URand<D>{}(mt);
 
   poly::math::SquareMatrix<D> B{poly::math::SquareDims{dim}};

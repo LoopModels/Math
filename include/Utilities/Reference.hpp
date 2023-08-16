@@ -4,11 +4,21 @@
 namespace poly::utils {
 template <typename T> struct Reference {
   using U = utils::uncompressed_t<T>;
+  static_assert(!std::same_as<U, T>);
   T *t;
   constexpr operator U() const { return T::decompress(t); }
   // constexpr operator T &() const { return *t; }
   constexpr auto operator=(const U &u) -> Reference & {
     T::compress(t, u);
+    return *this;
+  }
+  constexpr auto operator=(const std::convertible_to<U> auto &u)
+    -> Reference & {
+    T::compress(t, u);
+    return *this;
+  }
+  constexpr auto operator=(const T &u) -> Reference & {
+    *t = u;
     return *this;
   }
   constexpr auto operator==(const U &u) const -> bool {

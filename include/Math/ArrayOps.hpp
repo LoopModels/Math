@@ -7,6 +7,7 @@
 #include "Math/SIMDWidth.hpp"
 #include "Math/UniformScaling.hpp"
 #include "Math/Vector.hpp"
+#include "Utilities/TypePromotion.hpp"
 #include <algorithm>
 #include <bit>
 #include <cstddef>
@@ -114,10 +115,14 @@ public:
         invariant(L, ptrdiff_t(B.size()));
         using BType = std::remove_cvref_t<decltype(B)>;
         if constexpr (HasDataPtr<BType> && Trivial<BType>) {
-          std::memcpy(data_(), B.data(), L * sizeof(T));
+          if constexpr (std::same_as<decltype(data_()),
+                                     std::remove_const_t<decltype(B.data())>>)
+            std::memcpy(data_(), B.data(), L * sizeof(T));
+          else {
+            POLYMATHVECTORIZE
+            for (ptrdiff_t i = 0; i < L; ++i) index(i) = B[i];
+          }
         } else {
-          POLYMATHVECTORIZE
-          for (ptrdiff_t i = 0; i < L; ++i) index(i) = B[i];
         }
       }
     }
