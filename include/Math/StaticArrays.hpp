@@ -170,11 +170,7 @@ public:
     return true;
   }
 
-  [[nodiscard]] constexpr auto begin() noexcept {
-    if constexpr (std::is_same_v<S, StridedRange>)
-      return StridedIterator{data(), S{}.stride};
-    else return data();
-  }
+  [[nodiscard]] constexpr auto begin() noexcept -> T * { return data(); }
   [[nodiscard]] constexpr auto end() noexcept { return begin() + len; }
   [[nodiscard]] constexpr auto rbegin() noexcept {
     return std::reverse_iterator(end());
@@ -186,14 +182,12 @@ public:
   constexpr auto back() noexcept -> T & { return *(end() - 1); }
   constexpr auto operator[](Index<S> auto i) noexcept -> decltype(auto) {
     auto newDim = calcNewDim(S{}, i);
-    if constexpr (simd::IsSimdScalarIndex<decltype(i)>::value)
-      return ref(data(), calcOffset(Capacity, i));
-    else {
+    if constexpr (!simd::IsSimdScalarIndex<decltype(i)>::value) {
       auto offset = calcOffset(S{}, i);
       if constexpr (std::is_same_v<decltype(newDim), Empty>)
         return ref(data(), offset);
       else return MutArray<T, decltype(newDim)>{data() + offset, newDim};
-    }
+    } else return ref(data(), calcOffset(Capacity, i));
   }
   // TODO: switch to operator[] when we enable c++23
   template <class R, class C>
@@ -223,12 +217,12 @@ public:
   [[nodiscard]] constexpr auto get() const -> const T & {
     return memory[I];
   }
-  static constexpr auto decompress(const StaticArray *p) -> decltype(auto) {
+  static constexpr auto decompress(const StaticArray *p) {
     constexpr ptrdiff_t W =
       math::simd::vecWidth<T, std::integral_constant<ptrdiff_t, len>>();
     constexpr ptrdiff_t P = ((len + W - 1) / W) * W;
     if constexpr (P != len) {
-      StaticArray<T, S, P> result;
+      StaticArray<T, S, P> result; // NRVO
       ptrdiff_t i = 0, n = W;
       const auto &A{*p};
       POLYMATHVECTORIZE
@@ -238,7 +232,7 @@ public:
       }
       result[simd::unroll<W, 1>(i)] = A[simd::unroll<W, 1>(i, len)];
       return result;
-    } else return *p;
+    } else return *p; // RVO
   }
   template <StaticSize U, ptrdiff_t C>
   static constexpr void compress(StaticArray *p,
