@@ -278,7 +278,6 @@ public:
         invariant(ptrdiff_t(size_()), ptrdiff_t(B.size()));
         ptrdiff_t L = std::min<ptrdiff_t>(paddedlen_(), paddedlen(B)), i = 0,
                   n = W;
-        invariant(L, ptrdiff_t(B.size()));
         auto &A{self()};
         const auto &cA{self()};
         POLYMATHVECTORIZE
