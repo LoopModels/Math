@@ -11,6 +11,9 @@ template <typename T> struct Reference {
     T::compress(t, u);
     return *this;
   }
+  constexpr auto operator==(const U &u) const -> bool {
+    return T::decompress(t) == u;
+  }
   constexpr auto operator+=(const auto &x) -> Reference & {
     T::compress(t, T::decompress(t) + x);
     return *this;

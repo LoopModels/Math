@@ -26,6 +26,14 @@ class StaticArray : public ArrayOps<T, S, StaticArray<T, S, Capacity>> {
   static_assert(Capacity >= len);
   T memory[Capacity]; // NOLINT(modernize-avoid-c-arrays)
 
+  static consteval auto paddedSize() -> ptrdiff_t {
+    constexpr ptrdiff_t W =
+      math::simd::vecWidth<T, std::integral_constant<ptrdiff_t, len>>();
+    constexpr ptrdiff_t P = ((len + W - 1) / W) * W;
+    return P;
+  }
+  using PaddedType = StaticArray<T, S, paddedSize()>;
+
 public:
   using value_type = utils::uncompressed_t<T>;
   using reference = decltype(ref((T *)nullptr, 0));
@@ -217,12 +225,13 @@ public:
   [[nodiscard]] constexpr auto get() const -> const T & {
     return memory[I];
   }
-  static constexpr auto decompress(const StaticArray *p) {
+
+  static constexpr auto decompress(const StaticArray *p) -> PaddedType {
     constexpr ptrdiff_t W =
       math::simd::vecWidth<T, std::integral_constant<ptrdiff_t, len>>();
     constexpr ptrdiff_t P = ((len + W - 1) / W) * W;
     if constexpr (P != len) {
-      StaticArray<T, S, P> result; // NRVO
+      PaddedType result; // NRVO
       ptrdiff_t i = 0, n = W;
       const auto &A{*p};
       POLYMATHVECTORIZE
@@ -234,9 +243,7 @@ public:
       return result;
     } else return *p; // RVO
   }
-  template <StaticSize U, ptrdiff_t C>
-  static constexpr void compress(StaticArray *p,
-                                 const StaticArray<T, U, C> &rhs) {
+  static constexpr void compress(StaticArray *p, const PaddedType &rhs) {
     constexpr ptrdiff_t W =
       math::simd::vecWidth<T, std::integral_constant<ptrdiff_t, len>>();
     if constexpr (W != 1) {

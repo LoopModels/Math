@@ -45,6 +45,7 @@ constexpr void ldiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
                     MutPtrMatrix<S> rhs) {
   auto [M, N] = rhs.size();
   invariant(ptrdiff_t(F.numRow()), ptrdiff_t(M));
+  using T = utils::eltype_t<SquarePtrMatrix<S>>;
   // permute rhs
   for (ptrdiff_t i = 0; i < M; ++i) {
     unsigned ip = ipiv[i];
@@ -55,7 +56,7 @@ constexpr void ldiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
   // L y = rhs // L is UnitLowerTriangular
   for (ptrdiff_t n = 0; n < N; ++n) {
     for (ptrdiff_t m = 0; m < M; ++m) {
-      S Ymn = rhs(m, n);
+      T Ymn = rhs(m, n);
       for (ptrdiff_t k = 0; k < m; ++k) Ymn -= F(m, k) * rhs(k, n);
       rhs(m, n) = Ymn;
     }
@@ -63,7 +64,7 @@ constexpr void ldiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
   // U x = y
   for (ptrdiff_t n = 0; n < N; ++n) {
     for (auto m = ptrdiff_t(M); m--;) {
-      S Ymn = rhs(m, n);
+      T Ymn = rhs(m, n);
       for (ptrdiff_t k = m + 1; k < M; ++k) Ymn -= F(m, k) * rhs(k, n);
       rhs(m, n) = Ymn / F(m, m);
     }
@@ -112,6 +113,7 @@ constexpr void rdiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
                     MutPtrMatrix<S> rhs) {
   auto [M, N] = rhs.size();
   invariant(ptrdiff_t(F.numCol()), ptrdiff_t(N));
+  using T = utils::eltype_t<SquarePtrMatrix<S>>;
   // PA = LU
   // x LU = rhs
   // y U = rhs
@@ -126,7 +128,7 @@ constexpr void rdiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
   for (auto n = ptrdiff_t(N); n--;) {
     // for (ptrdiff_t n = 0; n < N; ++n) {
     for (ptrdiff_t m = 0; m < M; ++m) {
-      S Xmn = rhs(m, n);
+      T Xmn = rhs(m, n);
       for (ptrdiff_t k = n + 1; k < N; ++k) Xmn -= rhs(m, k) * F(k, n);
       rhs(m, n) = Xmn;
     }
