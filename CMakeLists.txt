@@ -59,7 +59,7 @@ if(MIMALLOC)
     VERSION 2.1.2 SYSTEM TRUE
     OPTIONS "INSTALL_GTEST OFF" "BUILD_GMOCK OFF" "gtest_hide_internal_symbols ON"
   )
-  target_link_libraries(${PROJECT_NAME} PUBLIC mimalloc-static)
+  target_link_libraries(${PROJECT_NAME} INTERFACE mimalloc-static)
 endif()
 # ---- Create an installable target ----
 # this allows users to install and find the library via `find_package()`.
