@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.14)
 
+# ---- Project settings ----
+option(MIMALLOC "Use mi-malloc allocator" OFF)
+
 # ---- Project ----
 
 # Note: update this to your new project's name and version
@@ -47,6 +50,17 @@ target_include_directories(
                             $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
+if(MIMALLOC)
+  target_compile_definitions(${PROJECT_NAME} PUBLIC USEMIMALLOC)
+  CPMAddPackage(
+    NAME mimalloc
+    GITHUB_REPOSITORY microsoft/mimalloc
+    GIT_TAG v2.1.2
+    VERSION 2.1.2 SYSTEM TRUE
+    OPTIONS "INSTALL_GTEST OFF" "BUILD_GMOCK OFF" "gtest_hide_internal_symbols ON"
+  )
+  target_link_libraries(${PROJECT_NAME} PUBLIC mimalloc-static)
+endif()
 # ---- Create an installable target ----
 # this allows users to install and find the library via `find_package()`.
 

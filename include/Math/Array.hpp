@@ -27,6 +27,10 @@
 #include <type_traits>
 #include <utility>
 
+#ifdef USEMIMALLOC
+#include <mimalloc-new-delete.h>
+#endif
+
 // https://llvm.org/doxygen/Compiler_8h_source.html#l00307
 #ifndef POLY_MATH_HAS_CPP_ATTRIBUTE
 #if defined(__cplusplus) && defined(__has_cpp_attribute)
