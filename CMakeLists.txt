@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 # ---- Project settings ----
-option(MIMALLOC "Use mi-malloc allocator" OFF)
+option(USEMIMALLOC "Use mi-malloc allocator" OFF)
 
 # ---- Project ----
 
@@ -50,14 +50,13 @@ target_include_directories(
                             $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
-if(MIMALLOC)
-  target_compile_definitions(${PROJECT_NAME} PUBLIC USEMIMALLOC)
+if(USEMIMALLOC)
+  target_compile_definitions(${PROJECT_NAME} INTERFACE USEMIMALLOC)
   CPMAddPackage(
     NAME mimalloc
     GITHUB_REPOSITORY microsoft/mimalloc
     GIT_TAG v2.1.2
-    VERSION 2.1.2 SYSTEM TRUE
-    OPTIONS "INSTALL_GTEST OFF" "BUILD_GMOCK OFF" "gtest_hide_internal_symbols ON"
+    VERSION 2.1.2 # SYSTEM TRUE
   )
   target_link_libraries(${PROJECT_NAME} INTERFACE mimalloc-static)
 endif()
