@@ -123,6 +123,8 @@ public:
             for (ptrdiff_t i = 0; i < L; ++i) index(i) = B[i];
           }
         } else {
+          POLYMATHVECTORIZE
+          for (ptrdiff_t i = 0; i < L; ++i) index(i) = B[i];
         }
       }
     }
