@@ -13,193 +13,134 @@
 namespace poly::math {
 
 template <class T, ptrdiff_t N> class Dual {
-  static constexpr ptrdiff_t L = N + 1;
-  static constexpr ptrdiff_t value_idx = 0; // N;
-  static constexpr ptrdiff_t partial_offset = value_idx != N;
-  SVector<T, L> data{T{}};
+  T val{};
+  SVector<T, N> partials{T{}};
 
 public:
-  static constexpr bool is_scalar = true;
-  using val_type = T;
-  static constexpr size_t num_partials = N;
-  // constexpr Dual() = default;
   constexpr Dual() = default;
-  constexpr Dual(T v) { data[value_idx] = v; }
-  constexpr Dual(T v, ptrdiff_t n) {
-    data[value_idx] = v;
-    data[partial_offset + n] = T{1};
+  constexpr Dual(T v) : val(v) {}
+  constexpr Dual(T v, ptrdiff_t n) : val(v) { partials[n] = T{1}; }
+  constexpr Dual(T v, SVector<T, N> g) : val(v) { partials << g; }
+  constexpr Dual(std::integral auto v) : val(v) {}
+  constexpr Dual(std::floating_point auto v) : val(v) {}
+  constexpr auto value() -> T & { return val; }
+  constexpr auto gradient() -> SVector<T, N> & { return partials; }
+  [[nodiscard]] constexpr auto value() const -> const T & { return val; }
+  [[nodiscard]] constexpr auto gradient() const -> const SVector<T, N> & {
+    return partials;
   }
-  constexpr Dual(T v, ptrdiff_t n, T p) {
-    data[value_idx] = v;
-    data[partial_offset + n] = p;
-  }
-  constexpr Dual(T v, AbstractVector auto g) {
-    value() = v;
-    gradient() << g;
-  }
-  constexpr Dual(SVector<T, L> d) : data{d} {}
-  constexpr Dual(std::integral auto v) { value() = v; }
-  constexpr Dual(std::floating_point auto v) { value() = v; }
-  constexpr auto value() -> T & { return data[value_idx]; }
-  constexpr auto gradient() -> MutPtrVector<T> {
-    return data[_(0, N) + partial_offset];
-  }
-  [[nodiscard]] constexpr auto value() const -> const T & {
-    return data[value_idx];
-  }
-  [[nodiscard]] constexpr auto gradient() const -> PtrVector<T> {
-    return data[_(0, N) + partial_offset];
-  }
-  constexpr auto operator-() const & -> Dual { return {-data}; }
+  constexpr auto operator-() const & -> Dual { return {-val, -partials}; }
   constexpr auto operator+(const Dual &other) const & -> Dual {
-    return {data + other.data};
+    return {val + other.val, partials + other.partials};
   }
   constexpr auto operator-(const Dual &other) const -> Dual {
-    return {data - other.data};
+    return {val - other.val, partials - other.partials};
   }
   constexpr auto operator*(const Dual &other) const -> Dual {
-    return {conditional(std::plus<>{},
-                        elementwise_not_equal(_(0, N + 1), value_idx),
-                        value() * other.data, data * other.value())};
+    return {val * other.val, val * other.partials + other.val * partials};
   }
   constexpr auto operator/(const Dual &other) const -> Dual {
-    // val = value() / other.value()
-    // partials = (other.value() * gradient() - value() * other.gradient()) /
-    // (other.value() * other.value())
-    // partials = (gradient()) / (other.value())
-    //  - (value() * other.gradient()) / (other.value() * other.value())
-    return {
-      conditional(std::minus<>{}, elementwise_not_equal(_(0, N + 1), value_idx),
-                  data / other.value(),
-                  value() * other.data / (other.value() * other.value()))};
+    return {val / other.val, (other.val * partials - val * other.partials) /
+                               (other.val * other.val)};
   }
   constexpr auto operator+=(const Dual &other) -> Dual & {
-    data += other.data;
+    val += other.val;
+    partials += other.partials;
     return *this;
   }
   constexpr auto operator-=(const Dual &other) -> Dual & {
-    data -= other.data;
+    val -= other.val;
+    partials -= other.partials;
     return *this;
   }
   constexpr auto operator*=(const Dual &other) -> Dual & {
-    data << conditional(std::plus<>{},
-                        elementwise_not_equal(_(0, N + 1), value_idx),
-                        value() * other.data, data * other.value());
+    val *= other.val;
+    partials << val * other.partials + other.val * partials;
     return *this;
   }
   constexpr auto operator/=(const Dual &other) -> Dual & {
-    data << conditional(std::minus<>{},
-                        elementwise_not_equal(_(0, N + 1), value_idx),
-                        data / other.value(),
-                        value() * other.data / (other.value() * other.value()));
+    val /= other.val;
+    partials << (other.val * partials - val * other.partials) /
+                  (other.val * other.val);
     return *this;
   }
   constexpr auto operator+(double other) const & -> Dual {
-    Dual ret = *this;
-    ret.value() += other;
-    return ret;
+    return {val + other, partials};
   }
   constexpr auto operator-(double other) const -> Dual {
-    Dual ret = *this;
-    ret.value() -= other;
-    return ret;
+    return {val - other, partials};
   }
   constexpr auto operator*(double other) const -> Dual {
-    return {data * other};
+    return {val * other, other * partials};
   }
   constexpr auto operator/(double other) const -> Dual {
-    return {data / other};
+    return {val / other, partials / other};
   }
   constexpr auto operator+=(double other) -> Dual & {
-    value() += other;
+    val += other;
     return *this;
   }
   constexpr auto operator-=(double other) -> Dual & {
-    value() -= other;
+    val -= other;
     return *this;
   }
   constexpr auto operator*=(double other) -> Dual & {
-    data *= other;
+    val *= other;
+    partials *= other;
     return *this;
   }
   constexpr auto operator/=(double other) -> Dual & {
-    data /= other;
+    val /= other;
+    partials /= other;
     return *this;
   }
   constexpr auto operator==(const Dual &other) const -> bool {
-    return value() == other.value(); // && grad == other.grad;
+    return val == other.val; // && grad == other.grad;
   }
   constexpr auto operator!=(const Dual &other) const -> bool {
-    return value() != other.value(); // || grad != other.grad;
+    return val != other.val; // || grad != other.grad;
   }
-  constexpr auto operator==(double other) const -> bool {
-    return value() == other;
-  }
-  constexpr auto operator!=(double other) const -> bool {
-    return value() != other;
-  }
-  constexpr auto operator<(double other) const -> bool {
-    return value() < other;
-  }
-  constexpr auto operator>(double other) const -> bool {
-    return value() > other;
-  }
-  constexpr auto operator<=(double other) const -> bool {
-    return value() <= other;
-  }
-  constexpr auto operator>=(double other) const -> bool {
-    return value() >= other;
-  }
+  constexpr auto operator==(double other) const -> bool { return val == other; }
+  constexpr auto operator!=(double other) const -> bool { return val != other; }
+  constexpr auto operator<(double other) const -> bool { return val < other; }
+  constexpr auto operator>(double other) const -> bool { return val > other; }
+  constexpr auto operator<=(double other) const -> bool { return val <= other; }
+  constexpr auto operator>=(double other) const -> bool { return val >= other; }
   constexpr auto operator<(const Dual &other) const -> bool {
-    return value() < other.value();
+    return val < other.val;
   }
   constexpr auto operator>(const Dual &other) const -> bool {
-    return value() > other.value();
+    return val > other.val;
   }
   constexpr auto operator<=(const Dual &other) const -> bool {
-    return value() <= other.value();
+    return val <= other.val;
   }
   constexpr auto operator>=(const Dual &other) const -> bool {
-    return value() >= other.value();
-  }
-
-  friend constexpr auto exp(Dual x) -> Dual {
-    return {conditional(std::multiplies<>{},
-                        elementwise_not_equal(_(0, N + 1), value_idx),
-                        exp(x.value()), x.data)};
-  }
-
-  friend constexpr auto operator+(double other, Dual x) -> Dual {
-    return {other + x.data};
-  }
-  friend constexpr auto operator-(double other, Dual x) -> Dual {
-    return {other - x.data};
-  }
-  friend constexpr auto operator*(double other, Dual x) -> Dual {
-    return {other * x.data};
-  }
-  friend constexpr auto operator/(double other, Dual x) -> Dual {
-    T v = other / x.value();
-    return {conditional(std::multiplies<>{},
-                        elementwise_not_equal(_(0, N + 1), value_idx), v,
-                        -x.data / x.value())};
-    // return {v, -v * x.gradient() / (x.value())};
+    return val >= other.val;
   }
 };
-//   template <class T, size_t N>
-// friend constexpr auto operator+(double other, Dual<T, N> x) -> Dual<T, N> {
-//   return {other + data};
-// }
-// template <class T, size_t N>
-// friend constexpr auto operator-(double other, Dual<T, N> x) -> Dual<T, N> {
-//   return {other - data};
-// }
-// template <class T, size_t N>
-// friend constexpr auto operator*(double other, Dual<T, N> x) -> Dual<T, N> {
-//   return {other * data};
-// }
+template <class T, ptrdiff_t N> Dual(T, SVector<T, N>) -> Dual<T, N>;
 
-// template <class T, class... U> Dual(T, U...) -> Dual<T, 0 + sizeof...(U)>;
+template <class T, ptrdiff_t N>
+constexpr auto operator+(double other, Dual<T, N> x) -> Dual<T, N> {
+  return {x.value() + other, x.gradient()};
+}
+template <class T, ptrdiff_t N>
+constexpr auto operator-(double other, Dual<T, N> x) -> Dual<T, N> {
+  return {x.value() - other, -x.gradient()};
+}
+template <class T, ptrdiff_t N>
+constexpr auto operator*(double other, Dual<T, N> x) -> Dual<T, N> {
+  return {x.value() * other, other * x.gradient()};
+}
+template <class T, ptrdiff_t N>
+constexpr auto operator/(double other, Dual<T, N> x) -> Dual<T, N> {
+  return {other / x.value(), -other * x.gradient() / (x.value() * x.value())};
+}
+template <class T, ptrdiff_t N> constexpr auto exp(Dual<T, N> x) -> Dual<T, N> {
+  T expx = exp(x.value());
+  return {expx, expx * x.gradient()};
+}
 
 template <typename T>
 constexpr auto gradient(utils::Arena<> *arena, PtrVector<T> x, const auto &f) {
