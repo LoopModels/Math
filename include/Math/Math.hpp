@@ -259,6 +259,12 @@ template <TrivialVecOrMat C, Trivial A, Trivial B> struct AbstractSelect {
   [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
 };
 
+inline constexpr auto view(const Trivial auto &x) { return x; }
+inline constexpr auto view(const auto &x) { return x.view(); }
+template <class T, class S> constexpr auto view(const Array<T, S> &x) {
+  return x;
+}
+
 template <TrivialVecOrMat C, Trivial A, Trivial B>
 struct Select : public AbstractSelect<C, A, B> {
   using value_type = AbstractSelect<C, A, B>::value_type;
@@ -362,9 +368,6 @@ template <AbstractMatrix A, AbstractVector B> struct MatVecMul {
 // Vectors
 //
 
-template <class T, class S> constexpr auto view(const Array<T, S> &x) {
-  return x;
-}
 static_assert(!AbstractMatrix<StridedVector<int64_t>>);
 
 // static_assert(std::is_trivially_copyable_v<MutStridedVector<int64_t>>);
@@ -463,9 +466,6 @@ static_assert(Trivial<MatMatMul<PtrMatrix<int64_t>, PtrMatrix<int64_t>>>);
 
 template <TriviallyCopyable OP, Trivial A, Trivial B>
 ElementwiseBinaryOp(OP, A, B) -> ElementwiseBinaryOp<A, B, OP>;
-
-inline constexpr auto view(const Trivial auto &x) { return x; }
-inline constexpr auto view(const auto &x) { return x.view(); }
 
 constexpr auto bin2(std::integral auto x) { return (x * (x - 1)) >> 1; }
 

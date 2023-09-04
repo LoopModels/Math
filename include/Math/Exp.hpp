@@ -383,4 +383,14 @@ constexpr auto exp(double x) -> double { return exp_impl<3>(x); }
 constexpr auto exp2(double x) -> double { return exp_impl<2>(x); }
 constexpr auto exp10(double x) -> double { return exp_impl<10>(x); }
 
+constexpr auto exp2(int64_t x) -> double {
+  if (x > 1023) return std::numeric_limits<double>::infinity();
+  if (x <= -1023) return std::bit_cast<double>(uint64_t(1) << ((x + 1074)));
+  return std::bit_cast<double>((x + 1023) << 52);
+}
+constexpr auto exp2(unsigned x) -> double {
+  if (x > 1023) return std::numeric_limits<double>::infinity();
+  return std::bit_cast<double>((uint64_t(x) + 1023) << 52);
+}
+
 } // namespace poly::math

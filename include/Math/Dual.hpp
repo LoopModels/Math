@@ -47,7 +47,7 @@ public:
   [[nodiscard]] constexpr auto value() const -> const T & {
     return data[value_idx];
   }
-  [[nodiscard]] constexpr auto gradient() const -> const SVector<T, N> & {
+  [[nodiscard]] constexpr auto gradient() const -> PtrVector<T> {
     return data[_(0, N) + partial_offset];
   }
   constexpr auto operator-() const & -> Dual { return {-data}; }
@@ -68,10 +68,10 @@ public:
     // (other.value() * other.value())
     // partials = (gradient()) / (other.value())
     //  - (value() * other.gradient()) / (other.value() * other.value())
-    return {conditional(
-      std::minus<>{}, elementwise_not_equal(_(0, N + 1), value_idx),
-      data / other.value(),
-      value() * other.gradient() / (other.value() * other.value()), 0)};
+    return {
+      conditional(std::minus<>{}, elementwise_not_equal(_(0, N + 1), value_idx),
+                  data / other.value(),
+                  value() * other.data / (other.value() * other.value()))};
   }
   constexpr auto operator+=(const Dual &other) -> Dual & {
     data += other.data;
@@ -84,23 +84,23 @@ public:
   constexpr auto operator*=(const Dual &other) -> Dual & {
     data << conditional(std::plus<>{},
                         elementwise_not_equal(_(0, N + 1), value_idx),
-                        value() * other.data, data * other.value(), 0);
+                        value() * other.data, data * other.value());
     return *this;
   }
   constexpr auto operator/=(const Dual &other) -> Dual & {
-    data << conditional(
-      std::minus<>{}, elementwise_not_equal(_(0, N + 1), value_idx),
-      data / other.value(),
-      value() * other.gradient() / (other.value() * other.value()), 0);
+    data << conditional(std::minus<>{},
+                        elementwise_not_equal(_(0, N + 1), value_idx),
+                        data / other.value(),
+                        value() * other.data / (other.value() * other.value()));
     return *this;
   }
   constexpr auto operator+(double other) const & -> Dual {
-    Dual ret = this;
+    Dual ret = *this;
     ret.value() += other;
     return ret;
   }
   constexpr auto operator-(double other) const -> Dual {
-    Dual ret = this;
+    Dual ret = *this;
     ret.value() -= other;
     return ret;
   }
@@ -276,6 +276,12 @@ constexpr auto hessian(utils::Arena<> *arena, PtrVector<T> x, const auto &f) {
         dx[i + k] = x[i + k]; // reset `i` block
     }
   }
+}
+
+constexpr auto extractDualValRecurse(std::floating_point auto x) { return x; }
+template <class T, ptrdiff_t N>
+constexpr auto extractDualValRecurse(const Dual<T, N> &x) {
+  return extractDualValRecurse(x.value());
 }
 
 } // namespace poly::math
