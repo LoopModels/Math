@@ -9,6 +9,7 @@ template <typename B, typename E> struct Range {
   [[nodiscard]] constexpr auto end() const -> E { return e; }
 };
 template <std::integral B, std::integral E> struct Range<B, E> {
+  using value_type = std::common_type_t<B, E>;
   [[no_unique_address]] B b;
   [[no_unique_address]] E e;
   // wrapper that allows dereferencing
@@ -43,6 +44,10 @@ template <std::integral B, std::integral E> struct Range<B, E> {
   template <std::integral BB, std::integral EE>
   constexpr operator Range<BB, EE>() const {
     return Range<BB, EE>{static_cast<BB>(b), static_cast<EE>(e)};
+  }
+  [[nodiscard]] constexpr auto view() const -> Range { return *this; }
+  [[nodiscard]] constexpr auto operator[](value_type i) const -> value_type {
+    return b + i;
   }
 };
 constexpr auto standardizeRangeBound(auto x) { return x; }

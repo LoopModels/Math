@@ -10,6 +10,7 @@
 #include <deque>
 #include <limits>
 #include <memory>
+#include <utility>
 
 #ifndef __has_feature      // Optional of course.
 #define __has_feature(x) 0 // Compatibility with non-clang compilers.
@@ -245,7 +246,7 @@ public:
     if constexpr (BumpUp)
       __asan_poison_memory_region(p.p, (char *)slab - (char *)p.p);
     else __asan_poison_memory_region(slab, (char *)p.p - (char *)slab);
-    for (void *m = getNext(p.p); m; m = getNext(m))
+    for (void *m = getNext(p.e); m; m = getNext(m))
       __asan_poison_memory_region((char *)m + MetaSize, SlabSize - MetaSize);
 #endif
     slab = p.p;
@@ -474,7 +475,38 @@ template <class T> constexpr void rollback(WArena<T> alloc, auto p) {
   alloc.rollback(p);
 }
 constexpr void rollback(Arena<> *alloc, auto p) { alloc->rollback(p); }
+
+template <typename F, typename... T>
+concept ArenaPtrCallable = requires(F f) {
+  { f(std::declval<Arena<> *>(), std::declval<T>()...) };
+};
+template <typename F, typename... T>
+concept ArenaValCallable = requires(F f) {
+  { f(std::declval<Arena<>>(), std::declval<T>()...) };
+};
+/// If we receive a pointer, we check if we can use either an arena pointer
+/// or an arena value. The pointer and value imply, respectively,
+/// that the lifetime of some objects are going to outlive or are
+/// bounded by the function call `f`.
+template <typename F, typename... T>
+constexpr auto call(Arena<> *alloc, const F &f, T &&...t) {
+  if constexpr (ArenaPtrCallable<F, T...>)
+    return f(alloc, std::forward<T>(t)...);
+  else if constexpr (ArenaValCallable<F, T...>)
+    return f(*alloc, std::forward<T>(t)...);
+  else return f(std::forward<T>(t)...);
+}
+/// If we require that the lifetime of anything allocated by the arena
+/// are bounded by the function call `f`, we can use a value.
+template <typename F, typename... T>
+constexpr auto call(Arena<> alloc, const F &f, T &&...t) {
+  if constexpr (ArenaValCallable<F, T...>)
+    return f(alloc, std::forward<T>(t)...);
+  else return f(std::forward<T>(t)...);
+}
+
 } // namespace poly::utils
+
 template <size_t SlabSize, bool BumpUp>
 auto operator new(size_t Size, poly::utils::Arena<SlabSize, BumpUp> &Alloc)
   -> void * {

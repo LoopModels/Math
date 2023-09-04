@@ -50,9 +50,10 @@ TEST(LinearAlgebraTest, BasicAssertions) {
 TEST(DoubleLU, BasicAssertions) {
   SquareMatrix<double> A(4), B(4), C(4), D(4);
   std::mt19937 gen(0);
+  std::uniform_real_distribution<double> dist(-1, 1);
   for (ptrdiff_t i = 0; i < 100; ++i) {
-    for (auto &a : A) a = std::uniform_real_distribution<double>(-1, 1)(gen);
-    for (auto &b : B) b = std::uniform_real_distribution<double>(-1, 1)(gen);
+    for (auto &a : A) a = dist(gen);
+    for (auto &b : B) b = dist(gen);
     C << B;
     // B = A \ B
     // C == A*B == A * (A \ B)

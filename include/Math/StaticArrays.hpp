@@ -12,11 +12,10 @@ template <typename T>
 concept StaticSize = StaticInt<T>;
 
 template <class T, StaticSize S>
-class StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
+struct StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
   static constexpr ptrdiff_t capacity = ptrdiff_t{S{}};
-  T memory[capacity]; // NOLINT(modernize-avoid-c-arrays)
+  T memory_[capacity]; // NOLINT(modernize-avoid-c-arrays)
 
-public:
   using value_type = T;
   using reference = T &;
   using const_reference = const T &;
@@ -50,9 +49,9 @@ public:
     (*this) << b;
   }
   [[nodiscard]] constexpr auto data() const noexcept -> const T * {
-    return memory;
+    return memory_;
   }
-  constexpr auto data() noexcept -> T * { return memory; }
+  constexpr auto data() noexcept -> T * { return memory_; }
 
   constexpr auto operator=(StaticArray const &) -> StaticArray & = default;
   constexpr auto operator=(StaticArray &&) noexcept -> StaticArray & = default;
@@ -200,10 +199,10 @@ public:
   constexpr auto operator==(const StaticArray &rhs) const noexcept -> bool {
     return std::equal(begin(), end(), rhs.begin());
   }
-  template <std::size_t I> constexpr auto get() -> T & { return memory[I]; }
+  template <std::size_t I> constexpr auto get() -> T & { return memory_[I]; }
   template <std::size_t I>
   [[nodiscard]] constexpr auto get() const -> const T & {
-    return memory[I];
+    return memory_[I];
   }
 };
 
@@ -216,6 +215,10 @@ template <class T, StaticSize S>
 inline constexpr auto view(const StaticArray<T, S> &x) {
   return x.view();
 }
+
+template <class T, class... U>
+StaticArray(T, U...)
+  -> StaticArray<T, std::integral_constant<ptrdiff_t, 1 + sizeof...(U)>>;
 
 }; // namespace poly::math
 

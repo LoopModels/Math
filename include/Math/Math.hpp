@@ -7,6 +7,7 @@
 #include "Math/Indexing.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/MatrixDimensions.hpp"
+#include "Math/Vector.hpp"
 #include "Utilities/TypePromotion.hpp"
 #include <algorithm>
 #include <charconv>
@@ -35,6 +36,40 @@
 namespace poly::math {
 struct Rational;
 
+template <class A>
+concept VecOrMat = AbstractVector<A> || AbstractMatrix<A>;
+
+template <class T, class C>
+concept Compatible =
+  (VecOrMat<C> && std::convertible_to<T, utils::eltype_t<C>>) ||
+  (VecOrMat<T> && std::convertible_to<C, utils::eltype_t<T>>) ||
+  (AbstractVector<C> && AbstractVector<T>) ||
+  (AbstractMatrix<C> && AbstractMatrix<T>);
+
+template <class A, class B> struct ElTypes {
+  using eltype =
+    std::conditional_t<VecOrMat<B> & std::convertible_to<A, utils::eltype_t<B>>,
+                       A, utils::eltype_t<A>>;
+};
+// returns the element type of `A` when used in a binary op with `B`
+template <class A, class B> using indextype_t = typename ElTypes<A, B>::eltype;
+
+template <typename T>
+concept Trivial =
+  std::is_trivially_destructible_v<T> && std::is_trivially_copyable_v<T>;
+template <typename T, typename C>
+concept TrivialCompatibile = Trivial<T> && Compatible<T, C>;
+template <typename T>
+concept TrivialVecOrMat = Trivial<T> && VecOrMat<T>;
+
+//   // TODO: binary func invocable trait?
+// template <typename Op, typename T, typename S>
+// concept BinaryFunction = std::is_invocable_v<Op, T, S>;
+
+template <typename Op, typename A, typename B>
+concept BinaryFuncOfElts =
+  std::is_invocable_v<Op, indextype_t<A, B>, indextype_t<B, A>>;
+
 [[gnu::flatten]] constexpr auto operator==(const AbstractMatrix auto &A,
                                            const AbstractMatrix auto &B)
   -> bool {
@@ -48,7 +83,8 @@ struct Rational;
 }
 
 template <typename Op, typename A> struct ElementwiseUnaryOp {
-  using value_type = typename A::value_type;
+  using value_type =
+    decltype(std::declval<Op>()(std::declval<utils::eltype_t<A>>()));
   [[no_unique_address]] Op op;
   [[no_unique_address]] A a;
   constexpr auto operator[](ptrdiff_t i) const { return op(a[i]); }
@@ -63,11 +99,20 @@ template <typename Op, typename A> struct ElementwiseUnaryOp {
   [[nodiscard]] constexpr auto view() const { return *this; };
 };
 // scalars broadcast
-constexpr auto get(const auto &A, ptrdiff_t) { return A; }
-constexpr auto get(const auto &A, ptrdiff_t, ptrdiff_t) { return A; }
-constexpr auto get(const AbstractVector auto &A, ptrdiff_t i) { return A[i]; }
-constexpr auto get(const AbstractMatrix auto &A, ptrdiff_t i, ptrdiff_t j) {
-  return A(i, j);
+template <typename S> constexpr auto get(const S &s, ptrdiff_t) -> S {
+  return s;
+}
+template <typename S>
+constexpr auto get(const S &s, ptrdiff_t, ptrdiff_t) -> S {
+  return s;
+}
+template <typename S, LinearlyIndexable<S> V>
+constexpr auto get(const V &v, ptrdiff_t i) -> S {
+  return v[i];
+}
+template <typename S, CartesianIndexable<S> V>
+constexpr auto get(const V &v, ptrdiff_t i, ptrdiff_t j) -> S {
+  return v(i, j);
 }
 
 constexpr auto size(const std::integral auto) -> ptrdiff_t { return 1; }
@@ -80,10 +125,6 @@ static_assert(utils::ElementOf<int, DenseMatrix<int64_t>>);
 static_assert(utils::ElementOf<int64_t, DenseMatrix<int64_t>>);
 static_assert(utils::ElementOf<int64_t, DenseMatrix<double>>);
 static_assert(!utils::ElementOf<DenseMatrix<double>, DenseMatrix<double>>);
-
-template <typename T>
-concept Trivial =
-  std::is_trivially_destructible_v<T> && std::is_trivially_copyable_v<T>;
 
 template <typename T>
 concept HasConcreteSize = requires(T) {
@@ -101,104 +142,179 @@ using is_concrete_t =
   std::conditional_t<HasConcreteSize<T> || HasConcreteSize<U>, std::true_type,
                      std::false_type>;
 
-template <typename Op, Trivial A, Trivial B> struct ElementwiseVectorBinaryOp {
-  using value_type = utils::promote_eltype_t<A, B>;
+template <Trivial A, TrivialCompatibile<A> B, BinaryFuncOfElts<A, B> Op>
+struct ElementwiseBinaryOp {
+  using elta = indextype_t<A, B>;
+  using eltb = indextype_t<B, A>;
+
+  using value_type =
+    decltype(std::declval<Op>()(std::declval<elta>(), std::declval<eltb>()));
+  // using value_type = utils::promote_eltype_t<A, B>;
   using concrete = is_concrete_t<A, B>;
+  static constexpr bool isvector = AbstractVector<A> || AbstractVector<B>;
+  static constexpr bool ismatrix = AbstractMatrix<A> || AbstractMatrix<B>;
 
   [[no_unique_address]] Op op;
   [[no_unique_address]] A a;
   [[no_unique_address]] B b;
-  constexpr ElementwiseVectorBinaryOp(Op _op, A _a, B _b)
-    : op(_op), a(_a), b(_b) {}
-  constexpr auto operator[](ptrdiff_t i) const {
-    return op(get(a, i), get(b, i));
+  constexpr auto operator[](ptrdiff_t i) const -> value_type
+  requires LinearlyIndexableOrConvertible<A, elta> &&
+           LinearlyIndexableOrConvertible<B, eltb>
+  {
+    return op(get<elta>(a, i), get<eltb>(b, i));
   }
-  [[nodiscard]] constexpr auto size() const -> ptrdiff_t {
-    if constexpr (AbstractVector<A> && AbstractVector<B>) {
-      const ptrdiff_t N = a.size();
-      invariant(N == b.size());
-      return N;
-    } else if constexpr (AbstractVector<A>) {
-      return a.size();
-    } else { // if constexpr (AbstractVector<B>) {
-      return b.size();
-    }
+  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const -> value_type
+  requires CartesianIndexableOrConvertible<A, elta> &&
+           CartesianIndexableOrConvertible<B, eltb>
+  {
+    return op(get<elta>(a, i, j), get<eltb>(b, i, j));
   }
-  [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
-};
-template <typename Op, Trivial A, Trivial B> struct ElementwiseMatrixBinaryOp {
-  using value_type = utils::promote_eltype_t<A, B>;
-  using concrete = is_concrete_t<A, B>;
-  [[no_unique_address]] Op op;
-  [[no_unique_address]] A a;
-  [[no_unique_address]] B b;
-  constexpr ElementwiseMatrixBinaryOp(Op _op, A _a, B _b)
-    : op(_op), a(_a), b(_b) {}
-  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const {
-    return op(get(a, i, j), get(b, i, j));
-  }
-  [[nodiscard]] constexpr auto numRow() const -> Row {
-    // static_assert(AbstractMatrix<A> || std::integral<A> ||
-    //                 std::floating_point<A>,
-    //               "Argument A to elementwise binary op is not a matrix.");
-    // static_assert(AbstractMatrix<B> || std::integral<B> ||
-    //                 std::floating_point<B>,
-    //               "Argument B to elementwise binary op is not a matrix.");
+
+  [[nodiscard]] constexpr auto numRow() const -> Row
+  requires(ismatrix)
+  {
     if constexpr (AbstractMatrix<A> && AbstractMatrix<B>) {
-      if constexpr (HasConcreteSize<A>) {
+      if constexpr (HasConcreteSize<A>)
         if constexpr (HasConcreteSize<B>) {
           const Row N = a.numRow();
           invariant(N, b.numRow());
           return N;
-        } else {
-          return a.numRow();
-        }
-      } else if constexpr (HasConcreteSize<B>) {
-        return b.numRow();
-      } else {
-        return 0;
-      }
-    } else if constexpr (AbstractMatrix<A>) {
-      return a.numRow();
-    } else if constexpr (AbstractMatrix<B>) {
-      return b.numRow();
-    }
+        } else return a.numRow();
+      else if constexpr (HasConcreteSize<B>) return b.numRow();
+      else return 0;
+    } else if constexpr (AbstractMatrix<A>) return a.numRow();
+    else if constexpr (AbstractMatrix<B>) return b.numRow();
   }
-  [[nodiscard]] constexpr auto numCol() const -> Col {
-    // static_assert(AbstractMatrix<A> || std::integral<A> ||
-    //                 std::floating_point<A>,
-    //               "Argument A to elementwise binary op is not a matrix.");
-    // static_assert(AbstractMatrix<B> || std::integral<B> ||
-    //                 std::floating_point<B>,
-    //               "Argument B to elementwise binary op is not a matrix.");
+  [[nodiscard]] constexpr auto numCol() const -> Col
+  requires(ismatrix)
+  {
     if constexpr (AbstractMatrix<A> && AbstractMatrix<B>) {
-      if constexpr (HasConcreteSize<A>) {
+      if constexpr (HasConcreteSize<A>)
         if constexpr (HasConcreteSize<B>) {
           const Col N = a.numCol();
           invariant(N, b.numCol());
           return N;
-        } else {
-          return a.numCol();
-        }
-      } else if constexpr (HasConcreteSize<B>) {
-        return b.numCol();
-      } else {
-        return 0;
-      }
-    } else if constexpr (AbstractMatrix<A>) {
-      return a.numCol();
-    } else if constexpr (AbstractMatrix<B>) {
-      return b.numCol();
-    }
+        } else return a.numCol();
+      else if constexpr (HasConcreteSize<B>) return b.numCol();
+      else return 0;
+    } else if constexpr (AbstractMatrix<A>) return a.numCol();
+    else if constexpr (AbstractMatrix<B>) return b.numCol();
   }
-  [[nodiscard]] constexpr auto size() const -> CartesianIndex<Row, Col> {
+  [[nodiscard]] constexpr auto dim() const -> DenseDims
+  requires(ismatrix)
+  {
     return {numRow(), numCol()};
   }
-  [[nodiscard]] constexpr auto dim() const -> DenseDims {
-    return {numRow(), numCol()};
+
+  [[nodiscard]] constexpr auto size() const {
+    if constexpr (AbstractVector<A> && AbstractVector<B>) {
+      const ptrdiff_t N = a.size();
+      invariant(N == b.size());
+      return N;
+    } else if constexpr (AbstractVector<A>) return ptrdiff_t(a.size());
+    else if constexpr (AbstractVector<B>) return ptrdiff_t(b.size());
+    else return CartesianIndex<Row, Col>{numRow(), numCol()};
   }
   [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
 };
+
+template <TrivialVecOrMat C, Trivial A, Trivial B> struct AbstractSelect {
+  using value_type = std::common_type_t<utils::eltype_t<A>, utils::eltype_t<B>>;
+  static constexpr bool isvector = AbstractVector<C>;
+  static constexpr bool ismatrix = AbstractMatrix<C>;
+  [[no_unique_address]] C c;
+  [[no_unique_address]] A a;
+  [[no_unique_address]] B b;
+
+  [[nodiscard]] constexpr auto numRow() const -> Row
+  requires(ismatrix)
+  {
+    Row m = c.numRow();
+    if constexpr (AbstractMatrix<A>) invariant(m, a.numRow());
+    if constexpr (AbstractMatrix<B>) invariant(m, b.numRow());
+    return m;
+  }
+  [[nodiscard]] constexpr auto numCol() const -> Col
+  requires(ismatrix)
+  {
+    Col n = c.numCol();
+    if constexpr (AbstractMatrix<A>) invariant(n, a.numCol());
+    if constexpr (AbstractMatrix<B>) invariant(n, b.numCol());
+    return n;
+  }
+  [[nodiscard]] constexpr auto dim() const -> DenseDims
+  requires(ismatrix)
+  {
+    return {numRow(), numCol()};
+  }
+  [[nodiscard]] constexpr auto size() const {
+    if constexpr (ismatrix) return CartesianIndex<Row, Col>{numRow(), numCol()};
+    else {
+      ptrdiff_t N = c.size();
+      if constexpr (AbstractVector<A>) invariant(ptrdiff_t(a.size()), N);
+      if constexpr (AbstractVector<B>) invariant(ptrdiff_t(b.size()), N);
+      return N;
+    }
+  }
+  [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
+};
+
+template <TrivialVecOrMat C, Trivial A, Trivial B>
+struct Select : public AbstractSelect<C, A, B> {
+  using value_type = AbstractSelect<C, A, B>::value_type;
+  constexpr auto operator[](ptrdiff_t i) const -> value_type
+  requires LinearlyIndexableOrConvertible<C, bool> &&
+           LinearlyIndexableOrConvertible<A, value_type> &&
+           LinearlyIndexableOrConvertible<B, value_type>
+  {
+    return get<bool>(this->c, i) ? get<value_type>(this->a, i)
+                                 : get<value_type>(this->b, i);
+  }
+  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const -> value_type
+  requires CartesianIndexableOrConvertible<C, bool> &&
+           CartesianIndexableOrConvertible<A, value_type> &&
+           CartesianIndexableOrConvertible<B, value_type>
+  {
+    return get<bool>(this->c, i, j) ? get<value_type>(this->a, i, j)
+                                    : get<value_type>(this->b, i, j);
+  }
+};
+template <TrivialVecOrMat C, Trivial A, Trivial B>
+Select(C c, A a, B b) -> Select<C, A, B>;
+constexpr auto select(const VecOrMat auto &c, const auto &a, const auto &b) {
+  return Select(view(c), view(a), view(b));
+}
+
+template <TrivialVecOrMat C, Trivial A, Trivial B, BinaryFuncOfElts<A, B> Op>
+struct Conditional : public AbstractSelect<C, A, B> {
+  using value_type = AbstractSelect<C, A, B>::value_type;
+  [[no_unique_address]] Op op;
+
+  constexpr auto operator[](ptrdiff_t i) const -> value_type
+  requires LinearlyIndexableOrConvertible<C, bool> &&
+           LinearlyIndexableOrConvertible<A, value_type> &&
+           LinearlyIndexableOrConvertible<B, value_type>
+  {
+    auto x = get<value_type>(this->a, i);
+    return get<bool>(this->c, i) ? op(x, get<value_type>(this->b, i)) : x;
+  }
+  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const -> value_type
+  requires CartesianIndexableOrConvertible<C, bool> &&
+           CartesianIndexableOrConvertible<A, value_type> &&
+           CartesianIndexableOrConvertible<B, value_type>
+  {
+    auto x = get<value_type>(this->a, i, j);
+    return get<bool>(this->c, i, j) ? op(x, get<value_type>(this->b, i, j)) : x;
+  }
+};
+constexpr auto conditional(auto op, const VecOrMat auto &c, const auto &a,
+                           const auto &b) {
+  auto vc = view(c);
+  auto va = view(a);
+  auto vb = view(b);
+  return Conditional<decltype(vc), decltype(va), decltype(vb), decltype(op)>{
+    {vc, va, vb}, op};
+}
 
 template <AbstractMatrix A, AbstractMatrix B> struct MatMatMul {
   using value_type = utils::promote_eltype_t<A, B>;
@@ -231,7 +347,7 @@ template <AbstractMatrix A, AbstractVector B> struct MatVecMul {
   [[no_unique_address]] A a;
   [[no_unique_address]] B b;
   constexpr auto operator[](ptrdiff_t i) const -> value_type {
-    static_assert(AbstractVector<B>, "B should be an AbstractVector");
+    invariant(a.numCol() == b.size());
     value_type s = 0;
     for (ptrdiff_t k = 0; k < a.numCol(); ++k) s += a(i, k) * b[k];
     return s;
@@ -256,15 +372,6 @@ static_assert(std::is_trivially_copyable_v<
               ElementwiseUnaryOp<std::negate<>, StridedVector<int64_t>>>);
 static_assert(
   Trivial<ElementwiseUnaryOp<std::negate<>, StridedVector<int64_t>>>);
-
-constexpr auto allMatch(const AbstractVector auto &x0,
-                        const AbstractVector auto &x1) -> bool {
-  ptrdiff_t N = x0.size();
-  if (N != x1.size()) return false;
-  for (ptrdiff_t n = 0; n < N; ++n)
-    if (x0(n) != x1(n)) return false;
-  return true;
-}
 
 constexpr void swap(MutPtrMatrix<int64_t> A, Row i, Row j) {
   if (i == j) return;
@@ -350,14 +457,12 @@ static_assert(std::is_trivially_copyable_v<PtrMatrix<int64_t>>);
 static_assert(Trivial<PtrMatrix<int64_t>>);
 static_assert(Trivial<int>);
 static_assert(TriviallyCopyable<std::multiplies<>>);
-static_assert(Trivial<ElementwiseMatrixBinaryOp<std::multiplies<>,
-                                                PtrMatrix<int64_t>, int>>);
+static_assert(
+  Trivial<ElementwiseBinaryOp<PtrMatrix<int64_t>, int, std::multiplies<>>>);
 static_assert(Trivial<MatMatMul<PtrMatrix<int64_t>, PtrMatrix<int64_t>>>);
 
 template <TriviallyCopyable OP, Trivial A, Trivial B>
-ElementwiseVectorBinaryOp(OP, A, B) -> ElementwiseVectorBinaryOp<OP, A, B>;
-template <TriviallyCopyable OP, Trivial A, Trivial B>
-ElementwiseMatrixBinaryOp(OP, A, B) -> ElementwiseMatrixBinaryOp<OP, A, B>;
+ElementwiseBinaryOp(OP, A, B) -> ElementwiseBinaryOp<A, B, OP>;
 
 inline constexpr auto view(const Trivial auto &x) { return x; }
 inline constexpr auto view(const auto &x) { return x.view(); }
@@ -406,6 +511,28 @@ constexpr auto operator-(const AbstractMatrix auto &a) {
   return ElementwiseUnaryOp<std::negate<>, decltype(AA)>{.op = std::negate<>{},
                                                          .a = AA};
 }
+
+constexpr auto operator!(const AbstractVector auto &a) {
+  auto AA{a.view()};
+  return ElementwiseUnaryOp<std::logical_not<>, decltype(AA)>{
+    .op = std::negate<>{}, .a = AA};
+}
+constexpr auto operator!(const AbstractMatrix auto &a) {
+  auto AA{a.view()};
+  return ElementwiseUnaryOp<std::logical_not<>, decltype(AA)>{
+    .op = std::negate<>{}, .a = AA};
+}
+
+constexpr auto operator~(const AbstractVector auto &a) {
+  auto AA{a.view()};
+  return ElementwiseUnaryOp<std::bit_not<>, decltype(AA)>{.op = std::negate<>{},
+                                                          .a = AA};
+}
+constexpr auto operator~(const AbstractMatrix auto &a) {
+  auto AA{a.view()};
+  return ElementwiseUnaryOp<std::bit_not<>, decltype(AA)>{.op = std::negate<>{},
+                                                          .a = AA};
+}
 static_assert(
   AbstractMatrix<ElementwiseUnaryOp<std::negate<>, PtrMatrix<int64_t>>>);
 static_assert(AbstractMatrix<Array<int64_t, SquareDims>>);
@@ -427,108 +554,82 @@ constexpr auto operator*(const AbstractMatrix auto &a,
 }
 constexpr auto operator*(const AbstractVector auto &a,
                          const AbstractVector auto &b) {
-  return ElementwiseVectorBinaryOp(std::multiplies<>{}, view(a), view(b));
-}
-
-template <AbstractVector M, utils::ElementOf<M> S>
-constexpr auto operator+(S a, const M &b) {
-  return ElementwiseVectorBinaryOp(std::plus<>{}, view(a), view(b));
-}
-template <AbstractVector M, utils::ElementOf<M> S>
-constexpr auto operator+(const M &b, S a) {
-  return ElementwiseVectorBinaryOp(std::plus<>{}, view(b), view(a));
-}
-template <AbstractMatrix M, utils::ElementOf<M> S>
-constexpr auto operator+(S a, const M &b) {
-  return ElementwiseMatrixBinaryOp(std::plus<>{}, view(a), view(b));
-}
-template <AbstractMatrix M, utils::ElementOf<M> S>
-constexpr auto operator+(const M &b, S a) {
-  return ElementwiseMatrixBinaryOp(std::plus<>{}, view(b), view(a));
-}
-
-template <AbstractVector M, utils::ElementOf<M> S>
-constexpr auto operator-(S a, const M &b) {
-  return ElementwiseVectorBinaryOp(std::minus<>{}, view(a), view(b));
-}
-template <AbstractVector M, utils::ElementOf<M> S>
-constexpr auto operator-(const M &b, S a) {
-  return ElementwiseVectorBinaryOp(std::minus<>{}, view(b), view(a));
-}
-template <AbstractMatrix M, utils::ElementOf<M> S>
-constexpr auto operator-(S a, const M &b) {
-  return ElementwiseMatrixBinaryOp(std::minus<>{}, view(a), view(b));
-}
-template <AbstractMatrix M, utils::ElementOf<M> S>
-constexpr auto operator-(const M &b, S a) {
-  return ElementwiseMatrixBinaryOp(std::minus<>{}, view(b), view(a));
-}
-
-template <AbstractVector M, utils::ElementOf<M> S>
-constexpr auto operator*(S a, const M &b) {
-  return ElementwiseVectorBinaryOp(std::multiplies<>{}, view(a), view(b));
+  return ElementwiseBinaryOp(std::multiplies<>{}, view(a), view(b));
 }
 template <AbstractVector M, utils::ElementOf<M> S>
 constexpr auto operator*(const M &b, S a) {
-  return ElementwiseVectorBinaryOp(std::multiplies<>{}, view(b), view(a));
+  return ElementwiseBinaryOp(std::multiplies<>{}, view(b), view(a));
+}
+template <AbstractVector M, utils::ElementOf<M> S>
+constexpr auto operator*(S a, const M &b) {
+  return ElementwiseBinaryOp(std::multiplies<>{}, view(a), view(b));
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
 constexpr auto operator*(S a, const M &b) {
-  return ElementwiseMatrixBinaryOp(std::multiplies<>{}, view(a), view(b));
+  return ElementwiseBinaryOp(std::multiplies<>{}, view(a), view(b));
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
 constexpr auto operator*(const M &b, S a) {
-  return ElementwiseMatrixBinaryOp(std::multiplies<>{}, view(b), view(a));
+  return ElementwiseBinaryOp(std::multiplies<>{}, view(b), view(a));
 }
 
-template <AbstractVector M, utils::ElementOf<M> S>
-constexpr auto operator/(S a, const M &b) {
-  return ElementwiseVectorBinaryOp(std::divides<>{}, view(a), view(b));
+template <class A, Compatible<A> B>
+constexpr auto operator+(const A &a, const B &b) {
+  return ElementwiseBinaryOp(std::plus<>{}, view(a), view(b));
 }
-template <AbstractVector M, utils::ElementOf<M> S>
-constexpr auto operator/(const M &b, S a) {
-  return ElementwiseVectorBinaryOp(std::divides<>{}, view(b), view(a));
+template <class A, Compatible<A> B>
+constexpr auto operator-(const A &a, const B &b) {
+  return ElementwiseBinaryOp(std::minus<>{}, view(a), view(b));
 }
-template <AbstractMatrix M, utils::ElementOf<M> S>
-constexpr auto operator/(S a, const M &b) {
-  return ElementwiseMatrixBinaryOp(std::divides<>{}, view(a), view(b));
+template <class A, Compatible<A> B>
+constexpr auto operator/(const A &a, const B &b) {
+  return ElementwiseBinaryOp(std::divides<>{}, view(a), view(b));
 }
-template <AbstractMatrix M, utils::ElementOf<M> S>
-constexpr auto operator/(const M &b, S a) {
-  return ElementwiseMatrixBinaryOp(std::divides<>{}, view(b), view(a));
+template <class A, Compatible<A> B>
+constexpr auto operator%(const A &a, const B &b) {
+  return ElementwiseBinaryOp(std::modulus<>{}, view(a), view(b));
 }
-
-constexpr auto operator+(const AbstractVector auto &a,
-                         const AbstractVector auto &b) {
-  return ElementwiseVectorBinaryOp(std::plus<>{}, view(a), view(b));
+template <class A, Compatible<A> B>
+constexpr auto operator&(const A &a, const B &b) {
+  return ElementwiseBinaryOp(std::bit_and<>{}, view(a), view(b));
 }
-constexpr auto operator+(const AbstractMatrix auto &a,
-                         const AbstractMatrix auto &b) {
-  return ElementwiseMatrixBinaryOp(std::plus<>{}, view(a), view(b));
+template <class A, Compatible<A> B>
+constexpr auto operator|(const A &a, const B &b) {
+  return ElementwiseBinaryOp(std::bit_or<>{}, view(a), view(b));
 }
-constexpr auto operator-(const AbstractVector auto &a,
-                         const AbstractVector auto &b) {
-  return ElementwiseVectorBinaryOp(std::minus<>{}, view(a), view(b));
-}
-constexpr auto operator-(const AbstractMatrix auto &a,
-                         const AbstractMatrix auto &b) {
-  return ElementwiseMatrixBinaryOp(std::minus<>{}, view(a), view(b));
+template <class A, Compatible<A> B>
+constexpr auto operator^(const A &a, const B &b) {
+  return ElementwiseBinaryOp(std::bit_xor<>{}, view(a), view(b));
 }
 
-constexpr auto operator/(const AbstractVector auto &a,
-                         const AbstractVector auto &b) {
-  return ElementwiseVectorBinaryOp(std::divides<>{}, view(a), view(b));
+template <class A, Compatible<A> B>
+constexpr auto elementwise_equal(const A &a, const B &b) {
+  return ElementwiseBinaryOp(std::equal_to<>{}, view(a), view(b));
+}
+template <class A, Compatible<A> B>
+constexpr auto elementwise_not_equal(const A &a, const B &b) {
+  return ElementwiseBinaryOp(std::not_equal_to<>{}, view(a), view(b));
+}
+template <class A, Compatible<A> B>
+constexpr auto elementwise_greater(const A &a, const B &b) {
+  return ElementwiseBinaryOp(std::greater<>{}, view(a), view(b));
+}
+template <class A, Compatible<A> B>
+constexpr auto elementwise_less(const A &a, const B &b) {
+  return ElementwiseBinaryOp(std::less<>{}, view(a), view(b));
+}
+template <class A, Compatible<A> B>
+constexpr auto elementwise_greater_equal(const A &a, const B &b) {
+  return ElementwiseBinaryOp(std::greater_equal<>{}, view(a), view(b));
+}
+template <class A, Compatible<A> B>
+constexpr auto elementwise_less_equal(const A &a, const B &b) {
+  return ElementwiseBinaryOp(std::less_equal<>{}, view(a), view(b));
 }
 
-// constexpr auto operator*(AbstractMatrix auto &A, AbstractVector auto &x) {
-//     auto AA{A.view()};
-//     auto xx{x.view()};
-//     return MatMul<decltype(AA), decltype(xx)>{.a = AA, .b = xx};
-// }
-static_assert(
-  AbstractMatrix<
-    ElementwiseMatrixBinaryOp<std::multiplies<>, PtrMatrix<int64_t>, int>>,
-  "ElementwiseBinaryOp isa AbstractMatrix failed");
+static_assert(AbstractMatrix<ElementwiseBinaryOp<PtrMatrix<int64_t>, int,
+                                                 std::multiplies<>>>,
+              "ElementwiseBinaryOp isa AbstractMatrix failed");
 
 static_assert(
   !AbstractVector<MatMatMul<PtrMatrix<int64_t>, PtrMatrix<int64_t>>>,
@@ -538,9 +639,12 @@ static_assert(AbstractMatrix<MatMatMul<PtrMatrix<int64_t>, PtrMatrix<int64_t>>>,
 static_assert(AbstractMatrix<Transpose<PtrMatrix<int64_t>>>);
 
 template <AbstractVector V>
-constexpr auto operator*(const Transpose<V> &a, const AbstractVector auto &b) {
-  typename V::value_type s = 0;
-  for (ptrdiff_t i = 0; i < b.size(); ++i) s += a.a(i) * b(i);
+constexpr auto operator*(const Transpose<V> &at, const AbstractVector auto &b) {
+  utils::promote_eltype_t<V, decltype(b)> s{};
+  auto a = at.transpose();
+  ptrdiff_t l = a.size();
+  invariant(l == b.size());
+  for (ptrdiff_t i = 0; i < l; ++i) s += a[i] * b[i];
   return s;
 }
 
@@ -587,18 +691,17 @@ template <typename T, typename I> struct SliceView {
 };
 
 static_assert(AbstractVector<SliceView<int64_t, unsigned>>);
+constexpr auto abs2(auto x) { return x * x; }
 
 template <AbstractVector B> constexpr auto norm2(const B &A) {
-  using T = typename B::value_type;
-  T s = 0;
-  for (ptrdiff_t j = 0; j < A.numCol(); ++j) s += A(j) * A(j);
+  utils::eltype_t<B> s = 0;
+  for (ptrdiff_t j = 0; j < A.size(); ++j) s += abs2(A[j]);
   return s;
 }
 template <AbstractMatrix B> constexpr auto norm2(const B &A) {
-  using T = typename B::value_type;
-  T s = 0;
+  utils::eltype_t<B> s = 0;
   for (ptrdiff_t i = 0; i < A.numRow(); ++i)
-    for (ptrdiff_t j = 0; j < A.numCol(); ++j) s += A(i, j) * A(i, j);
+    for (ptrdiff_t j = 0; j < A.numCol(); ++j) s += abs2(A(i, j));
   return s;
 }
 
