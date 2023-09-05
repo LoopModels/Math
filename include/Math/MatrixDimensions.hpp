@@ -188,5 +188,6 @@ concept MatrixDimension = requires(D d) {
 static_assert(MatrixDimension<SquareDims>);
 static_assert(MatrixDimension<DenseDims>);
 static_assert(MatrixDimension<StridedDims>);
+static_assert(!MatrixDimension<unsigned>);
 
 } // namespace poly::math

@@ -61,6 +61,8 @@ template <typename T, typename C>
 concept TrivialCompatibile = Trivial<T> && Compatible<T, C>;
 template <typename T>
 concept TrivialVecOrMat = Trivial<T> && VecOrMat<T>;
+template <typename T>
+concept TrivialDataMatrix = Trivial<T> && DataMatrix<T>;
 
 //   // TODO: binary func invocable trait?
 // template <typename Op, typename T, typename S>

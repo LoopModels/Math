@@ -34,9 +34,11 @@ TEST(DualTest, BasicAssertions) {
   EXPECT_TRUE(std::abs(fxx - f) < 1e-10);
   EXPECT_TRUE(norm2(g - gx) < 1e-10);
   EXPECT_TRUE(norm2(g - gxx) < 1e-10);
-  for (ptrdiff_t i = 1; i < hxx.numRow(); ++i)
-    for (ptrdiff_t j = 0; j < i; ++j) hxx(i, j) = hxx(j, i);
-  // std::cout << "B = " << B << "\nhxx = " << hxx << std::endl;
+  std::cout << "g = " << g << "\ngxx = " << gxx << std::endl;
+  std::cout << "B = " << B << "\nhxx = " << hxx << std::endl;
+  for (ptrdiff_t i = 0; i < hxx.numRow(); ++i)
+    for (ptrdiff_t j = i + 1; j < hxx.numCol(); ++j) hxx(i, j) = hxx(j, i);
+  std::cout << "hxx = " << hxx << std::endl;
   EXPECT_TRUE(norm2(B - hxx) < 1e-10);
 };
 
