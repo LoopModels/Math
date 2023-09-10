@@ -146,6 +146,21 @@ template <class T, ptrdiff_t N> constexpr auto exp(Dual<T, N> x) -> Dual<T, N> {
   T expx = exp(x.value());
   return {expx, expx * x.gradient()};
 }
+template <class T, ptrdiff_t N>
+constexpr auto sigmoid(Dual<T, N> x) -> Dual<T, N> {
+  T s = sigmoid(x.value());
+  return {s, (s - s * s) * x.gradient()};
+}
+template <class T, ptrdiff_t N>
+constexpr auto softplus(Dual<T, N> x) -> Dual<T, N> {
+  return {softplus(x.value()), sigmoid(x.value()) * x.gradient()};
+}
+
+constexpr auto dval(double &x) -> double & { return x; }
+template <typename T, ptrdiff_t N>
+constexpr auto dval(Dual<T, N> &x) -> double & {
+  return dval(x.value());
+}
 
 class GradientResult {
   double x;
@@ -172,15 +187,36 @@ public:
   }
 };
 
+template <ptrdiff_t N, AbstractVector T> struct DualVector {
+  using value_type = Dual<utils::eltype_t<T>, N>;
+  static_assert(Trivial<T>);
+  T x;
+  ptrdiff_t offset;
+  [[nodiscard]] constexpr auto operator[](ptrdiff_t i) const -> value_type {
+    value_type v{x[i]};
+    if ((i >= offset) && (i < offset + N)) dval(v.gradient()[i - offset]) = 1.0;
+    return v;
+  }
+  [[nodiscard]] constexpr auto size() const -> ptrdiff_t { return x.size(); }
+  [[nodiscard]] constexpr auto view() const -> DualVector { return *this; }
+};
+static_assert(AbstractVector<DualVector<8, PtrVector<double>>>);
+static_assert(AbstractVector<DualVector<2, DualVector<8, PtrVector<double>>>>);
+
+template <ptrdiff_t N>
+constexpr auto dual(const AbstractVector auto &x, ptrdiff_t offset) {
+  return DualVector<N, decltype(x.view())>{x.view(), offset};
+}
+
 struct Assign {
-  constexpr auto operator()(double &x, double y) const { x = y; }
+  constexpr void operator()(double &x, double y) const { x = y; }
 };
 struct Increment {
-  constexpr auto operator()(double &x, double y) const { x += y; }
+  constexpr void operator()(double &x, double y) const { x += y; }
 };
 struct ScaledIncrement {
   double scale;
-  constexpr auto operator()(double &x, double y) const { x += scale * y; }
+  constexpr void operator()(double &x, double y) const { x += scale * y; }
 };
 
 constexpr auto gradient(utils::Arena<> *arena, PtrVector<double> x,
@@ -190,17 +226,11 @@ constexpr auto gradient(utils::Arena<> *arena, PtrVector<double> x,
   ptrdiff_t N = x.size();
   MutPtrVector<double> grad = vector<double>(arena, N);
   auto p = arena->scope();
-  MutPtrVector<D> dx = vector<D>(arena, N);
-  for (ptrdiff_t i = 0; i < N; ++i) dx[i] = x[i];
   for (ptrdiff_t i = 0;; i += U) {
-    for (ptrdiff_t j = 0; ((j < U) && (i + j < N)); ++j)
-      dx[i + j] = D(x[i + j], j);
-    D fx = utils::call(*arena, f, dx);
+    D fx = utils::call(*arena, f, dual<U>(x, i));
     for (ptrdiff_t j = 0; ((j < U) && (i + j < N)); ++j)
       grad[i + j] = fx.gradient()[j];
     if (i + U >= N) return std::make_pair(fx.value(), grad);
-    for (ptrdiff_t j = 0; ((j < U) && (i + j < N)); ++j)
-      dx[i + j] = x[i + j]; // reset
   }
 }
 // only computes the upper triangle blocks
@@ -210,62 +240,38 @@ constexpr auto extractDualValRecurse(const Dual<T, N> &x) {
   return extractDualValRecurse(x.value());
 }
 
-template <bool Preserve = false, MatrixDimension S, ptrdiff_t Ui, ptrdiff_t Uj>
+template <MatrixDimension S>
 constexpr auto hessian(MutPtrVector<double> grad, MutArray<double, S> hess,
-                       MutPtrVector<Dual<Dual<double, Ui>, Uj>> dx,
-                       const auto &f, auto update) -> double {
+                       PtrVector<double> x, const auto &f, auto update)
+  -> double {
+  constexpr ptrdiff_t Ui = 8;
+  constexpr ptrdiff_t Uj = 2;
   using D = Dual<double, Ui>;
   using DD = Dual<D, Uj>;
-  ptrdiff_t N = dx.size();
+  ptrdiff_t N = x.size();
   invariant(N == grad.size());
   invariant(N == hess.numCol());
   invariant(N == hess.numRow());
   for (ptrdiff_t j = 0;; j += Uj) {
     bool jbr = j + Uj >= N;
-    for (ptrdiff_t k = 0; ((k < Uj) && (j + k < N)); ++k)
-      dx[j + k].gradient(k).value() = 1.0;
-
     for (ptrdiff_t i = 0;; i += Ui) {
       // df^2/dx_i dx_j
       bool ibr = i + Ui - Uj >= j;
       // we want to copy into both regions _(j, j+Uj) and _(i, i+Ui)
       // these regions overlap for the last `i` iteration only
-      for (ptrdiff_t k = 0; ((k < Ui) && (i + k < N)); ++k)
-        dx[i + k].value().gradient(k) = 1.0;
-
-      DD fx = f(dx);
-      // DD fx = utils::call(arena, f, dx);
+      DD fx = f(dual<Uj>(dual<Ui>(x, i), j));
+      // DD fx = utils::call(arena, f, x);
       for (ptrdiff_t k = 0; ((k < Uj) && (j + k < N)); ++k)
         for (ptrdiff_t l = 0; ((l < Ui) && (i + l < N)); ++l)
           update(hess(j + k, i + l), fx.gradient()[k].gradient()[l]);
       if (jbr)
         for (ptrdiff_t k = 0; ((k < Ui) && (i + k < N)); ++k)
           grad[i + k] = fx.value().gradient()[k];
-      if constexpr (!Preserve)
-        if (ibr && jbr) return fx.value().value();
-      for (ptrdiff_t k = 0; ((k < Ui) && (i + k < N)); ++k)
-        dx[i + k].value().gradient(k) = 0.0;
       if (!ibr) continue;
-      for (ptrdiff_t k = 0; ((k < Uj) && (j + k < N)); ++k)
-        dx[j + k].gradient(k).value() = 0.0;
-      if constexpr (Preserve)
-        if (jbr) return fx.value().value();
+      if (jbr) return fx.value().value();
       break;
     }
   }
-}
-template <MatrixDimension S>
-constexpr auto hessian(utils::Arena<> arena, MutPtrVector<double> grad,
-                       MutArray<double, S> hess, PtrVector<double> x,
-                       const auto &f, auto update) -> double {
-  constexpr ptrdiff_t Ui = 8;
-  constexpr ptrdiff_t Uj = 2;
-  using D = Dual<double, Ui>;
-  using DD = Dual<D, Uj>;
-  ptrdiff_t N = x.size();
-  MutPtrVector<DD> dx = vector<DD>(&arena, N);
-  for (ptrdiff_t i = 0; i < N; ++i) dx[i] = x[i];
-  return hessian<false>(grad, hess, dx, f, update);
 }
 constexpr auto hessian(utils::Arena<> *arena, PtrVector<double> x,
                        const auto &f) {
@@ -273,7 +279,7 @@ constexpr auto hessian(utils::Arena<> *arena, PtrVector<double> x,
   MutPtrVector<double> grad = vector<double>(arena, N);
   MutSquarePtrMatrix<double> hess = matrix<double>(arena, N);
   Assign assign{};
-  return std::make_tuple(hessian(*arena, grad, hess, x, f, assign), grad, hess);
+  return std::make_tuple(hessian(grad, hess, x, f, assign), grad, hess);
 }
 static_assert(MatrixDimension<SquareDims>);
 

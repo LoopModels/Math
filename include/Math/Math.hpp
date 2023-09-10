@@ -266,6 +266,7 @@ inline constexpr auto view(const auto &x) { return x.view(); }
 template <class T, class S> constexpr auto view(const Array<T, S> &x) {
   return x;
 }
+constexpr auto transpose(const auto &a) { return Transpose{view(a)}; }
 
 template <TrivialVecOrMat C, Trivial A, Trivial B>
 struct Select : public AbstractSelect<C, A, B> {

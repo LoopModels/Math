@@ -393,4 +393,9 @@ constexpr auto exp2(unsigned x) -> double {
   return std::bit_cast<double>((uint64_t(x) + 1023) << 52);
 }
 
+constexpr auto log1p(double x) -> double { return std::log1p(x); }
+constexpr auto sigmoid(double x) -> double { return 1.0 / (1.0 + exp(-x)); }
+constexpr auto softplus(double x) -> double { return log1p(exp(x)); }
+constexpr auto logit(double x) -> double { return log(x / (1.0 - x)); }
+
 } // namespace poly::math

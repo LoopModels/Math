@@ -57,7 +57,13 @@ template <typename A> struct Transpose {
 
   using value_type = utils::eltype_t<A>;
   [[no_unique_address]] A a;
-  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const { return a(j, i); }
+  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const -> value_type {
+    if constexpr (AbstractMatrix<A>) return a(j, i);
+    else {
+      invariant(i == 0);
+      return a[j];
+    }
+  }
   [[nodiscard]] constexpr auto numRow() const -> Row {
     if constexpr (AbstractMatrix<A>) return Row{ptrdiff_t{a.numCol()}};
     else return Row{1};

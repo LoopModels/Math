@@ -71,11 +71,11 @@ TEST(DoubleFactorization, BasicAssertions) {
     B << C;
     // B = A \ B
     // C == A*B == A * (A \ B)
-    LDL::Fact(D).ldiv(MutPtrMatrix<double>(B));
+    LDL::factorize<>(D).ldiv(MutPtrMatrix<double>(B));
     EXPECT_TRUE(norm2(A * B - C) < 1e-10);
     B << C;
     D << A;
-    LDL::ldiv(A, MutPtrMatrix<double>(B));
+    LDL::ldiv<>(A, MutPtrMatrix<double>(B));
     EXPECT_TRUE(norm2(D * B - C) < 1e-10);
   }
 }

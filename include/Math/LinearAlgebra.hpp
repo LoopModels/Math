@@ -275,7 +275,8 @@ constexpr void rdiv(MutSquarePtrMatrix<T> A, MutPtrMatrix<T> B) {
 } // namespace LU
 
 /// factorizes symmetric full-rank (but not necessarilly positive-definite)
-/// matrix A into LDL^T, where L is lower-triangular with 1s on the diagonal
+/// matrix A into LD^-1L', where L is lower-triangular with 1s on the
+/// diagonal
 /// Only uses the lower triangle of A, overwriting it.
 /// `D` is stored into the diagonal of `A`.
 namespace LDL {
@@ -286,39 +287,45 @@ template <typename T> class Fact {
   MutSquarePtrMatrix<T> fact;
 
 public:
-  constexpr Fact(MutSquarePtrMatrix<T> A) : fact{A} {
-    Row M = fact.numRow();
-    invariant(M == fact.numCol());
-    for (ptrdiff_t k = 0; k < M; ++k) {
-      T Akk = fact(k, k);
-      T invAkk = 1.0 / Akk;
-      for (ptrdiff_t i = k + 1; i < M; ++i) fact(i, k) = fact(i, k) * invAkk;
-      for (ptrdiff_t i = k + 1; i < M; ++i) {
-        T Aik = fact(i, k) * Akk;
-        for (ptrdiff_t j = k + 1; j <= i; ++j) fact(i, j) -= Aik * fact(j, k);
-      }
-    }
-  }
+  constexpr Fact(MutSquarePtrMatrix<T> A) : fact{A} {};
 
   constexpr void ldiv(MutPtrMatrix<T> rhs) {
     auto [M, N] = rhs.size();
     invariant(ptrdiff_t(fact.numRow()), ptrdiff_t(M));
-    // LDL' x = rhs
+    // LD^-1L' x = rhs
     // L y = rhs // L is UnitLowerTriangular
     for (ptrdiff_t m = 0; m < M; ++m)
       for (ptrdiff_t k = 0; k < m; ++k) rhs(m, _) -= fact(m, k) * rhs(k, _);
-    // D L' x = y
-    // L' x = D^-1 y
+    // D^-1 L' x = y
+    // L' x = D y
     for (ptrdiff_t m = ptrdiff_t(M); m--;) {
-      rhs(m, _) /= fact(m, m);
+      rhs(m, _) *= fact(m, m);
       for (ptrdiff_t k = m + 1; k < M; ++k) rhs(m, _) -= fact(k, m) * rhs(k, _);
     }
   }
 };
 
-template <typename T>
+template <bool ForcePD = false, typename T>
+constexpr auto factorize(MutSquarePtrMatrix<T> A) -> Fact<T> {
+  Row M = A.numRow();
+  invariant(M == A.numCol());
+  for (ptrdiff_t k = 0; k < M; ++k) {
+    T Akk = A(k, k);
+    if constexpr (ForcePD) Akk = std::max(Akk, T(0.01));
+    T invAkk = 1.0 / Akk;
+    A(k, k) = invAkk;
+    A(_(k + 1, M), k) *= invAkk;
+    for (ptrdiff_t i = k + 1; i < M; ++i) {
+      T Aik = A(i, k) * Akk;
+      for (ptrdiff_t j = k + 1; j <= i; ++j) A(i, j) -= Aik * A(j, k);
+    }
+  }
+  return Fact{A};
+}
+
+template <bool ForcePD = false, typename T>
 constexpr void ldiv(MutSquarePtrMatrix<T> A, MutPtrMatrix<T> B) {
-  Fact(A).ldiv(B);
+  factorize<ForcePD>(A).ldiv(B);
 }
 
 } // namespace LDL

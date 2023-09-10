@@ -4,12 +4,13 @@
 #include "Math/Dual.hpp"
 #include "Math/Exp.hpp"
 #include "Math/LinearAlgebra.hpp"
+#include "Math/Matrix.hpp"
 #include "Utilities/TypePromotion.hpp"
 #include <gtest/gtest.h>
 #include <random>
 
 using namespace poly::math;
-using poly::utils::eltype_t;
+using poly::utils::eltype_t, poly::math::transpose;
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(DualTest, BasicAssertions) {
@@ -23,7 +24,7 @@ TEST(DualTest, BasicAssertions) {
   for (auto &xx : x) xx = dist(gen);
   SquareMatrix<double> B = A + A.transpose();
   const auto halfquadform = [&](const auto &y) {
-    return 0.5 * (y.transpose() * (B * y));
+    return 0.5 * (transpose(y) * (B * y));
   };
   Vector<double> g = B * x;
   auto f = halfquadform(x);
