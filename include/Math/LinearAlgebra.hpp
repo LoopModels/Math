@@ -290,17 +290,48 @@ public:
   constexpr Fact(MutSquarePtrMatrix<T> A) : fact{A} {};
 
   constexpr void ldiv(MutPtrMatrix<T> rhs) {
-    auto [M, N] = rhs.size();
-    invariant(ptrdiff_t(fact.numRow()), ptrdiff_t(M));
+    ptrdiff_t M = ptrdiff_t(rhs.numRow());
+    invariant(ptrdiff_t(fact.numRow()), M);
     // LD^-1L' x = rhs
     // L y = rhs // L is UnitLowerTriangular
     for (ptrdiff_t m = 0; m < M; ++m)
-      for (ptrdiff_t k = 0; k < m; ++k) rhs(m, _) -= fact(m, k) * rhs(k, _);
+      rhs(m, _) -= rhs(_(0, m), _).transpose() * fact(m, _(0, m));
+
     // D^-1 L' x = y
     // L' x = D y
-    for (ptrdiff_t m = ptrdiff_t(M); m--;) {
+    for (ptrdiff_t m = M; m--;) {
       rhs(m, _) *= fact(m, m);
-      for (ptrdiff_t k = m + 1; k < M; ++k) rhs(m, _) -= fact(k, m) * rhs(k, _);
+      rhs(m, _) -= rhs(_(m + 1, M), _).transpose() * fact(_(m + 1, M), m);
+    }
+  }
+  constexpr void ldiv(MutPtrVector<T> rhs) {
+    ptrdiff_t M = rhs.size();
+    invariant(ptrdiff_t(fact.numRow()), M);
+    // LD^-1L' x = rhs
+    // L y = rhs // L is UnitLowerTriangular
+    for (ptrdiff_t m = 0; m < M; ++m)
+      rhs[m] -= fact(m, _(0, m)).transpose() * rhs[_(0, m)];
+    // D^-1 L' x = y
+    // L' x = D y
+    for (ptrdiff_t m = M; m--;) {
+      rhs[m] *= fact(m, m);
+      rhs[m] -= fact(_(m + 1, M), m).transpose() * rhs[_(m + 1, M)];
+    }
+  }
+  constexpr void ldiv(MutPtrVector<T> dst, TrivialVec auto src) {
+    ptrdiff_t M = dst.size();
+    invariant(M == src.size());
+    invariant(ptrdiff_t(fact.numRow()), M);
+    // LD^-1L' x = rhs
+    // L y = rhs // L is UnitLowerTriangular
+    for (ptrdiff_t m = 0; m < M; ++m)
+      dst[m] = src[m] - fact(m, _(0, m)).transpose() * dst[_(0, m)];
+
+    // D^-1 L' x = y
+    // L' x = D y
+    for (ptrdiff_t m = M; m--;) {
+      dst[m] *= fact(m, m);
+      dst[m] -= fact(_(m + 1, M), m).transpose() * dst[_(m + 1, M)];
     }
   }
 };
@@ -326,6 +357,15 @@ constexpr auto factorize(MutSquarePtrMatrix<T> A) -> Fact<T> {
 template <bool ForcePD = false, typename T>
 constexpr void ldiv(MutSquarePtrMatrix<T> A, MutPtrMatrix<T> B) {
   factorize<ForcePD>(A).ldiv(B);
+}
+template <bool ForcePD = false, typename T>
+constexpr void ldiv(MutSquarePtrMatrix<T> A, MutPtrVector<T> B) {
+  factorize<ForcePD>(A).ldiv(B);
+}
+template <bool ForcePD = false, typename T>
+constexpr void ldiv(MutSquarePtrMatrix<T> A, MutPtrVector<T> B,
+                    TrivialVec auto C) {
+  factorize<ForcePD>(A).ldiv(B, C);
 }
 
 } // namespace LDL

@@ -172,18 +172,34 @@ public:
     return grad;
   }
 };
-class HessianResult {
-  double x;
+class HessianResultCore {
   double *ptr;
   unsigned dim;
 
 public:
-  [[nodiscard]] constexpr auto value() const -> double { return x; }
   [[nodiscard]] constexpr auto gradient() const -> MutPtrVector<double> {
     return {ptr, dim};
   }
   [[nodiscard]] constexpr auto hessian() const -> MutSquarePtrMatrix<double> {
     return {ptr + dim, dim};
+  }
+  constexpr HessianResultCore(utils::Arena<> *alloc, unsigned d)
+    : ptr{alloc->allocate<double>(size_t(d) * (d + 1))}, dim{d} {}
+};
+class HessianResult : public HessianResultCore {
+  double x{};
+
+public:
+  [[nodiscard]] constexpr auto value() -> double & { return x; }
+  [[nodiscard]] constexpr auto value() const -> double { return x; }
+
+  constexpr HessianResult(utils::Arena<> *alloc, unsigned d)
+    : HessianResultCore{alloc, d} {}
+
+  template <size_t I> constexpr auto get() const {
+    if constexpr (I == 0) return x;
+    else if constexpr (I == 1) return gradient();
+    else return hessian();
   }
 };
 
@@ -240,18 +256,18 @@ constexpr auto extractDualValRecurse(const Dual<T, N> &x) {
   return extractDualValRecurse(x.value());
 }
 
-template <MatrixDimension S>
-constexpr auto hessian(MutPtrVector<double> grad, MutArray<double, S> hess,
-                       PtrVector<double> x, const auto &f, auto update)
-  -> double {
+/// fills the lower triangle of the hessian
+constexpr auto hessian(HessianResultCore hr, PtrVector<double> x, const auto &f,
+                       auto update) -> double {
   constexpr ptrdiff_t Ui = 8;
   constexpr ptrdiff_t Uj = 2;
   using D = Dual<double, Ui>;
   using DD = Dual<D, Uj>;
   ptrdiff_t N = x.size();
+  MutPtrVector<double> grad = hr.gradient();
+  MutSquarePtrMatrix<double> hess = hr.hessian();
   invariant(N == grad.size());
   invariant(N == hess.numCol());
-  invariant(N == hess.numRow());
   for (ptrdiff_t j = 0;; j += Uj) {
     bool jbr = j + Uj >= N;
     for (ptrdiff_t i = 0;; i += Ui) {
@@ -273,14 +289,34 @@ constexpr auto hessian(MutPtrVector<double> grad, MutArray<double, S> hess,
     }
   }
 }
-constexpr auto hessian(utils::Arena<> *arena, PtrVector<double> x,
-                       const auto &f) {
-  ptrdiff_t N = x.size();
-  MutPtrVector<double> grad = vector<double>(arena, N);
-  MutSquarePtrMatrix<double> hess = matrix<double>(arena, N);
+constexpr auto hessian(HessianResultCore hr, PtrVector<double> x, const auto &f)
+  -> double {
   Assign assign{};
-  return std::make_tuple(hessian(grad, hess, x, f, assign), grad, hess);
+  return hessian(hr, x, f, assign);
+}
+
+constexpr auto hessian(utils::Arena<> *arena, PtrVector<double> x,
+                       const auto &f) -> HessianResult {
+  unsigned N = x.size();
+  HessianResult hr{arena, N};
+  hr.value() = hessian(hr, x, f);
+  return hr;
 }
 static_assert(MatrixDimension<SquareDims>);
 
 } // namespace poly::math
+namespace std {
+template <> struct tuple_size<poly::math::HessianResult> {
+  static constexpr size_t value = 3;
+};
+template <> struct tuple_element<size_t(0), poly::math::HessianResult> {
+  using type = double;
+};
+template <> struct tuple_element<size_t(1), poly::math::HessianResult> {
+  using type = poly::math::MutPtrVector<double>;
+};
+template <> struct tuple_element<size_t(2), poly::math::HessianResult> {
+  using type = poly::math::MutSquarePtrMatrix<double>;
+};
+
+} // namespace std

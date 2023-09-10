@@ -62,6 +62,10 @@ concept TrivialCompatibile = Trivial<T> && Compatible<T, C>;
 template <typename T>
 concept TrivialVecOrMat = Trivial<T> && VecOrMat<T>;
 template <typename T>
+concept TrivialVec = Trivial<T> && AbstractVector<T>;
+template <typename T>
+concept TrivialMat = Trivial<T> && AbstractMatrix<T>;
+template <typename T>
 concept TrivialDataMatrix = Trivial<T> && DataMatrix<T>;
 
 //   // TODO: binary func invocable trait?
@@ -267,6 +271,9 @@ template <class T, class S> constexpr auto view(const Array<T, S> &x) {
   return x;
 }
 constexpr auto transpose(const auto &a) { return Transpose{view(a)}; }
+template <typename T> constexpr auto transpose(const Transpose<T> &a) -> T {
+  return a.transpose();
+}
 
 template <TrivialVecOrMat C, Trivial A, Trivial B>
 struct Select : public AbstractSelect<C, A, B> {
