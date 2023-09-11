@@ -221,15 +221,21 @@ constexpr auto minimize(utils::Arena<> *alloc, MutPtrVector<double> x,
     fx = hessian(hr, xcur, f);
     if (hr.gradient().norm2() < tol2) break;
     LDL::ldiv<true>(hr.hessian(), dir, hr.gradient());
-    if (dir.norm2() < tol2) break;
+    if constexpr (!constrained)
+      if (dir.norm2() < tol2) break;
     double t = 0.0;
     for (ptrdiff_t i = 0; i < L; ++i) {
       // TODO: 0 clamped dirs
       t += hr.gradient()[i] * dir[i];
       double xi = xcur[i] - alpha * dir[i];
-      if constexpr (constrained) xi = std::clamp(xi, -EXTREME, EXTREME);
-      xnew[i] = xi;
+      if constexpr (constrained) {
+        double xinew = std::clamp(xi, -EXTREME, EXTREME);
+        if (xinew != xi) dir[i] = 0.0;
+        xnew[i] = xinew;
+      } else xnew[i] = xi;
     }
+    if constexpr (constrained)
+      if (dir.norm2() < tol2) break;
     t *= c;
     double fxnew = f(xnew);
     bool cond = (fx - fxnew) >= alpha * t;
