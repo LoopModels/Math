@@ -211,12 +211,11 @@ constexpr auto minimize(utils::Arena<> *alloc, MutPtrVector<double> x,
   constexpr double tol2 = tol * tol;
   constexpr double c = 0.5;
   constexpr double tau = 0.5;
-  double alpha = 1.0, fx;
+  double alpha = 0.25, fx;
   ptrdiff_t L = x.size();
   auto scope = alloc->scope();
-  auto *data = alloc->allocate<double>(3 * L);
-  MutPtrVector<double> xnew{data, L}, xtmp{data + L, L}, dir{data + 2 * L, L},
-    xcur{x};
+  auto *data = alloc->allocate<double>(2 * L);
+  MutPtrVector<double> xnew{data, L}, dir{data + L, L}, xcur{x};
   HessianResultCore hr{alloc, unsigned(L)};
   for (ptrdiff_t n = 0; n < 1000; ++n) {
     fx = hessian(hr, xcur, f);
@@ -241,19 +240,23 @@ constexpr auto minimize(utils::Arena<> *alloc, MutPtrVector<double> x,
         std::swap(xcur, xnew);
         break;
       }
+      double alphaorig = alpha;
       for (;;) {
         double alphanew = alpha * (1 / tau);
-        // TODO: write into `xcur` instead of `xtmp` by offsetting from `xnew`
-        //
+        // xnew == xcur - alphaorig * dir;
+        // xcur == xnew + alphaorig * dir;
+        // xtmp == xcur - alphanew * dir;
+        // xtmp == xnew + (alphaorig - alphanew) * dir;
+        // thus, we can use `xcur` as an `xtmp` buffer
+        double a = alphaorig - alphanew;
         for (ptrdiff_t i = 0; i < L; ++i) {
-
-          double xi = xcur[i] - alphanew * dir[i];
+          double xi = xnew[i] + a * dir[i];
           if constexpr (constrained) xi = std::clamp(xi, -EXTREME, EXTREME);
-          xtmp[i] = xi;
+          xcur[i] = xi;
         }
-        double fxtmp = f(xtmp);
+        double fxtmp = f(xcur);
         if ((fx - fxtmp) < alphanew * t) break;
-        std::swap(xtmp, xnew); // we keep xtmp as new best
+        std::swap(xcur, xnew); // we keep xcur as new best
         alpha = alphanew;
         fxnew = fxtmp;
         dobreak = (fx - fxtmp) <= tol;
