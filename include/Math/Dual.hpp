@@ -1,4 +1,5 @@
 #pragma once
+#include "Math/Exp.hpp"
 #include "Math/MatrixDimensions.hpp"
 #include "Math/Vector.hpp"
 #include <Math/Array.hpp>

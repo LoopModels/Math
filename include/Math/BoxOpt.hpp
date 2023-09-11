@@ -1,11 +1,9 @@
 #pragma once
 #include "Math/Array.hpp"
-#include "Math/Constructors.hpp"
 #include "Math/Dual.hpp"
 #include "Math/Exp.hpp"
 #include "Math/LinearAlgebra.hpp"
 #include "Math/Math.hpp"
-#include "Math/Vector.hpp"
 #include "Utilities/Allocators.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -16,9 +14,9 @@ constexpr double EXTREME = 8.0;
 
 class BoxTransformView {
 public:
-  constexpr BoxTransformView(double *f64, int32_t *i32, unsigned ntotal,
+  constexpr BoxTransformView(double *f, int32_t *i, unsigned ntotal,
                              unsigned nunfixed)
-    : f64{f64}, i32{i32}, Ntotal{ntotal}, Nunfixed{nunfixed} {}
+    : f64{f}, i32{i}, Ntotal{ntotal}, Nunfixed{nunfixed} {}
   [[nodiscard]] constexpr auto size() const -> unsigned { return Ntotal; }
   [[nodiscard]] constexpr auto numUnfixed() const -> unsigned {
     return Nunfixed;
@@ -29,7 +27,7 @@ public:
     int j = getInds()[i];
     double off = offs()[i];
     if (j < 0) return off;
-    return scales()[i] * x[j] + off;
+    return scales()[i] * sigmoid(x[j]) + off;
   }
   [[nodiscard]] constexpr auto view() const -> BoxTransformView {
     return *this;
@@ -108,7 +106,8 @@ public:
       offs()[i] = o;
     }
   }
-  constexpr void increaseLowerBound(ptrdiff_t idx, int32_t lb) {
+  constexpr void increaseLowerBound(MutPtrVector<double> &untrf, ptrdiff_t idx,
+                                    int32_t lb) {
     invariant(idx < Ntotal);
     invariant(lb > getLowerBounds()[idx]);
     int32_t ub = getUpperBounds()[idx];
@@ -117,16 +116,21 @@ public:
     double newScale, newOff;
     if (lb == ub) {
       --Nunfixed;
+      untrf.erase(getInds()[idx]);
       getInds()[idx] = -1;
       // we remove a fixed, so we must now decrement all following inds
       for (ptrdiff_t i = idx; ++i < Ntotal;) --getInds()[i];
       newScale = 0.0;
       newOff = lb;
-    } else std::tie(newScale, newOff) = scaleOff(lb, ub);
+    } else {
+      untrf[getInds()[idx]] = -EXTREME;
+      std::tie(newScale, newOff) = scaleOff(lb, ub);
+    }
     scales()[idx] = newScale;
     offs()[idx] = newOff;
   }
-  constexpr void decreaseUpperBound(ptrdiff_t idx, int32_t ub) {
+  constexpr void decreaseUpperBound(MutPtrVector<double> &untrf, ptrdiff_t idx,
+                                    int32_t ub) {
     invariant(idx < Ntotal);
     invariant(ub < getUpperBounds()[idx]);
     int32_t lb = getLowerBounds()[idx];
@@ -135,12 +139,16 @@ public:
     double newScale, newOff;
     if (lb == ub) {
       --Nunfixed;
+      untrf.erase(getInds()[idx]);
       getInds()[idx] = -1;
       // we remove a fixed, so we must now decrement all following inds
       for (ptrdiff_t i = idx; ++i < Ntotal;) --getInds()[i];
       newScale = 0.0;
       newOff = lb;
-    } else std::tie(newScale, newOff) = scaleOff(lb, ub);
+    } else {
+      untrf[getInds()[idx]] = EXTREME;
+      std::tie(newScale, newOff) = scaleOff(lb, ub);
+    }
     scales()[idx] = newScale;
     offs()[idx] = newOff;
   }
@@ -185,17 +193,19 @@ template <typename F> struct BoxCall {
   constexpr auto operator()(const AbstractVector auto &x) const
     -> utils::eltype_t<decltype(x)> {
     invariant(x.size() == transform.numUnfixed());
-    return f(BoxTransformVector{x.view(), transform}, transform);
+    return f(BoxTransformVector{x.view(), transform});
   }
 };
-template <typename F> consteval auto isboxcall(BoxCall<F>) -> bool {
-  return true;
-}
-consteval auto isboxcall(auto) -> bool { return false; }
+template <typename T> struct IsBoxCall {
+  static constexpr bool value = false;
+};
+template <typename F> struct IsBoxCall<BoxCall<F>> {
+  static constexpr bool value = true;
+};
 
 constexpr auto minimize(utils::Arena<> *alloc, MutPtrVector<double> x,
                         const auto &f) -> double {
-  constexpr bool constrained = isboxcall(f);
+  constexpr bool constrained = IsBoxCall<decltype(f)>::value;
   constexpr double tol = 1e-8;
   constexpr double tol2 = tol * tol;
   constexpr double c = 0.5;
@@ -206,8 +216,6 @@ constexpr auto minimize(utils::Arena<> *alloc, MutPtrVector<double> x,
   auto *data = alloc->allocate<double>(3 * L);
   MutPtrVector<double> xnew{data, L}, xtmp{data + L, L}, dir{data + 2 * L, L},
     xcur{x};
-  // MutPtrVector<double> dir{vector<double>(alloc, L)};
-  // MutPtrVector<double> xnew{vector<double>(alloc, L)}, xold{x};
   HessianResultCore hr{alloc, unsigned(L)};
   for (ptrdiff_t n = 0; n < 1000; ++n) {
     fx = hessian(hr, xcur, f);
@@ -275,9 +283,9 @@ constexpr auto minimize(utils::Arena<> *alloc, MutPtrVector<double> x,
   return fx;
 }
 
-constexpr auto minimize(PtrVector<double> x, BoxTransformView trf,
-                        const auto &f) -> MutPtrVector<double> {
-  return minimize(x, BoxCall<decltype(f)>{f, trf});
+constexpr auto minimize(utils::Arena<> *alloc, PtrVector<double> x,
+                        BoxTransformView trf, const auto &f) -> double {
+  return minimize(alloc, x, BoxCall<decltype(f)>{f, trf});
 }
 
 } // namespace poly::math
