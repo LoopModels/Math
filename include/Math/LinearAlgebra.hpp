@@ -342,7 +342,7 @@ constexpr auto factorize(MutSquarePtrMatrix<T> A) -> Fact<T> {
   invariant(M == A.numCol());
   for (ptrdiff_t k = 0; k < M; ++k) {
     T Akk = A(k, k);
-    if constexpr (ForcePD) Akk = std::max(Akk, T(0.01));
+    if constexpr (ForcePD) Akk = std::max(Akk, T(0.001));
     T invAkk = 1.0 / Akk;
     A(k, k) = invAkk;
     A(_(k + 1, M), k) *= invAkk;

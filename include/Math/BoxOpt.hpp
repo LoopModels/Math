@@ -205,7 +205,8 @@ template <typename F> struct IsBoxCall<BoxCall<F>> {
 
 constexpr auto minimize(utils::Arena<> *alloc, MutPtrVector<double> x,
                         const auto &f) -> double {
-  constexpr bool constrained = IsBoxCall<decltype(f)>::value;
+  constexpr bool constrained =
+    IsBoxCall<std::remove_cvref_t<decltype(f)>>::value;
   constexpr double tol = 1e-8;
   constexpr double tol2 = tol * tol;
   constexpr double c = 0.5;
@@ -224,6 +225,7 @@ constexpr auto minimize(utils::Arena<> *alloc, MutPtrVector<double> x,
     if (dir.norm2() < tol2) break;
     double t = 0.0;
     for (ptrdiff_t i = 0; i < L; ++i) {
+      // TODO: 0 clamped dirs
       t += hr.gradient()[i] * dir[i];
       double xi = xcur[i] - alpha * dir[i];
       if constexpr (constrained) xi = std::clamp(xi, -EXTREME, EXTREME);
@@ -241,6 +243,8 @@ constexpr auto minimize(utils::Arena<> *alloc, MutPtrVector<double> x,
       }
       for (;;) {
         double alphanew = alpha * (1 / tau);
+        // TODO: write into `xcur` instead of `xtmp` by offsetting from `xnew`
+        //
         for (ptrdiff_t i = 0; i < L; ++i) {
 
           double xi = xcur[i] - alphanew * dir[i];
@@ -252,27 +256,24 @@ constexpr auto minimize(utils::Arena<> *alloc, MutPtrVector<double> x,
         std::swap(xtmp, xnew); // we keep xtmp as new best
         alpha = alphanew;
         fxnew = fxtmp;
-        if ((fx - fxtmp) <= tol) {
-          dobreak = true;
-          break;
-        }
+        dobreak = (fx - fxtmp) <= tol;
+        if (dobreak) break;
       }
     } else {
       // failure, we shrink alpha
       for (;;) {
         alpha *= tau;
         for (ptrdiff_t i = 0; i < L; ++i) {
-
           double xi = xcur[i] - alpha * dir[i];
           if constexpr (constrained) xi = std::clamp(xi, -EXTREME, EXTREME);
           xnew[i] = xi;
         }
         fxnew = f(xnew);
+        dobreak = norm2(xcur - xnew) <= tol2;
+        if (dobreak) break;
         if ((fx - fxnew) < alpha * t) continue;
-        if (((fx - fxnew) <= tol) || (norm2(xcur - xnew) <= tol2)) {
-          dobreak = true;
-          break;
-        }
+        dobreak = (fx - fxnew) <= tol;
+        break;
       }
     }
     fx = fxnew;
