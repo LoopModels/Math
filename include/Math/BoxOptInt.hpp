@@ -8,8 +8,15 @@ namespace poly::math {
 
 // recursive branch and bound
 constexpr auto branchandbound(utils::Arena<> *alloc, MutPtrVector<double> x,
-                              BoxTransformView trf, double lower, double upper,
-                              const auto &f) -> double {}
+                              BoxTransform &trf, double lower, double upper,
+                              const auto &f) -> double {
+  ptrdiff_t j = trf.maxFractionalComponent<>(x);
+  if (j < 0) return lower; // was an integer solution
+  // if j >= 0, then `x[trf.getInds()[j]]` is the largest fractional component
+  // we'll thus split `trf` on it, creating two new boxes `trf1` and `trf2`
+  // and two new vectors `x1` and `x2`
+  // e.g., 3.4 -> two trfs with new bounds <=3 and >=4
+}
 // set floor and ceil
 // Assumes that integer floor of values is optimal
 constexpr auto minimizeIntSol(utils::Arena<> *alloc, MutPtrVector<int32_t> r,

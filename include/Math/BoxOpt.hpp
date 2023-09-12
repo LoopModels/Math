@@ -14,13 +14,9 @@ constexpr double EXTREME = 8.0;
 
 class BoxTransformView {
 public:
-  constexpr BoxTransformView(double *f, int32_t *i, unsigned ntotal,
-                             unsigned nunfixed)
-    : f64{f}, i32{i}, Ntotal{ntotal}, Nunfixed{nunfixed} {}
+  constexpr BoxTransformView(double *f, int32_t *i, unsigned ntotal)
+    : f64{f}, i32{i}, Ntotal{ntotal} {}
   [[nodiscard]] constexpr auto size() const -> unsigned { return Ntotal; }
-  [[nodiscard]] constexpr auto numUnfixed() const -> unsigned {
-    return Nunfixed;
-  }
   constexpr auto operator()(const AbstractVector auto &x, ptrdiff_t i) const
     -> utils::eltype_t<decltype(x)> {
     invariant(i < Ntotal);
@@ -38,6 +34,24 @@ public:
   [[nodiscard]] constexpr auto getUpperBounds() -> MutPtrVector<int32_t> {
     return {i32 + ptrdiff_t(2) * Ntotal, Ntotal};
   }
+  // gives max fractional ind on the transformed scale
+  template <bool Relative = true>
+  constexpr auto maxFractionalComponent(MutPtrVector<double> x) -> ptrdiff_t {
+    double max = 0.0;
+    ptrdiff_t k = -1;
+    for (ptrdiff_t i = 0, j = 0; i < Ntotal; ++i) {
+      double s = scales()[i];
+      if (s == 0.0) continue;
+      double a = s * sigmoid(x[j++]) + offs()[i];
+      double d = a - std::floor(a);
+      d = (d > 0.5) ? 1.0 - d : d;
+      if constexpr (Relative) d /= a;
+      if (d <= max) continue;
+      max = d;
+      k = i;
+    }
+    return k;
+  }
 
 protected:
   /// Ntotal offsets
@@ -48,7 +62,6 @@ protected:
   /// Ntotal upper bounds
   int32_t *i32;
   unsigned Ntotal;
-  unsigned Nunfixed;
 
   [[nodiscard]] constexpr auto getInds() const -> PtrVector<int32_t> {
     return {i32, Ntotal};
@@ -95,7 +108,7 @@ class BoxTransform : public BoxTransformView {
 public:
   constexpr BoxTransform(unsigned ntotal, int32_t lb, int32_t ub)
     : BoxTransformView{new double[long(2) * ntotal],
-                       new int32_t[long(3) * ntotal], ntotal, ntotal} {
+                       new int32_t[long(3) * ntotal], ntotal} {
     invariant(lb < ub);
     auto [s, o] = scaleOff(lb, ub);
     for (int32_t i = 0; i < int32_t(ntotal); ++i) {
@@ -115,7 +128,6 @@ public:
     getLowerBounds()[idx] = lb;
     double newScale, newOff;
     if (lb == ub) {
-      --Nunfixed;
       untrf.erase(getInds()[idx]);
       getInds()[idx] = -1;
       // we remove a fixed, so we must now decrement all following inds
@@ -138,7 +150,6 @@ public:
     getUpperBounds()[idx] = ub;
     double newScale, newOff;
     if (lb == ub) {
-      --Nunfixed;
       untrf.erase(getInds()[idx]);
       getInds()[idx] = -1;
       // we remove a fixed, so we must now decrement all following inds
@@ -161,14 +172,13 @@ public:
     delete[] i32;
   }
   constexpr BoxTransform(BoxTransform &&other) noexcept
-    : BoxTransformView{other.f64, other.i32, other.Ntotal, other.Nunfixed} {
+    : BoxTransformView{other.f64, other.i32, other.Ntotal} {
     other.f64 = nullptr;
     other.i32 = nullptr;
   }
   constexpr BoxTransform(const BoxTransform &other)
     : BoxTransformView{new double[long(2) * other.Ntotal],
-                       new int32_t[long(3) * other.Ntotal], other.Ntotal,
-                       other.Ntotal} {
+                       new int32_t[long(3) * other.Ntotal], other.Ntotal} {
     std::copy_n(other.f64, 2 * Ntotal, f64);
     std::copy_n(other.i32, 3 * Ntotal, i32);
   }
@@ -188,6 +198,8 @@ template <AbstractVector V> struct BoxTransformVector {
     return *this;
   }
 };
+template <AbstractVector V>
+BoxTransformVector(V, BoxTransformView) -> BoxTransformVector<V>;
 
 static_assert(AbstractVector<BoxTransformVector<PtrVector<double>>>);
 
@@ -196,7 +208,6 @@ template <typename F> struct BoxCall {
   BoxTransformView transform;
   constexpr auto operator()(const AbstractVector auto &x) const
     -> utils::eltype_t<decltype(x)> {
-    invariant(x.size() == transform.numUnfixed());
     return f(BoxTransformVector{x.view(), transform});
   }
 };
