@@ -88,7 +88,7 @@ concept BinaryFuncOfElts =
   return true;
 }
 
-template <typename Op, typename A> struct ElementwiseUnaryOp {
+template <typename Op, typename A> struct Elementwise {
   using value_type =
     decltype(std::declval<Op>()(std::declval<utils::eltype_t<A>>()));
   [[no_unique_address]] Op op;
@@ -382,9 +382,8 @@ static_assert(!AbstractMatrix<StridedVector<int64_t>>);
 
 // static_assert(std::is_trivially_copyable_v<MutStridedVector<int64_t>>);
 static_assert(std::is_trivially_copyable_v<
-              ElementwiseUnaryOp<std::negate<>, StridedVector<int64_t>>>);
-static_assert(
-  Trivial<ElementwiseUnaryOp<std::negate<>, StridedVector<int64_t>>>);
+              Elementwise<std::negate<>, StridedVector<int64_t>>>);
+static_assert(Trivial<Elementwise<std::negate<>, StridedVector<int64_t>>>);
 
 constexpr void swap(MutPtrMatrix<int64_t> A, Row i, Row j) {
   if (i == j) return;
@@ -513,38 +512,37 @@ inline auto operator<<(std::ostream &os, const T &A) -> std::ostream & {
 
 constexpr auto operator-(const AbstractVector auto &a) {
   auto AA{a.view()};
-  return ElementwiseUnaryOp<std::negate<>, decltype(AA)>{.op = std::negate<>{},
-                                                         .a = AA};
+  return Elementwise<std::negate<>, decltype(AA)>{.op = std::negate<>{},
+                                                  .a = AA};
 }
 constexpr auto operator-(const AbstractMatrix auto &a) {
   auto AA{a.view()};
-  return ElementwiseUnaryOp<std::negate<>, decltype(AA)>{.op = std::negate<>{},
-                                                         .a = AA};
+  return Elementwise<std::negate<>, decltype(AA)>{.op = std::negate<>{},
+                                                  .a = AA};
 }
 
 constexpr auto operator!(const AbstractVector auto &a) {
   auto AA{a.view()};
-  return ElementwiseUnaryOp<std::logical_not<>, decltype(AA)>{
-    .op = std::negate<>{}, .a = AA};
+  return Elementwise<std::logical_not<>, decltype(AA)>{.op = std::negate<>{},
+                                                       .a = AA};
 }
 constexpr auto operator!(const AbstractMatrix auto &a) {
   auto AA{a.view()};
-  return ElementwiseUnaryOp<std::logical_not<>, decltype(AA)>{
-    .op = std::negate<>{}, .a = AA};
+  return Elementwise<std::logical_not<>, decltype(AA)>{.op = std::negate<>{},
+                                                       .a = AA};
 }
 
 constexpr auto operator~(const AbstractVector auto &a) {
   auto AA{a.view()};
-  return ElementwiseUnaryOp<std::bit_not<>, decltype(AA)>{.op = std::negate<>{},
-                                                          .a = AA};
+  return Elementwise<std::bit_not<>, decltype(AA)>{.op = std::negate<>{},
+                                                   .a = AA};
 }
 constexpr auto operator~(const AbstractMatrix auto &a) {
   auto AA{a.view()};
-  return ElementwiseUnaryOp<std::bit_not<>, decltype(AA)>{.op = std::negate<>{},
-                                                          .a = AA};
+  return Elementwise<std::bit_not<>, decltype(AA)>{.op = std::negate<>{},
+                                                   .a = AA};
 }
-static_assert(
-  AbstractMatrix<ElementwiseUnaryOp<std::negate<>, PtrMatrix<int64_t>>>);
+static_assert(AbstractMatrix<Elementwise<std::negate<>, PtrMatrix<int64_t>>>);
 static_assert(AbstractMatrix<Array<int64_t, SquareDims>>);
 static_assert(AbstractMatrix<ManagedArray<int64_t, SquareDims>>);
 

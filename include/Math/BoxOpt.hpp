@@ -32,6 +32,12 @@ public:
   [[nodiscard]] constexpr auto view() const -> BoxTransformView {
     return *this;
   }
+  [[nodiscard]] constexpr auto getLowerBounds() -> MutPtrVector<int32_t> {
+    return {i32 + Ntotal, Ntotal};
+  }
+  [[nodiscard]] constexpr auto getUpperBounds() -> MutPtrVector<int32_t> {
+    return {i32 + ptrdiff_t(2) * Ntotal, Ntotal};
+  }
 
 protected:
   /// Ntotal offsets
@@ -61,12 +67,6 @@ protected:
   }
   [[nodiscard]] constexpr auto getInds() -> MutPtrVector<int32_t> {
     return {i32, Ntotal};
-  }
-  [[nodiscard]] constexpr auto getLowerBounds() -> MutPtrVector<int32_t> {
-    return {i32 + Ntotal, Ntotal};
-  }
-  [[nodiscard]] constexpr auto getUpperBounds() -> MutPtrVector<int32_t> {
-    return {i32 + ptrdiff_t(2) * Ntotal, Ntotal};
   }
   [[nodiscard]] constexpr auto offs() -> MutPtrVector<double> {
     return {f64, Ntotal};
@@ -153,6 +153,10 @@ public:
     offs()[idx] = newOff;
   }
   constexpr ~BoxTransform() {
+    if (f64 == nullptr) {
+      invariant(i32 == nullptr);
+      return;
+    }
     delete[] f64;
     delete[] i32;
   }
