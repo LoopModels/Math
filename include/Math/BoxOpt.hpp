@@ -134,11 +134,13 @@ template <AbstractVector V>
 BoxTransformVector(V, BoxTransformView) -> BoxTransformVector<V>;
 
 class BoxTransform : public BoxTransformView {
+  static constexpr ptrdiff_t NDV = 3;
+  static constexpr ptrdiff_t NIV = 3;
 
 public:
   constexpr BoxTransform(unsigned ntotal, int32_t lb, int32_t ub)
-    : BoxTransformView{new double[long(2) * ntotal],
-                       new int32_t[long(3) * ntotal], ntotal} {
+    : BoxTransformView{new double[NDV * ntotal], new int32_t[NIV * ntotal],
+                       ntotal} {
     invariant(lb < ub);
     auto [s, o] = scaleOff(lb, ub);
     for (int32_t i = 0; i < int32_t(ntotal); ++i) {
@@ -209,8 +211,8 @@ public:
     other.i32 = nullptr;
   }
   constexpr BoxTransform(const BoxTransform &other)
-    : BoxTransformView{new double[long(3) * other.Ntotal],
-                       new int32_t[long(3) * other.Ntotal], other.Ntotal,
+    : BoxTransformView{new double[NDV * other.Ntotal],
+                       new int32_t[NIV * other.Ntotal], other.Ntotal,
                        other.Nraw} {
     std::copy_n(other.f64, 2 * Ntotal + Nraw, f64);
     std::copy_n(other.i32, 3 * Ntotal, i32);
@@ -235,8 +237,8 @@ public:
   constexpr auto branch(ptrdiff_t i, int32_t nlb) -> BoxTransform {
     BoxTransform ret{*this};
     ret.getRaw() << getRaw();
-    ret.decreaseUpperBound(i, nlb);
-    increaseLowerBound(i, ++nlb);
+    decreaseUpperBound(i, nlb);
+    ret.increaseLowerBound(i, ++nlb);
     return ret;
   }
 
