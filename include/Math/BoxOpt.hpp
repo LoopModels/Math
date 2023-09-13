@@ -234,7 +234,7 @@ public:
   }
   // returns a copy of `this` with the `i`th upper bound decreased to `nlb`
   // this's `i`th lower bound gets increased to `nlb+1`
-  constexpr auto branch(ptrdiff_t i, int32_t nlb) -> BoxTransform {
+  constexpr auto fork(ptrdiff_t i, int32_t nlb) -> BoxTransform {
     BoxTransform ret{*this};
     ret.getRaw() << getRaw();
     decreaseUpperBound(i, nlb);

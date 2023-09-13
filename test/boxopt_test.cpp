@@ -1,11 +1,12 @@
 #include "Math/Array.hpp"
 #include "Math/BoxOpt.hpp"
+#include "Math/BoxOptInt.hpp"
 #include "Math/Exp.hpp"
 #include <gtest/gtest.h>
 #include <iostream>
 
 constexpr auto fcore(auto u1, auto u2) {
-  return (2 * u1 + u2 + u1 * u2) / (u1 * u2);
+  return (2.0 * u1 + u2 + u1 * u2) / (u1 * u2);
 }
 constexpr auto gcore(auto u1, auto u2) { return u1 + u1 * u2 - 31; }
 
@@ -39,4 +40,10 @@ TEST(BoxOptTest, BasicAssertions) {
   std::cout << "u01 = " << u01 << "; u11 = " << u11 << '\n';
   EXPECT_EQ(u01, 3.0);
   EXPECT_LT(std::abs(9.132 - u11), 1e-3);
+
+  poly::math::Vector<int32_t> r{0, 0};
+  double opti = poly::math::minimizeIntSol(&arena, r, 1, 32, fsoft);
+  EXPECT_GT(opti, opt1);
+  EXPECT_EQ(r[0], 3);
+  EXPECT_EQ(r[1], 9);
 };

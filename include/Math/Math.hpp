@@ -94,7 +94,9 @@ template <typename Op, typename A> struct Elementwise {
   [[no_unique_address]] Op op;
   [[no_unique_address]] A a;
   constexpr auto operator[](ptrdiff_t i) const { return op(a[i]); }
-  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const {
+  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const
+  requires(AbstractMatrix<A>)
+  {
     return op(a(i, j));
   }
 

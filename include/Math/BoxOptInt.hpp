@@ -14,7 +14,7 @@ constexpr auto branch(utils::Arena<> *alloc, BoxTransform &box, double upper,
   // we'll thus split `trf` on it, creating two new boxes `trf1` and `trf2`
   // and two new vectors `x1` and `x2`
   // e.g., 3.4 -> two trfs with new bounds <=3 and >=4
-  BoxTransform bin{box.branch(j, fl)};
+  BoxTransform bin{box.fork(j, fl)};
   upper = box.getRaw().empty() ? f(box.getLowerBounds())
                                : bound(alloc, box, upper, f);
   double oupper = bin.getRaw().empty() ? f(bin.getLowerBounds())
@@ -40,7 +40,7 @@ constexpr auto minimizeIntSol(utils::Arena<> *alloc, MutPtrVector<int32_t> r,
   box.getRaw() << -3.0;
   minimize(alloc, box, f);
   // cache upper bound result
-  r << Elementwise{[](auto &x) { return std::floor(x); }, box.transformed()};
+  r << Elementwise{[](auto x) { return std::floor(x); }, box.transformed()};
   double upper = f(r);
   double opt = branch(alloc, box, upper, upper, f);
   if (opt >= upper) return upper;
