@@ -17,24 +17,25 @@ TEST(BoxOptTest, BasicAssertions) {
   // opt2 = BoxOptNewton.minimize(fsoft, (2, 2), (1, 1), (3, 32))
   // @test SVector(opt2) ≈ SVector(3.0, 9.132451832031007) rtol = 1e-6
   poly::math::BoxTransform box(2, 1, 32);
-  poly::math::Vector<double> x0{-3.4, -3.4}; // approx 2 after transform
+  poly::math::MutPtrVector<double> x0{box.getRaw()};
+  x0 << -3.4; // approx 2 after transform
   constexpr auto fsoft = [](auto x) {
     auto u0 = x[0];
     auto u1 = x[1];
     return fcore(u0, u1) + 0.125 * poly::math::softplus(8.0 * gcore(u0, u1));
   };
   poly::utils::OwningArena<> arena;
-  double opt0 = poly::math::minimize(&arena, x0, box, fsoft);
-  double u0 = poly::math::BoxTransformVector{x0.view(), box}[0];
-  double u1 = poly::math::BoxTransformVector{x0.view(), box}[1];
+  double opt0 = poly::math::minimize(&arena, box, fsoft);
+  double u0 = box.transformed()[0];
+  double u1 = box.transformed()[1];
   std::cout << "u0 = " << u0 << "; u1 = " << u1 << '\n';
   EXPECT_LT(std::abs(3.4567 - u0), 1e-3);
   EXPECT_LT(std::abs(7.8 - u1), 1e-3);
-  box.decreaseUpperBound(x0, 0, 3);
-  double opt1 = poly::math::minimize(&arena, x0, box, fsoft);
+  box.decreaseUpperBound(0, 3);
+  double opt1 = poly::math::minimize(&arena, box, fsoft);
   EXPECT_LT(opt0, opt1);
-  double u01 = poly::math::BoxTransformVector{x0.view(), box}[0];
-  double u11 = poly::math::BoxTransformVector{x0.view(), box}[1];
+  double u01 = box.transformed()[0];
+  double u11 = box.transformed()[1];
   std::cout << "u01 = " << u01 << "; u11 = " << u11 << '\n';
   EXPECT_EQ(u01, 3.0);
   EXPECT_LT(std::abs(9.132 - u11), 1e-3);
