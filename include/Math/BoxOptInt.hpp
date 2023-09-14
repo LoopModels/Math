@@ -31,14 +31,16 @@ constexpr auto bound(utils::Arena<> *alloc, BoxTransform &box, double upper,
 }
 // set floor and ceil
 // Assumes that integer floor of values is optimal
-constexpr auto minimizeIntSol(utils::Arena<> *alloc, MutPtrVector<int32_t> r,
-                              int32_t lb, int32_t ub, const auto &f) {
+constexpr auto
+minimizeIntSol(utils::Arena<> *alloc, MutPtrVector<int32_t> r, int32_t lb,
+               int32_t ub, const auto &f,
+               double globalupper = std::numeric_limits<double>::infinity()) {
   // goal is to shrink all bounds such that lb==ub, i.e. we have all
   // integer solutions.
   unsigned N = r.size();
   poly::math::BoxTransform box{N, lb, ub};
   box.getRaw() << -3.0;
-  minimize(alloc, box, f);
+  if (minimize(alloc, box, f) >= globalupper) return globalupper;
   // cache upper bound result
   r << Elementwise{[](auto x) { return std::floor(x); }, box.transformed()};
   double upper = f(r);

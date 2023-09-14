@@ -106,6 +106,8 @@ template <typename Op, typename A> struct Elementwise {
   [[nodiscard]] constexpr auto numCol() const -> Col { return a.numCol(); }
   [[nodiscard]] constexpr auto view() const { return *this; };
 };
+template <typename Op, typename A> Elementwise(Op, A) -> Elementwise<Op, A>;
+
 // scalars broadcast
 template <typename S> constexpr auto get(const S &s, ptrdiff_t) -> S {
   return s;
