@@ -397,5 +397,11 @@ constexpr auto log1p(double x) -> double { return std::log1p(x); }
 constexpr auto sigmoid(double x) -> double { return 1.0 / (1.0 + exp(-x)); }
 constexpr auto softplus(double x) -> double { return log1p(exp(x)); }
 constexpr auto logit(double x) -> double { return log(x / (1.0 - x)); }
+constexpr auto smin(auto x, auto y, double l = 8.0) {
+  return y - softplus(l * (y - x)) / l;
+}
+constexpr auto smax(auto x, auto y, double l = 8.0) {
+  return y + softplus(l * (x - y)) / l;
+}
 
 } // namespace poly::math
