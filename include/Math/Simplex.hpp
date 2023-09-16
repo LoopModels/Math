@@ -923,8 +923,8 @@ public:
 static_assert(AbstractVector<Simplex::Solution>);
 
 static_assert(AbstractVector<PtrVector<Rational>>);
-static_assert(AbstractVector<ElementwiseVectorBinaryOp<
-                std::minus<>, PtrVector<Rational>, PtrVector<Rational>>>);
+static_assert(AbstractVector<ElementwiseBinaryOp<
+                PtrVector<Rational>, PtrVector<Rational>, std::minus<>>>);
 static_assert(std::movable<Simplex::Solution::iterator>);
 static_assert(std::indirectly_readable<Simplex::Solution::iterator>);
 static_assert(std::forward_iterator<Simplex::Solution::iterator>);

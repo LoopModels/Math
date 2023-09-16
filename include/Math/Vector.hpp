@@ -6,16 +6,21 @@
 #include <cstdint>
 
 namespace poly::math {
-template <typename T>
-concept AbstractVector = utils::HasEltype<T> && requires(T t, ptrdiff_t i) {
-  { t[i] } -> std::convertible_to<utils::eltype_t<T>>;
-  { t.size() } -> std::convertible_to<ptrdiff_t>;
-  { t.view() };
-  // {
-  //     std::remove_reference_t<T>::canResize
-  //     } -> std::same_as<const bool &>;
-  // {t.extendOrAssertSize(i)};
+
+template <typename T, typename S = utils::eltype_t<T>>
+concept LinearlyIndexable = requires(T t, ptrdiff_t i) {
+  { t[i] } -> std::convertible_to<S>;
 };
+template <typename T, typename S>
+concept LinearlyIndexableOrConvertible =
+  LinearlyIndexable<T, S> || std::convertible_to<T, S>;
+
+template <typename T>
+concept AbstractVector =
+  utils::HasEltype<T> && LinearlyIndexable<T> && requires(T t) {
+    { t.size() } -> std::convertible_to<ptrdiff_t>;
+    { t.view() };
+  };
 
 // This didn't work: #include "Math/Vector.hpp" NOLINT(unused-includes)
 // so I moved some code from "Math/Array.hpp" here instead.

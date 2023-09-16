@@ -6,7 +6,9 @@
 #include "Math/Rational.hpp"
 #include "Utilities/Invariant.hpp"
 #include <concepts>
-namespace poly::math::LU {
+#include <cstddef>
+namespace poly::math {
+namespace LU {
 [[nodiscard]] constexpr auto ldivrat(SquarePtrMatrix<Rational> F,
                                      PtrVector<unsigned> ipiv,
                                      MutPtrMatrix<Rational> rhs) -> bool {
@@ -236,8 +238,7 @@ template <typename S> constexpr auto factImpl(MutSquarePtrMatrix<S> A) {
     S invAkk = 1.0 / A(k, k);
     for (ptrdiff_t i = k + 1; i < M; ++i) A(i, k) = A(i, k) * invAkk;
     for (ptrdiff_t i = k + 1; i < M; ++i)
-      for (ptrdiff_t j = k + 1; j < M; ++j)
-        A(i, j) = A(i, j) - A(i, k) * A(k, j);
+      for (ptrdiff_t j = k + 1; j < M; ++j) A(i, j) -= A(i, k) * A(k, j);
   }
   return ipiv;
 }
@@ -271,4 +272,101 @@ constexpr void rdiv(MutSquarePtrMatrix<T> A, MutPtrMatrix<T> B) {
   rdiv(A, ipiv, B);
 }
 
-} // namespace poly::math::LU
+} // namespace LU
+
+/// factorizes symmetric full-rank (but not necessarilly positive-definite)
+/// matrix A into LD^-1L', where L is lower-triangular with 1s on the
+/// diagonal
+/// Only uses the lower triangle of A, overwriting it.
+/// `D` is stored into the diagonal of `A`.
+namespace LDL {
+
+/// NOT OWNING
+/// TODO: make the API consistent between LU and LDL
+template <typename T> class Fact {
+  MutSquarePtrMatrix<T> fact;
+
+public:
+  constexpr Fact(MutSquarePtrMatrix<T> A) : fact{A} {};
+
+  constexpr void ldiv(MutPtrMatrix<T> rhs) {
+    ptrdiff_t M = ptrdiff_t(rhs.numRow());
+    invariant(ptrdiff_t(fact.numRow()), M);
+    // LD^-1L' x = rhs
+    // L y = rhs // L is UnitLowerTriangular
+    for (ptrdiff_t m = 0; m < M; ++m)
+      rhs(m, _) -= rhs(_(0, m), _).transpose() * fact(m, _(0, m));
+
+    // D^-1 L' x = y
+    // L' x = D y
+    for (ptrdiff_t m = M; m--;) {
+      rhs(m, _) *= fact(m, m);
+      rhs(m, _) -= rhs(_(m + 1, M), _).transpose() * fact(_(m + 1, M), m);
+    }
+  }
+  constexpr void ldiv(MutPtrVector<T> rhs) {
+    ptrdiff_t M = rhs.size();
+    invariant(ptrdiff_t(fact.numRow()), M);
+    // LD^-1L' x = rhs
+    // L y = rhs // L is UnitLowerTriangular
+    for (ptrdiff_t m = 0; m < M; ++m)
+      rhs[m] -= fact(m, _(0, m)).transpose() * rhs[_(0, m)];
+    // D^-1 L' x = y
+    // L' x = D y
+    for (ptrdiff_t m = M; m--;) {
+      rhs[m] *= fact(m, m);
+      rhs[m] -= fact(_(m + 1, M), m).transpose() * rhs[_(m + 1, M)];
+    }
+  }
+  constexpr void ldiv(MutPtrVector<T> dst, TrivialVec auto src) {
+    ptrdiff_t M = dst.size();
+    invariant(M == src.size());
+    invariant(ptrdiff_t(fact.numRow()), M);
+    // LD^-1L' x = rhs
+    // L y = rhs // L is UnitLowerTriangular
+    for (ptrdiff_t m = 0; m < M; ++m)
+      dst[m] = src[m] - fact(m, _(0, m)).transpose() * dst[_(0, m)];
+
+    // D^-1 L' x = y
+    // L' x = D y
+    for (ptrdiff_t m = M; m--;) {
+      dst[m] *= fact(m, m);
+      dst[m] -= fact(_(m + 1, M), m).transpose() * dst[_(m + 1, M)];
+    }
+  }
+};
+
+template <bool ForcePD = false, typename T>
+constexpr auto factorize(MutSquarePtrMatrix<T> A) -> Fact<T> {
+  Row M = A.numRow();
+  invariant(M == A.numCol());
+  for (ptrdiff_t k = 0; k < M; ++k) {
+    T Akk = A(k, k);
+    if constexpr (ForcePD) Akk = std::max(Akk, T(0.001));
+    T invAkk = 1.0 / Akk;
+    A(k, k) = invAkk;
+    A(_(k + 1, M), k) *= invAkk;
+    for (ptrdiff_t i = k + 1; i < M; ++i) {
+      T Aik = A(i, k) * Akk;
+      for (ptrdiff_t j = k + 1; j <= i; ++j) A(i, j) -= Aik * A(j, k);
+    }
+  }
+  return Fact{A};
+}
+
+template <bool ForcePD = false, typename T>
+constexpr void ldiv(MutSquarePtrMatrix<T> A, MutPtrMatrix<T> B) {
+  factorize<ForcePD>(A).ldiv(B);
+}
+template <bool ForcePD = false, typename T>
+constexpr void ldiv(MutSquarePtrMatrix<T> A, MutPtrVector<T> B) {
+  factorize<ForcePD>(A).ldiv(B);
+}
+template <bool ForcePD = false, typename T>
+constexpr void ldiv(MutSquarePtrMatrix<T> A, MutPtrVector<T> B,
+                    TrivialVec auto C) {
+  factorize<ForcePD>(A).ldiv(B, C);
+}
+
+} // namespace LDL
+} // namespace poly::math

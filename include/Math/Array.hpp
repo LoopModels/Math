@@ -89,7 +89,7 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   constexpr auto operator=(Array &&) noexcept -> Array & = default;
   constexpr Array(const T *p, S s) : ptr(p), sz(s) {}
   constexpr Array(NotNull<const T> p, S s) : ptr(p), sz(s) {}
-  constexpr Array(const T *p, Row r, Col c) : ptr(p), sz(dimension<S>(r, c)) {}
+  constexpr Array(const T *p, Row r, Col c) : ptr(p), sz(S{r, c}) {}
   constexpr Array(NotNull<const T> p, Row r, Col c)
     : ptr(p), sz(dimension<S>(r, c)) {}
   template <std::convertible_to<S> V>
