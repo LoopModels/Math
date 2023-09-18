@@ -341,40 +341,50 @@ constexpr auto magic_round_const(double) -> double {
 }
 constexpr auto magic_round_const(float) -> float { return 1.048576e7F; }
 
+constexpr auto fma(double x, double y, double z) -> double {
+#ifdef __cpp_if_consteval
+  if consteval { // TODO drop when c++23 constexpr fma support is available
+    __float128 a = x, b = y, c = z;
+    return double(a * b + c);
+  } else {
+#endif
+    return std::fma(x, y, z);
+#ifdef __cpp_if_consteval
+  }
+#endif
+}
+
 constexpr auto expm1b_kernel(std::integral_constant<int, 2>, double x)
   -> double {
-  return x * std::fma(
-               std::fma(std::fma(0.009618130135925114, x, 0.055504115022757844),
-                        x, 0.2402265069590989),
-               x, 0.6931471805599393);
+  return x * fma(fma(fma(0.009618130135925114, x, 0.055504115022757844), x,
+                     0.2402265069590989),
+                 x, 0.6931471805599393);
 }
 constexpr auto expm1b_kernel(std::integral_constant<int, 3>, double x)
   -> double {
-  return x *
-         std::fma(std::fma(std::fma(0.04166666762124105, x, 0.1666666704849642),
-                           x, 0.49999999999999983),
-                  x, 0.9999999999999998);
+  return x * fma(fma(fma(0.04166666762124105, x, 0.1666666704849642), x,
+                     0.49999999999999983),
+                 x, 0.9999999999999998);
 }
 constexpr auto expm1b_kernel(std::integral_constant<int, 10>, double x)
   -> double {
-  return x * std::fma(std::fma(std::fma(std::fma(0.5393833837413015, x,
-                                                 1.1712561359457612),
-                                        x, 2.0346785922926713),
-                               x, 2.6509490552382577),
-                      x, 2.302585092994046);
+  return x * fma(fma(fma(fma(0.5393833837413015, x, 1.1712561359457612), x,
+                         2.0346785922926713),
+                     x, 2.6509490552382577),
+                 x, 2.302585092994046);
 }
 
 template <int B> constexpr auto exp_impl(double x) -> double {
   constexpr std::integral_constant<int, B> base{};
   if (x >= max_exp(x, base)) return std::numeric_limits<double>::infinity();
   if (x <= subnormal_exp(x, base)) return 0.0;
-  double floatN = std::fma(x, LogBo256INV(base), magic_round_const(x));
+  double floatN = fma(x, LogBo256INV(base), magic_round_const(x));
   auto N = std::bit_cast<uint64_t>(floatN);
   floatN -= magic_round_const(x);
-  double r = std::fma(floatN, LogBo256U(base), x);
-  r = std::fma(floatN, LogBo256L(base), r);
+  double r = fma(floatN, LogBo256U(base), x);
+  r = fma(floatN, LogBo256L(base), r);
   double jU = J_TABLE[N & 255];
-  double small = std::fma(jU, expm1b_kernel(base, r), jU);
+  double small = fma(jU, expm1b_kernel(base, r), jU);
   auto twopk = int64_t(N >> 8) << 52;
   return std::bit_cast<double>(twopk + std::bit_cast<int64_t>(small));
 }

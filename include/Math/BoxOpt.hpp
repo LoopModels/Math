@@ -101,7 +101,7 @@ protected:
   }
   static constexpr auto scaleOff(int32_t lb, int32_t ub)
     -> std::pair<double, double> {
-#if __cplusplus >= 202202L
+#ifdef __cpp_if_consteval
     // constexpr std::fma requires c++23
     constexpr double slb = sigmoid(-EXTREME);
     constexpr double sub = sigmoid(EXTREME);

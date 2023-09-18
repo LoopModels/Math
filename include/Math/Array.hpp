@@ -800,7 +800,7 @@ struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S, U> {
       if (nz <= oz) return;
       if (nz > this->capacity) {
         U newCapacity = U(nz);
-#if __cplusplus >= 202202L
+#ifdef __cpp_lib_allocate_at_least
         std::allocation_result res = allocator.allocate_at_least(newCapacity);
         T *newPtr = res.ptr;
         newCapacity = U(res.count);
@@ -821,7 +821,7 @@ struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S, U> {
            newM = unsigned{Row{nz}}, oldM = unsigned{Row{oz}};
       bool newAlloc = len > this->capacity;
       bool inPlace = !newAlloc;
-#if __cplusplus >= 202202L
+#ifdef __cpp_lib_allocate_at_least
       T *npt = this->data();
       if (newAlloc) {
         std::allocation_result res = allocator.allocate_at_least(len);
@@ -917,7 +917,7 @@ struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S, U> {
     U newCapacity = U(nz);
     if (newCapacity <= this->capacity) return;
       // allocate new, copy, deallocate old
-#if __cplusplus >= 202202L
+#ifdef __cpp_lib_allocate_at_least
     std::allocation_result res = allocator.allocate_at_least(newCapacity);
     T *newPtr = res.ptr;
     newCapacity = U(res.size);
@@ -985,7 +985,7 @@ protected:
   [[no_unique_address]] A allocator{};
 
   constexpr void allocateAtLeast(U len) {
-#if __cplusplus >= 202202L
+#ifdef __cpp_lib_allocate_at_least
     std::allocation_result res = allocator.allocate_at_least(len);
     this->ptr = res.ptr;
     this->capacity = res.count;
