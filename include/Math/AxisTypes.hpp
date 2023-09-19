@@ -2,6 +2,7 @@
 #include "Utilities/Invariant.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 #include <limits>
 
 /// LinAlg
