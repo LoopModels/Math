@@ -8,16 +8,12 @@
 #include "Math/Math.hpp"
 #include "Math/MatrixDimensions.hpp"
 #include "Math/VectorGreatestCommonDivisor.hpp"
-#include "Utilities/Invariant.hpp"
 #include <algorithm>
 #include <array>
-#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <map>
 #include <memory>
-#include <numeric>
 #include <utility>
 
 namespace poly::math::NormalForm {

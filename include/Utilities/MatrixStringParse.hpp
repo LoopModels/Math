@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Math/Array.hpp"
-#include "Math/Math.hpp"
 #include "Math/MatrixDimensions.hpp"
 #include <cstddef>
 #include <cstdint>

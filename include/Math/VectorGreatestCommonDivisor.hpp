@@ -1,6 +1,6 @@
 #pragma once
+#include "Math/Array.hpp"
 #include "Math/GreatestCommonDivisor.hpp"
-#include "Math/Math.hpp"
 #include <cstddef>
 #include <cstdint>
 

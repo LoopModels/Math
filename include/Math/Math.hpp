@@ -7,31 +7,14 @@
 #include "Math/Indexing.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/MatrixDimensions.hpp"
-#include "Math/Vector.hpp"
 #include "Utilities/TypePromotion.hpp"
 #include <algorithm>
-#include <charconv>
-#include <cmath>
-#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
-#include <iterator>
-#include <limits>
-#include <numeric>
-#include <optional>
-#include <ranges>
-#include <string>
 #include <string_view>
-#include <tuple>
 #include <type_traits>
 #include <utility>
-// #ifndef NDEBUG
-// #include <memory>
-// #include <stacktrace>
-// using stacktrace =
-//     std::basic_stacktrace<std::allocator<std::stacktrace_entry>>;
-// #endif
 
 namespace poly::math {
 struct Rational;

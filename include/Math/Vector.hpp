@@ -1,7 +1,6 @@
 #pragma once
 #include "Utilities/TypePromotion.hpp"
 #include <bit>
-#include <concepts>
 #include <cstddef>
 #include <cstdint>
 

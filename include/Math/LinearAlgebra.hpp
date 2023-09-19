@@ -2,10 +2,7 @@
 #include "Math/Array.hpp"
 #include "Math/Constructors.hpp"
 #include "Math/Math.hpp"
-#include "Math/MatrixDimensions.hpp"
 #include "Math/Rational.hpp"
-#include "Utilities/Invariant.hpp"
-#include <concepts>
 #include <cstddef>
 namespace poly::math {
 namespace LU {

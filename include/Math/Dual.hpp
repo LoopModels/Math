@@ -1,7 +1,6 @@
 #pragma once
 #include "Math/Exp.hpp"
 #include "Math/MatrixDimensions.hpp"
-#include "Math/Vector.hpp"
 #include <Math/Array.hpp>
 #include <Math/Constructors.hpp>
 #include <Math/Math.hpp>
@@ -9,7 +8,6 @@
 #include <Math/StaticArrays.hpp>
 #include <Utilities/Invariant.hpp>
 #include <cstddef>
-#include <functional>
 #include <utility>
 
 namespace poly::math {

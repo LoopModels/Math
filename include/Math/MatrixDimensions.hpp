@@ -1,8 +1,6 @@
 #pragma once
 
 #include "Math/AxisTypes.hpp"
-#include "Utilities/Invariant.hpp"
-#include <concepts>
 #include <cstddef>
 #include <cstdint>
 
