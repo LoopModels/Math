@@ -2,6 +2,7 @@
 
 #include "Containers/Storage.hpp"
 #include "Utilities/Invariant.hpp"
+#include <algorithm>
 #include <cstddef>
 #include <initializer_list>
 
