@@ -3,9 +3,6 @@
 #include "Math/MatrixDimensions.hpp"
 #include "Math/Vector.hpp"
 #include "Utilities/TypePromotion.hpp"
-#include <concepts>
-#include <cstdint>
-#include <memory>
 #include <type_traits>
 
 namespace poly::math {
@@ -49,7 +46,6 @@ concept AbstractRowMajorMatrix = AbstractMatrix<T> && requires(T t) {
 };
 
 template <typename A> struct Transpose {
-  // static constexpr bool isvector = AbstractVector<A>;
   static_assert(AbstractMatrix<A> || AbstractVector<A>,
                 "Argument to transpose is not a matrix or vector.");
   static_assert(std::is_trivially_copyable_v<A>,

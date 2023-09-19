@@ -2,17 +2,16 @@
 #include "Math/AxisTypes.hpp"
 #include "Math/Iterators.hpp"
 #include "Math/MatrixDimensions.hpp"
-#include "Utilities/Invariant.hpp"
 #include <cstddef>
 
 namespace poly::math {
 
-static inline constexpr struct Begin {
+[[maybe_unused]] static inline constexpr struct Begin {
   friend inline auto operator<<(std::ostream &os, Begin) -> std::ostream & {
     return os << 0;
   }
 } begin;
-static inline constexpr struct End {
+[[maybe_unused]] static inline constexpr struct End {
   friend inline auto operator<<(std::ostream &os, End) -> std::ostream & {
     return os << "end";
   }
@@ -45,7 +44,7 @@ constexpr auto operator+(OffsetBegin y, ScalarValueIndex auto x)
   -> OffsetBegin {
   return OffsetBegin{ptrdiff_t(x) + y.offset};
 }
-static constexpr inline struct OffsetEnd {
+[[maybe_unused]] static constexpr inline struct OffsetEnd {
   [[no_unique_address]] ptrdiff_t offset;
   friend inline auto operator<<(std::ostream &os, OffsetEnd r)
     -> std::ostream & {
@@ -74,7 +73,7 @@ concept ScalarRelativeIndex =
 template <typename T>
 concept ScalarIndex = std::integral<T> || ScalarRelativeIndex<T>;
 
-static constexpr inline struct Colon {
+[[maybe_unused]] static constexpr inline struct Colon {
   [[nodiscard]] inline constexpr auto operator()(auto B, auto E) const {
     return Range{standardizeRangeBound(B), standardizeRangeBound(E)};
   }

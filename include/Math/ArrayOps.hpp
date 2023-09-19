@@ -2,7 +2,6 @@
 
 #include "Math/Indexing.hpp"
 #include "Math/Matrix.hpp"
-#include "Math/MatrixDimensions.hpp"
 #include "Math/UniformScaling.hpp"
 #include "Math/Vector.hpp"
 #include <algorithm>

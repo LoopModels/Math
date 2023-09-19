@@ -2,8 +2,6 @@
 #include "Utilities/Invariant.hpp"
 #include <algorithm>
 #include <array>
-#include <cmath>
-#include <concepts>
 #include <cstdint>
 #include <limits>
 namespace poly::math {

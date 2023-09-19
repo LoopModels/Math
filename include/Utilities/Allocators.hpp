@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include <deque>
 #include <limits>
 #include <memory>
 #include <utility>
@@ -25,19 +24,13 @@
 #else
 // These declarations exist to support ASan with MSVC. If MSVC eventually ships
 // asan_interface.h in their headers, then we can remove this.
-#ifdef __cplusplus
 extern "C" {
-#endif
 void __asan_poison_memory_region(void const volatile *addr, size_t size);
 void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
-#ifdef __cplusplus
 } // extern "C"
-#endif
 #endif
 #else
 #define MATH_ADDRESS_SANITIZER_BUILD 0
-#define __asan_poison_memory_region(p, size)
-#define __asan_unpoison_memory_region(p, size)
 #endif
 
 #if __has_feature(memory_sanitizer)
@@ -46,8 +39,6 @@ void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 #define MATH_NO_SANITIZE_MEMORY_ATTRIBUTE __attribute__((no_sanitize_memory))
 #else
 #define MATH_MEMORY_SANITIZER_BUILD 0
-#define __msan_allocated_memory(p, size)
-#define __msan_unpoison(p, size)
 #define MATH_NO_SANITIZE_MEMORY_ATTRIBUTE
 #endif
 
@@ -114,8 +105,12 @@ public:
       return static_cast<char *>(p) + MetaSize;
     }
     auto p = bumpAlloc(Size);
+#if MATH_ADDRESS_SANITIZER_BUILD
     __asan_unpoison_memory_region(p, Size);
+#endif
+#if MATH_MEMORY_SANITIZER_BUILD
     __msan_allocated_memory(p, Size);
+#endif
 #ifndef NDEBUG
     fillWithJunk(p, Size);
 #endif
@@ -137,7 +132,9 @@ public:
                              std::forward<Args>(args)...);
   }
   constexpr void deallocate(void *Ptr, size_t Size) {
+#if MATH_ADDRESS_SANITIZER_BUILD
     __asan_poison_memory_region(Ptr, Size);
+#endif
     if constexpr (BumpUp) {
       if ((char *)Ptr + align(Size) == slab) slab = Ptr;
     } else if (Ptr == slab) {
@@ -167,9 +164,13 @@ public:
         if (Ptr == (char *)slab - align(capOld)) {
           slab = (char *)Ptr + align(capNew);
           if (!outOfSlab()) {
+#if MATH_ADDRESS_SANITIZER_BUILD
             __asan_unpoison_memory_region((char *)Ptr + capOld,
                                           capNew - capOld);
+#endif
+#if MATH_MEMORY_SANITIZER_BUILD
             __msan_allocated_memory((char *)Ptr + capOld, capNew - capOld);
+#endif
             return Ptr;
           }
         }
@@ -177,8 +178,12 @@ public:
         size_t extraSize = align(capNew - capOld);
         slab = (char *)slab - extraSize;
         if (!outOfSlab()) {
+#if MATH_ADDRESS_SANITIZER_BUILD
           __asan_unpoison_memory_region(slab, extraSize);
+#endif
+#if MATH_MEMORY_SANITIZER_BUILD
           __msan_allocated_memory(SlabCur, extraSize);
+#endif
           if constexpr (!ForOverwrite)
             std::copy_n((char *)Ptr, capOld, (char *)slab);
           return slab;
@@ -270,8 +275,12 @@ private:
       if (Ptr == (char *)slab - align(capOld)) {
         slab = (char *)Ptr + align(capNew);
         if (!outOfSlab()) {
+#if MATH_ADDRESS_SANITIZER_BUILD
           __asan_unpoison_memory_region((char *)Ptr + capOld, capNew - capOld);
+#endif
+#if MATH_MEMORY_SANITIZER_BUILD
           __msan_allocated_memory((char *)Ptr + capOld, capNew - capOld);
+#endif
           return Ptr;
         }
       }
@@ -279,8 +288,12 @@ private:
       size_t extraSize = align(capNew - capOld);
       slab = (char *)slab - extraSize;
       if (!outOfSlab()) {
+#if MATH_ADDRESS_SANITIZER_BUILD
         __asan_unpoison_memory_region(slab, extraSize);
+#endif
+#if MATH_MEMORY_SANITIZER_BUILD
         __msan_allocated_memory(SlabCur, extraSize);
+#endif
         return slab;
       }
     }

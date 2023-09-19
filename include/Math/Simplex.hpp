@@ -14,7 +14,6 @@
 #include <iostream>
 #include <limits>
 #include <new>
-#include <tuple>
 
 namespace poly::math {
 // #define VERBOSESIMPLEX

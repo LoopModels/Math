@@ -1,8 +1,6 @@
 #pragma once
 
 #include "GreatestCommonDivisor.hpp"
-#include "Utilities/Invariant.hpp"
-#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <ostream>

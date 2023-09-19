@@ -3,7 +3,7 @@
 #include "Containers/Storage.hpp"
 #include "Utilities/Invariant.hpp"
 #include <cstddef>
-#include <memory>
+
 namespace poly::containers {
 using utils::invariant;
 template <class T, size_t N> class TinyVector {
