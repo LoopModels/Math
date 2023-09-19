@@ -193,10 +193,9 @@ struct ElementwiseBinaryOp {
     } else if constexpr (AbstractMatrix<A>) return a.numCol();
     else if constexpr (AbstractMatrix<B>) return b.numCol();
   }
-  [[nodiscard]] constexpr auto dim() const -> DenseDims
-  requires(ismatrix)
-  {
-    return {numRow(), numCol()};
+  [[nodiscard]] constexpr auto dim() const {
+    if constexpr (isvector) return size();
+    else return DenseDims{numRow(), numCol()};
   }
 
   [[nodiscard]] constexpr auto size() const {
@@ -685,15 +684,13 @@ template <typename T, typename I> struct SliceView {
 static_assert(AbstractVector<SliceView<int64_t, unsigned>>);
 constexpr auto abs2(auto x) { return x * x; }
 
-template <AbstractVector B> constexpr auto norm2(const B &A) {
+template <VecOrMat B> constexpr auto norm2(const B &A) {
   utils::eltype_t<B> s = 0;
-  for (ptrdiff_t j = 0; j < A.size(); ++j) s += abs2(A[j]);
-  return s;
-}
-template <AbstractMatrix B> constexpr auto norm2(const B &A) {
-  utils::eltype_t<B> s = 0;
-  for (ptrdiff_t i = 0; i < A.numRow(); ++i)
-    for (ptrdiff_t j = 0; j < A.numCol(); ++j) s += abs2(A(i, j));
+  if constexpr (!LinearlyIndexable<B, utils::eltype_t<B>>) {
+    for (ptrdiff_t i = 0; i < A.numRow(); ++i)
+      for (ptrdiff_t j = 0; j < A.numCol(); ++j) s += abs2(A(i, j));
+  } else
+    for (ptrdiff_t j = 0, L = ptrdiff_t(A.dim()); j < L; ++j) s += abs2(A[j]);
   return s;
 }
 
