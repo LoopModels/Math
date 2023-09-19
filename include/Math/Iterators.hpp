@@ -70,6 +70,15 @@ template <typename B, typename E>
 constexpr auto operator-(Range<B, E> r, ptrdiff_t x) {
   return Range{r.b - x, r.e - x};
 }
+template <typename B, typename E>
+constexpr auto operator+(ptrdiff_t x, Range<B, E> r) {
+  return Range{r.b + x, r.e + x};
+}
+template <typename B, typename E>
+constexpr auto operator-(ptrdiff_t x, Range<B, E> r) {
+  return Range{x - r.b, x - r.e};
+}
+
 constexpr auto skipFirst(const auto &x) {
   auto b = x.begin();
   return Range{++b, x.end()};

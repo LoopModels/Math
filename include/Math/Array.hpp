@@ -1663,5 +1663,5 @@ inline auto operator<<(std::ostream &os, Array<T, DenseDims> A)
   -> std::ostream & {
   return printMatrix(os, PtrMatrix<T>{A});
 }
-static_assert(std::same_as<decltype(_(0, 4) + 8), Range<ptrdiff_t, ptrdiff_t>>);
+
 } // namespace poly::math

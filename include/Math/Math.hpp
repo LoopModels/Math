@@ -23,6 +23,13 @@ template <class A>
 concept VecOrMat = AbstractVector<A> || AbstractMatrix<A>;
 
 template <class T, class C>
+concept RangeOffsetPair =
+  (std::convertible_to<T, Range<ptrdiff_t, ptrdiff_t>> &&
+   std::convertible_to<C, ptrdiff_t>) ||
+  (std::convertible_to<C, Range<ptrdiff_t, ptrdiff_t>> &&
+   std::convertible_to<T, ptrdiff_t>);
+
+template <class T, class C>
 concept Compatible =
   (VecOrMat<C> && std::convertible_to<T, utils::eltype_t<C>>) ||
   (VecOrMat<T> && std::convertible_to<C, utils::eltype_t<T>>) ||
@@ -565,11 +572,15 @@ constexpr auto operator*(const M &b, S a) {
 }
 
 template <class A, Compatible<A> B>
-constexpr auto operator+(const A &a, const B &b) {
+constexpr auto operator+(const A &a, const B &b)
+requires(!RangeOffsetPair<A, B>)
+{
   return ElementwiseBinaryOp(std::plus<>{}, view(a), view(b));
 }
 template <class A, Compatible<A> B>
-constexpr auto operator-(const A &a, const B &b) {
+constexpr auto operator-(const A &a, const B &b)
+requires(!RangeOffsetPair<A, B>)
+{
   return ElementwiseBinaryOp(std::minus<>{}, view(a), view(b));
 }
 template <class A, Compatible<A> B>
@@ -740,4 +751,6 @@ template <typename T> auto countNonZero(PtrMatrix<T> x) -> ptrdiff_t {
   for (ptrdiff_t r = 0; r < x.numRow(); ++r) count += countNonZero(x(r, _));
   return count;
 }
+static_assert(std::same_as<decltype(_(0, 4) + 8), Range<ptrdiff_t, ptrdiff_t>>);
+
 } // namespace poly::math
