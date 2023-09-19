@@ -430,6 +430,7 @@ public:
   template <typename U> struct rebind { // NOLINT(readability-identifier-naming)
     using other = WArena<U, SlabSize, BumpUp>;
   };
+  constexpr explicit WArena(Alloc *alloc) : A(alloc) {}
   constexpr explicit WArena(Alloc &alloc) : A(&alloc) {}
   constexpr explicit WArena(NotNull<Alloc> alloc) : A(alloc) {}
   constexpr explicit WArena(const WArena &other) = default;
