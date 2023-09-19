@@ -3,6 +3,7 @@
 #include "Containers/Storage.hpp"
 #include "Utilities/Invariant.hpp"
 #include <cstddef>
+#include <initializer_list>
 
 namespace poly::containers {
 using utils::invariant;
