@@ -533,20 +533,20 @@ static_assert(AbstractMatrix<Elementwise<std::negate<>, PtrMatrix<int64_t>>>);
 static_assert(AbstractMatrix<Array<int64_t, SquareDims>>);
 static_assert(AbstractMatrix<ManagedArray<int64_t, SquareDims>>);
 
-constexpr auto operator*(const AbstractMatrix auto &a, const VecOrMat auto &b) {
+constexpr auto operator*(const VecOrMat auto &a, const VecOrMat auto &b) {
   auto AA{a.view()};
   auto BB{b.view()};
   if constexpr (AbstractVector<decltype(BB)>) {
-    invariant(ptrdiff_t(AA.numCol()) == BB.size());
-    return MatVecMul<decltype(AA), decltype(BB)>{.a = AA, .b = BB};
+    if constexpr (AbstractVector<decltype(AA)>) {
+      ElementwiseBinaryOp(std::multiplies<>{}, AA, BB);
+    } else {
+      invariant(ptrdiff_t(AA.numCol()) == BB.size());
+      return MatVecMul<decltype(AA), decltype(BB)>{.a = AA, .b = BB};
+    }
   } else {
     invariant(ptrdiff_t(AA.numCol()) == ptrdiff_t(BB.numRow()));
     return MatMatMul<decltype(AA), decltype(BB)>{.a = AA, .b = BB};
   }
-}
-constexpr auto operator*(const AbstractVector auto &a,
-                         const AbstractVector auto &b) {
-  return ElementwiseBinaryOp(std::multiplies<>{}, view(a), view(b));
 }
 template <AbstractVector M, utils::ElementOf<M> S>
 constexpr auto operator*(const M &b, S a) {
