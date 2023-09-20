@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <gtest/gtest.h>
-#include <numeric>
 #include <random>
 using namespace poly::math;
 using poly::utils::operator""_mat;
@@ -30,7 +29,7 @@ TEST(OrthogonalizationTest, BasicAssertions) {
   SquareMatrix<int64_t> I4 = SquareMatrix<int64_t>::identity(4);
   for (ptrdiff_t i = 0; i < numIters; ++i) {
     for (ptrdiff_t n = 0; n < 4; ++n)
-      for (ptrdiff_t m = 0; m < 8; ++m) B(n, m) = distrib(gen);
+      for (ptrdiff_t m = 0; m < 8; ++m) B[n, m] = distrib(gen);
     // std::cout << "\nB = " << B << "\n";
     auto [K, included] = NormalForm::orthogonalize(B);
     orthCount += included.size();
@@ -40,7 +39,7 @@ TEST(OrthogonalizationTest, BasicAssertions) {
     if (included.size() == 4) {
       for (ptrdiff_t n = 0; n < 4; ++n) {
         ptrdiff_t m = 0;
-        for (auto mb : included) A(n, m++) = B(n, mb);
+        for (auto mb : included) A[n, m++] = B[n, mb];
       }
       std::cout << "K=\n" << K << "\n";
       std::cout << "A=\n" << A << "\n";
@@ -58,7 +57,7 @@ TEST(OrthogonalizationTest, BasicAssertions) {
               // std::cout << "A2(" << n << ", " << j << ") = " << A2(n, j)
               //              << "; B(" << n << ", " << included[j]
               //              << ") = " << B(n, included[j]) << "\n";
-              EXPECT_EQ(A2(n, j), B(n, included[j]));
+              EXPECT_EQ((A2[n, j]), (B[n, included[j]]));
             }
           }
         } else {
@@ -79,30 +78,30 @@ TEST(OrthogonalizationTest, BasicAssertions) {
             << numIters << "\nInv fact failed count: " << invFailedCount
             << " / " << numIters << "\n";
 
-  B(0, 0) = 1;
-  B(1, 0) = 0;
-  B(2, 0) = 1;
-  B(3, 0) = 0;
-  B(0, 1) = 0;
-  B(1, 1) = 1;
-  B(2, 1) = 0;
-  B(3, 1) = 1;
-  B(0, 2) = 1;
-  B(1, 2) = 0;
-  B(2, 2) = 0;
-  B(3, 2) = 0;
-  B(0, 3) = 0;
-  B(1, 3) = 1;
-  B(2, 3) = 0;
-  B(3, 3) = 0;
-  B(0, 4) = 0;
-  B(1, 4) = 0;
-  B(2, 4) = 1;
-  B(3, 4) = 0;
-  B(0, 5) = 0;
-  B(1, 5) = 0;
-  B(2, 5) = 0;
-  B(3, 5) = 1;
+  B[0, 0] = 1;
+  B[1, 0] = 0;
+  B[2, 0] = 1;
+  B[3, 0] = 0;
+  B[0, 1] = 0;
+  B[1, 1] = 1;
+  B[2, 1] = 0;
+  B[3, 1] = 1;
+  B[0, 2] = 1;
+  B[1, 2] = 0;
+  B[2, 2] = 0;
+  B[3, 2] = 0;
+  B[0, 3] = 0;
+  B[1, 3] = 1;
+  B[2, 3] = 0;
+  B[3, 3] = 0;
+  B[0, 4] = 0;
+  B[1, 4] = 0;
+  B[2, 4] = 1;
+  B[3, 4] = 0;
+  B[0, 5] = 0;
+  B[1, 5] = 0;
+  B[2, 5] = 0;
+  B[3, 5] = 1;
   std::cout << "B_orth_motivating_example = " << B << "\n";
   auto [K, included] = NormalForm::orthogonalize(B);
   // printVector(std::cout << "K = " << K << "\nincluded = ",
@@ -113,7 +112,7 @@ TEST(OrthogonalizationTest, BasicAssertions) {
   for (ptrdiff_t n = 0; n < 4; ++n) {
     ptrdiff_t m = 0;
     for (auto mb : included) {
-      A(n, m) = B(n, mb);
+      A[n, m] = B[n, mb];
       ++m;
     }
   }
@@ -129,14 +128,14 @@ auto isHNF(PtrMatrix<int64_t> A) -> bool {
   for (ptrdiff_t m = 0; m < M; ++m) {
     // all entries must be 0
     for (ptrdiff_t n = 0; n < l; ++n)
-      if (A(m, n)) return false;
+      if (A[m, n]) return false;
     // now search for next lead
-    while ((l < N) && A(m, l) == 0) ++l;
+    while ((l < N) && A[m, l] == 0) ++l;
     if (l == N) continue;
-    int64_t Aml = A(m, l);
+    int64_t Aml = A[m, l];
     if (Aml < 0) return false;
     for (ptrdiff_t r = 0; r < m; ++r) {
-      int64_t Arl = A(r, l);
+      int64_t Arl = A[r, l];
       if ((Arl >= Aml) || (Arl < 0)) return false;
     }
   }
@@ -146,51 +145,51 @@ auto isHNF(PtrMatrix<int64_t> A) -> bool {
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(Hermite, BasicAssertions) {
   {
-    IntMatrix A4x3(DenseDims{4, 3});
-    A4x3(0, 0) = 2;
-    A4x3(1, 0) = 3;
-    A4x3(2, 0) = 6;
-    A4x3(3, 0) = 2;
-    A4x3(0, 1) = 5;
-    A4x3(1, 1) = 6;
-    A4x3(2, 1) = 1;
-    A4x3(3, 1) = 6;
-    A4x3(0, 2) = 8;
-    A4x3(1, 2) = 3;
-    A4x3(2, 2) = 1;
-    A4x3(3, 2) = 1;
-    std::cout << "A=\n" << A4x3 << "\n";
-    auto [H, U] = NormalForm::hermite(A4x3);
+    IntMatrix A43(DenseDims{4, 3});
+    A43[0, 0] = 2;
+    A43[1, 0] = 3;
+    A43[2, 0] = 6;
+    A43[3, 0] = 2;
+    A43[0, 1] = 5;
+    A43[1, 1] = 6;
+    A43[2, 1] = 1;
+    A43[3, 1] = 6;
+    A43[0, 2] = 8;
+    A43[1, 2] = 3;
+    A43[2, 2] = 1;
+    A43[3, 2] = 1;
+    std::cout << "A=\n" << A43 << "\n";
+    auto [H, U] = NormalForm::hermite(A43);
     std::cout << "H=\n" << H << "\nU=\n" << U << "\n";
 
     EXPECT_TRUE(isHNF(H));
-    EXPECT_TRUE(H == U * A4x3);
+    EXPECT_TRUE(H == U * A43);
 
-    for (ptrdiff_t i = 0; i < 3; ++i) A4x3(2, i) = A4x3(0, i) + A4x3(1, i);
-    std::cout << "\n\n\n=======\n\nA=\n" << A4x3 << "\n";
-    auto [H2, U2] = NormalForm::hermite(A4x3);
+    for (ptrdiff_t i = 0; i < 3; ++i) A43[2, i] = A43[0, i] + A43[1, i];
+    std::cout << "\n\n\n=======\n\nA=\n" << A43 << "\n";
+    auto [H2, U2] = NormalForm::hermite(A43);
     std::cout << "H=\n" << H2 << "\nU=\n" << U2 << "\n";
     EXPECT_TRUE(isHNF(H2));
-    EXPECT_TRUE(H2 == U2 * A4x3);
+    EXPECT_TRUE(H2 == U2 * A43);
   }
   {
     SquareMatrix<int64_t> A(4);
-    A(0, 0) = 3;
-    A(1, 0) = -6;
-    A(2, 0) = 7;
-    A(3, 0) = 7;
-    A(0, 1) = 7;
-    A(1, 1) = -8;
-    A(2, 1) = 10;
-    A(3, 1) = 6;
-    A(0, 2) = -5;
-    A(1, 2) = 8;
-    A(2, 2) = 7;
-    A(3, 2) = 3;
-    A(0, 3) = -5;
-    A(1, 3) = -6;
-    A(2, 3) = 8;
-    A(3, 3) = -1;
+    A[0, 0] = 3;
+    A[1, 0] = -6;
+    A[2, 0] = 7;
+    A[3, 0] = 7;
+    A[0, 1] = 7;
+    A[1, 1] = -8;
+    A[2, 1] = 10;
+    A[3, 1] = 6;
+    A[0, 2] = -5;
+    A[1, 2] = 8;
+    A[2, 2] = 7;
+    A[3, 2] = 3;
+    A[0, 3] = -5;
+    A[1, 3] = -6;
+    A[2, 3] = 8;
+    A[3, 3] = -1;
     auto [H3, U3] = NormalForm::hermite(A);
     std::cout << "\n\n\n====\n\nH=\n" << H3 << "\nU=\n" << U3 << "\n";
     EXPECT_TRUE(isHNF(H3));

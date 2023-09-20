@@ -74,7 +74,7 @@ concept BinaryFuncOfElts =
   if ((M != A.numRow()) || (N != A.numCol())) return false;
   for (ptrdiff_t r = 0; r < M; ++r)
     for (ptrdiff_t c = 0; c < N; ++c)
-      if (A(r, c) != B(r, c)) return false;
+      if (A[r, c] != B[r, c]) return false;
   return true;
 }
 
@@ -84,16 +84,24 @@ template <typename Op, typename A> struct Elementwise {
   [[no_unique_address]] Op op;
   [[no_unique_address]] A a;
   constexpr auto operator[](ptrdiff_t i) const { return op(a[i]); }
-  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const
+  constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) const
   requires(AbstractMatrix<A>)
   {
-    return op(a(i, j));
+    return op(a[i, j]);
   }
 
   [[nodiscard]] constexpr auto size() const { return a.size(); }
   [[nodiscard]] constexpr auto dim() const { return a.dim(); }
-  [[nodiscard]] constexpr auto numRow() const -> Row { return a.numRow(); }
-  [[nodiscard]] constexpr auto numCol() const -> Col { return a.numCol(); }
+  [[nodiscard]] constexpr auto numRow() const -> Row
+  requires(AbstractMatrix<A>)
+  {
+    return a.numRow();
+  }
+  [[nodiscard]] constexpr auto numCol() const -> Col
+  requires(AbstractMatrix<A>)
+  {
+    return a.numCol();
+  }
   [[nodiscard]] constexpr auto view() const { return *this; };
 };
 template <typename Op, typename A> Elementwise(Op, A) -> Elementwise<Op, A>;
@@ -112,7 +120,7 @@ constexpr auto get(const V &v, ptrdiff_t i) -> S {
 }
 template <typename S, CartesianIndexable<S> V>
 constexpr auto get(const V &v, ptrdiff_t i, ptrdiff_t j) -> S {
-  return v(i, j);
+  return v[i, j];
 }
 
 constexpr auto size(const std::integral auto) -> ptrdiff_t { return 1; }
@@ -163,7 +171,7 @@ struct ElementwiseBinaryOp {
   {
     return op(get<elta>(a, i), get<eltb>(b, i));
   }
-  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const -> value_type
+  constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) const -> value_type
   requires CartesianIndexableOrConvertible<A, elta> &&
            CartesianIndexableOrConvertible<B, eltb>
   {
@@ -279,7 +287,7 @@ struct Select : public AbstractSelect<C, A, B> {
     return get<bool>(this->c, i) ? get<value_type>(this->a, i)
                                  : get<value_type>(this->b, i);
   }
-  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const -> value_type
+  constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) const -> value_type
   requires CartesianIndexableOrConvertible<C, bool> &&
            CartesianIndexableOrConvertible<A, value_type> &&
            CartesianIndexableOrConvertible<B, value_type>
@@ -307,7 +315,7 @@ struct Conditional : public AbstractSelect<C, A, B> {
     auto x = get<value_type>(this->a, i);
     return get<bool>(this->c, i) ? op(x, get<value_type>(this->b, i)) : x;
   }
-  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const -> value_type
+  constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) const -> value_type
   requires CartesianIndexableOrConvertible<C, bool> &&
            CartesianIndexableOrConvertible<A, value_type> &&
            CartesianIndexableOrConvertible<B, value_type>
@@ -330,11 +338,11 @@ template <AbstractMatrix A, AbstractMatrix B> struct MatMatMul {
   using concrete = is_concrete_t<A, B>;
   [[no_unique_address]] A a;
   [[no_unique_address]] B b;
-  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const -> value_type {
+  constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) const -> value_type {
     static_assert(AbstractMatrix<B>, "B should be an AbstractMatrix");
     value_type s{};
     for (ptrdiff_t k = 0; k < ptrdiff_t(a.numCol()); ++k)
-      s += a(i, k) * b(k, j);
+      s += a[i, k] * b[k, j];
     return s;
   }
   [[nodiscard]] constexpr auto numRow() const -> Row { return a.numRow(); }
@@ -358,7 +366,7 @@ template <AbstractMatrix A, AbstractVector B> struct MatVecMul {
   constexpr auto operator[](ptrdiff_t i) const -> value_type {
     invariant(a.numCol() == b.size());
     value_type s = 0;
-    for (ptrdiff_t k = 0; k < a.numCol(); ++k) s += a(i, k) * b[k];
+    for (ptrdiff_t k = 0; k < a.numCol(); ++k) s += a[i, k] * b[k];
     return s;
   }
   [[nodiscard]] constexpr auto size() const -> ptrdiff_t {
@@ -382,13 +390,13 @@ constexpr void swap(MutPtrMatrix<int64_t> A, Row i, Row j) {
   if (i == j) return;
   Col N = A.numCol();
   invariant((i < A.numRow()) && (j < A.numRow()));
-  for (Col n = 0; n < N; ++n) std::swap(A(i, n), A(j, n));
+  for (Col n = 0; n < N; ++n) std::swap(A[i, n], A[j, n]);
 }
 constexpr void swap(MutPtrMatrix<int64_t> A, Col i, Col j) {
   if (i == j) return;
   Row M = A.numRow();
   invariant((i < A.numCol()) && (j < A.numCol()));
-  for (Row m = 0; m < M; ++m) std::swap(A(m, i), A(m, j));
+  for (Row m = 0; m < M; ++m) std::swap(A[m, i], A[m, j]);
 }
 
 template <int Bits, class T>
@@ -661,6 +669,9 @@ static_assert(AbstractVector<const Vector<int64_t>>);
 static_assert(AbstractVector<Vector<int64_t> &>);
 static_assert(AbstractMatrix<IntMatrix>);
 static_assert(AbstractMatrix<IntMatrix &>);
+static_assert(!AbstractMatrix<Array<int64_t, StridedRange>>);
+static_assert(!AbstractMatrix<
+              Elementwise<std::negate<void>, Array<int64_t, StridedRange>>>);
 
 static_assert(std::copyable<ManagedArray<int64_t, StridedDims>>);
 static_assert(std::copyable<ManagedArray<int64_t, DenseDims>>);
@@ -699,7 +710,7 @@ template <VecOrMat B> constexpr auto norm2(const B &A) {
   utils::eltype_t<B> s = 0;
   if constexpr (!LinearlyIndexable<B, utils::eltype_t<B>>) {
     for (ptrdiff_t i = 0; i < A.numRow(); ++i)
-      for (ptrdiff_t j = 0; j < A.numCol(); ++j) s += abs2(A(i, j));
+      for (ptrdiff_t j = 0; j < A.numCol(); ++j) s += abs2(A[i, j]);
   } else
     for (ptrdiff_t j = 0, L = ptrdiff_t(A.dim()); j < L; ++j) s += abs2(A[j]);
   return s;

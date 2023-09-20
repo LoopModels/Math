@@ -18,7 +18,7 @@ namespace poly::math {
   if (!ohnf.has_value()) return {};
   auto &[H, U] = *ohnf;
   for (ptrdiff_t m = 0; m < H.numCol(); ++m)
-    if (H(m, m) != 1) return {};
+    if (H[m, m] != 1) return {};
   return std::move(U);
 }
 } // namespace poly::math

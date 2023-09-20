@@ -30,12 +30,7 @@ template <class T, class S, class P> class ArrayOps {
   constexpr auto dim_() const -> S {
     return static_cast<const P *>(this)->dim();
   }
-  constexpr auto index(ptrdiff_t i) -> T & {
-    return (*static_cast<P *>(this))[i];
-  }
-  constexpr auto index(ptrdiff_t i, ptrdiff_t j) -> T & {
-    return (*static_cast<P *>(this))(i, j);
-  }
+  constexpr auto Self() -> P & { return *static_cast<P *>(this); }
   [[nodiscard]] constexpr auto nr() const -> ptrdiff_t {
     return ptrdiff_t(static_cast<const P *>(this)->numRow());
   }
@@ -59,21 +54,22 @@ public:
     -> P &;
   [[gnu::flatten]] constexpr auto operator<<(const AbstractVector auto &B)
     -> P & {
+    P &self{Self()};
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
       invariant(M, B.size());
       for (ptrdiff_t i = 0; i < M; ++i) {
         T Bi = B[i];
         POLYMATHVECTORIZE
-        for (ptrdiff_t j = 0; j < N; ++j) index(i, j) = Bi;
+        for (ptrdiff_t j = 0; j < N; ++j) self[i, j] = Bi;
       }
     } else {
       ptrdiff_t L = size_();
       invariant(L, ptrdiff_t(B.size()));
       POLYMATHVECTORIZE
-      for (ptrdiff_t i = 0; i < L; ++i) index(i) = B[i];
+      for (ptrdiff_t i = 0; i < L; ++i) self[i] = B[i];
     }
-    return *static_cast<P *>(this);
+    return self;
   }
 
   [[gnu::flatten]] constexpr auto operator<<(const AbstractMatrix auto &B)
@@ -82,6 +78,7 @@ public:
     ptrdiff_t M = nr(), N = nc();
     invariant(M, ptrdiff_t(B.numRow()));
     invariant(N, ptrdiff_t(B.numCol()));
+    P &self{Self()};
     if constexpr (DenseLayout<S> &&
                   DataMatrix<std::remove_cvref_t<decltype(B)>> &&
                   DenseLayout<std::remove_cvref_t<decltype(B.dim())>>) {
@@ -89,24 +86,25 @@ public:
     } else {
       for (ptrdiff_t i = 0; i < M; ++i) {
         POLYMATHVECTORIZE
-        for (ptrdiff_t j = 0; j < N; ++j) index(i, j) = B(i, j);
+        for (ptrdiff_t j = 0; j < N; ++j) self[i, j] = B[i, j];
       }
     }
-    return *static_cast<P *>(this);
+    return self;
   }
   template <std::convertible_to<T> Y>
   [[gnu::flatten]] constexpr auto operator<<(const Y &b) -> P & {
+    P &self{Self()};
     if constexpr (DenseLayout<S>) {
       std::fill_n(data_(), ptrdiff_t(dim_()), T(b));
     } else if constexpr (std::is_same_v<S, StridedRange>) {
       POLYMATHVECTORIZE
-      for (ptrdiff_t c = 0, L = size_(); c < L; ++c) index(c) = b;
+      for (ptrdiff_t c = 0, L = size_(); c < L; ++c) self[c] = b;
     } else {
       ptrdiff_t M = nr(), N = nc(), X = rs();
       T *p = data_();
       for (ptrdiff_t r = 0; r < M; ++r, p += X) std::fill_n(p, N, T(b));
     }
-    return *static_cast<P *>(this);
+    return self;
   }
   [[gnu::flatten]] constexpr auto operator+=(const AbstractMatrix auto &B)
     -> P & {
@@ -114,11 +112,12 @@ public:
     ptrdiff_t M = nr(), N = nc();
     invariant(M, ptrdiff_t(B.numRow()));
     invariant(N, ptrdiff_t(B.numCol()));
+    P &self{Self()};
     for (ptrdiff_t r = 0; r < M; ++r) {
       POLYMATHVECTORIZE
-      for (ptrdiff_t c = 0; c < N; ++c) index(r, c) += B(r, c);
+      for (ptrdiff_t c = 0; c < N; ++c) self[r, c] += B[r, c];
     }
-    return *static_cast<P *>(this);
+    return self;
   }
   [[gnu::flatten]] constexpr auto operator-=(const AbstractMatrix auto &B)
     -> P & {
@@ -126,89 +125,95 @@ public:
     ptrdiff_t M = nr(), N = nc();
     invariant(M, ptrdiff_t(B.numRow()));
     invariant(N, ptrdiff_t(B.numCol()));
+    P &self{Self()};
     for (ptrdiff_t r = 0; r < M; ++r) {
       POLYMATHVECTORIZE
-      for (ptrdiff_t c = 0; c < N; ++c) index(r, c) -= B(r, c);
+      for (ptrdiff_t c = 0; c < N; ++c) self[r, c] -= B[r, c];
     }
-    return *static_cast<P *>(this);
+    return self;
   }
   [[gnu::flatten]] constexpr auto operator+=(const AbstractVector auto &B)
     -> P & {
+    P &self{Self()};
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
       invariant(M, B.size());
       for (ptrdiff_t r = 0; r < M; ++r) {
         auto Br = B[r];
         POLYMATHVECTORIZE
-        for (ptrdiff_t c = 0; c < N; ++c) index(r, c) += Br;
+        for (ptrdiff_t c = 0; c < N; ++c) self[r, c] += Br;
       }
     } else {
       ptrdiff_t L = size_();
       invariant(L, ptrdiff_t(B.size()));
       POLYMATHVECTORIZE
-      for (ptrdiff_t i = 0; i < L; ++i) index(i) += B[i];
+      for (ptrdiff_t i = 0; i < L; ++i) self[i] += B[i];
     }
-    return *static_cast<P *>(this);
+    return self;
   }
   template <std::convertible_to<T> Y>
   [[gnu::flatten]] constexpr auto operator+=(Y b) -> P & {
+    P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHVECTORIZE
-        for (ptrdiff_t c = 0; c < N; ++c) index(r, c) += b;
+        for (ptrdiff_t c = 0; c < N; ++c) self[r, c] += b;
       }
     } else {
       POLYMATHVECTORIZE
-      for (ptrdiff_t i = 0, L = size_(); i < L; ++i) index(i) += b;
+      for (ptrdiff_t i = 0, L = size_(); i < L; ++i) self[i] += b;
     }
-    return *static_cast<P *>(this);
+    return self;
   }
   [[gnu::flatten]] constexpr auto operator-=(const AbstractVector auto &B)
     -> P & {
+    P &self{Self()};
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
       invariant(M == B.size());
       for (ptrdiff_t r = 0; r < M; ++r) {
         auto Br = B[r];
         POLYMATHVECTORIZE
-        for (ptrdiff_t c = 0; c < N; ++c) index(r, c) -= Br;
+        for (ptrdiff_t c = 0; c < N; ++c) self[r, c] -= Br;
       }
     } else {
       ptrdiff_t L = size_();
       invariant(L == B.size());
       POLYMATHVECTORIZE
-      for (ptrdiff_t i = 0; i < L; ++i) index(i) -= B[i];
+      for (ptrdiff_t i = 0; i < L; ++i) self[i] -= B[i];
     }
-    return *static_cast<P *>(this);
+    return self;
   }
   template <std::convertible_to<T> Y>
   [[gnu::flatten]] constexpr auto operator*=(Y b) -> P & {
+    P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHVECTORIZE
-        for (ptrdiff_t c = 0; c < N; ++c) index(r, c) *= b;
+        for (ptrdiff_t c = 0; c < N; ++c) self[r, c] *= b;
       }
     } else {
       POLYMATHVECTORIZE
-      for (ptrdiff_t c = 0, L = ptrdiff_t(dim_()); c < L; ++c) index(c) *= b;
+      for (ptrdiff_t c = 0, L = ptrdiff_t(dim_()); c < L; ++c) self[c] *= b;
     }
-    return *static_cast<P *>(this);
+    return self;
   }
   template <std::convertible_to<T> Y>
   [[gnu::flatten]] constexpr auto operator/=(Y b) -> P & {
+    P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHVECTORIZE
-        for (ptrdiff_t c = 0; c < N; ++c) index(r, c) /= b;
+        for (ptrdiff_t c = 0; c < N; ++c) self[r, c] /= b;
       }
     } else {
       POLYMATHVECTORIZE
-      for (ptrdiff_t c = 0, L = ptrdiff_t(dim_()); c < L; ++c) index(c) /= b;
+      for (ptrdiff_t c = 0, L = ptrdiff_t(dim_()); c < L; ++c) self[c] /= b;
     }
-    return *static_cast<P *>(this);
+    return self;
   }
 };
 } // namespace poly::math

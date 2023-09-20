@@ -196,25 +196,25 @@ public:
     for (ptrdiff_t v = 0; v < basicCons.size();) {
       index_type c = basicCons[v++];
       if (c < 0) continue;
-      ASSERT(allZero(C(_(1, 1 + c), v)));
-      ASSERT(allZero(C(_(2 + c, end), v)));
+      ASSERT(allZero(C[_(1, 1 + c), v]));
+      ASSERT(allZero(C[_(2 + c, end), v]));
       invariant(ptrdiff_t(basicVars[c]), v - 1);
     }
     for (ptrdiff_t c = 1; c < C.numRow(); ++c) {
       index_type v = basicVars[c - 1];
       if (ptrdiff_t(v) < basicCons.size()) {
         invariant(c - 1, ptrdiff_t(basicCons[v]));
-        invariant(C(c, v + 1) >= 0);
+        invariant(C[c, v + 1] >= 0);
       }
-      invariant(C(c, 0) >= 0);
+      invariant(C[c, 0] >= 0);
     }
   }
 #endif
   [[nodiscard]] constexpr auto getConstants() -> MutStridedVector<int64_t> {
-    return getTableau()(_(1, end), 0);
+    return getTableau()[_(1, end), 0];
   }
   [[nodiscard]] constexpr auto getConstants() const -> StridedVector<int64_t> {
-    return getTableau()(_(1, end), 0);
+    return getTableau()[_(1, end), 0];
   }
   constexpr void setNumCons(unsigned i) {
     invariant(i <= constraintCapacity);
@@ -250,7 +250,7 @@ public:
     auto basicVar = basicVars[numConstraints];
     basicVars[c] = basicVar;
     if (basicVar >= 0) basicCons[basicVar] = index_type(c);
-    constraints(c, _) << constraints(numConstraints, _);
+    constraints[c, _] << constraints[numConstraints, _];
   }
 
   // AbstractVector
@@ -313,14 +313,14 @@ public:
       int64_t j = simplex->getBasicConstraint(i);
       if (j < 0) return 0;
       PtrMatrix<int64_t> constraints = simplex->getConstraints();
-      return Rational::create(constraints(j, 0), constraints(j, i + 1));
+      return Rational::create(constraints[j, 0], constraints[j, i + 1]);
     }
     [[nodiscard]] constexpr auto operator[](OffsetEnd k) const -> Rational {
       ptrdiff_t i = ptrdiff_t(simplex->numVars) - k.offset;
       int64_t j = simplex->getBasicConstraint(i);
       if (j < 0) return 0;
       PtrMatrix<int64_t> constraints = simplex->getConstraints();
-      return Rational::create(constraints(j, 0), constraints(j, i + 1));
+      return Rational::create(constraints[j, 0], constraints[j, i + 1]);
     }
     [[nodiscard]] constexpr auto operator[](RelativeOffset auto i) const
       -> Rational {
@@ -373,11 +373,11 @@ public:
     // and we eagerly try and find columns with
     // only a single non-0 element.
     for (ptrdiff_t c = 0; c < C.numRow(); ++c) {
-      int64_t &Ceq = C(c, 0);
+      int64_t &Ceq = C[c, 0];
       int64_t sign = 2 * (Ceq >= 0) - 1;
       Ceq *= sign;
       for (ptrdiff_t v = 0; v < numVar; ++v)
-        if (int64_t Ccv = C(c, v + 1) *= sign)
+        if (int64_t Ccv = C[c, v + 1] *= sign)
           basicCons[v] =
             (((basicCons[v] == -2) && (Ccv > 0))) ? index_type(c) : -1;
     }
@@ -412,14 +412,14 @@ public:
     MutPtrVector<index_type> basicCons{getBasicConstraints()};
     MutPtrVector<value_type> costs{getCost()};
     costs << 0;
-    C(_, _(oldNumVar + 1, end)) << 0;
+    C[_, _(oldNumVar + 1, end)] << 0;
     for (ptrdiff_t i = 0; i < ptrdiff_t(augmentVars.size()); ++i) {
       ptrdiff_t a = augmentVars[i];
       basicVars[a] = index_type(i) + index_type(oldNumVar);
       basicCons[i + oldNumVar] = index_type(a);
-      C(a, oldNumVar + 1 + i) = 1;
+      C[a, oldNumVar + 1 + i] = 1;
       // we now zero out the implicit cost of `1`
-      costs[_(begin, oldNumVar + 1)] -= C(a, _(begin, oldNumVar + 1));
+      costs[_(begin, oldNumVar + 1)] -= C[a, _(begin, oldNumVar + 1)];
     }
     ASSERT(std::all_of(basicVars.begin(), basicVars.end(),
                        [](int64_t i) { return i >= 0; }));
@@ -430,16 +430,16 @@ public:
     // other variable (column) instead.
     for (ptrdiff_t c = 0; c < C.numRow(); ++c) {
       if (ptrdiff_t(basicVars[c]) >= ptrdiff_t(oldNumVar)) {
-        invariant(C(c, 0) == 0);
+        invariant(C[c, 0] == 0);
         invariant(c == basicCons[basicVars[c]]);
-        invariant(C(c, basicVars[c] + 1) >= 0);
+        invariant(C[c, basicVars[c] + 1] >= 0);
         // find var to make basic in its place
         for (ptrdiff_t v = oldNumVar; v != 0;) {
           // search for a non-basic variable
           // (basicConstraints<0)
-          int64_t Ccv = C(c, v--);
+          int64_t Ccv = C[c, v--];
           if (Ccv == 0 || (basicCons[v] >= 0)) continue;
-          if (Ccv < 0) C(c, _) *= -1;
+          if (Ccv < 0) C[c, _] *= -1;
           for (ptrdiff_t i = 0; i < C.numRow(); ++i)
             if (i != ptrdiff_t(c)) NormalForm::zeroWithRowOp(C, i, c, v + 1, 0);
           basicVars[c] = index_type(v);
@@ -472,9 +472,9 @@ public:
     int64_t n = -1, d = 0;
     unsigned int j = 0;
     for (ptrdiff_t i = 1; i < C.numRow(); ++i) {
-      int64_t Civ = C(i, enteringVariable + 1);
+      int64_t Civ = C[i, enteringVariable + 1];
       if (Civ <= 0) continue;
-      int64_t Cio = C(i, 0);
+      int64_t Cio = C[i, 0];
       if (Cio == 0) return --i;
       invariant(Cio > 0);
       if ((n * Cio) >= (Civ * d)) continue;
@@ -519,8 +519,8 @@ public:
     MutPtrMatrix<int64_t> C{getTableau()};
     while (true) {
       // entering variable is the column
-      Optional<int> enteringVariable = getEnteringVariable(C(0, _(1, end)));
-      if (!enteringVariable) return Rational::create(C(0, 0), f);
+      Optional<int> enteringVariable = getEnteringVariable(C[0, _(1, end)]);
+      if (!enteringVariable) return Rational::create(C[0, 0], f);
       f = makeBasic(C, f, *enteringVariable);
       if (f == 0) return std::numeric_limits<int64_t>::max(); // unbounded
     }
@@ -537,7 +537,7 @@ public:
     // zero cost of basic variables to put in canonical form
     for (ptrdiff_t c = 0; c < basicVars.size();) {
       int64_t v = basicVars[c++];
-      if ((ptrdiff_t(++v) < C.numCol()) && C(0, v))
+      if ((ptrdiff_t(++v) < C.numCol()) && C[0, v])
         f = NormalForm::zeroWithRowOp(C, 0, c, v, f);
     }
     return runCore(f);
@@ -551,7 +551,7 @@ public:
     invariant(v > 0);
     while (true) {
       // get new entering variable
-      Optional<int> enteringVariable = getEnteringVariable(C(0, _(1, v)));
+      Optional<int> enteringVariable = getEnteringVariable(C[0, _(1, v)]);
       if (!enteringVariable) break;
       auto ev = *enteringVariable;
       auto leaveOpt = getLeavingVariable(C, ev);
@@ -585,8 +585,8 @@ public:
     // we try to zero `v` or at least minimize it.
     // set cost to 1, and then try to alkalize
     // set v and all > v to 0
-    C(0, _(0, 1 + v)) << -C(++c, _(0, 1 + v));
-    C(0, _(1 + v, end)) << 0;
+    C[0, _(0, 1 + v)] << -C[++c, _(0, 1 + v)];
+    C[0, _(1 + v, end)] << 0;
     rLexCore(v);
     return makeZeroBasic(v);
   }
@@ -603,7 +603,7 @@ public:
     // not basic, v is  zero
     if (cc < 0) return false;
     // v is basic, but not zero
-    if (C(c, 0) != 0) return true;
+    if (C[c, 0] != 0) return true;
 #ifndef NDEBUG
     assertCanonical();
 #endif
@@ -611,8 +611,8 @@ public:
     // We're going to try to make it non-basic
     for (ptrdiff_t ev = 0; ev < v;) {
       auto evm1 = ev++;
-      if ((basicConstraints[evm1] >= 0) || (C(c, ev) == 0)) continue;
-      if (C(c, ev) < 0) C(c, _) *= -1;
+      if ((basicConstraints[evm1] >= 0) || (C[c, ev] == 0)) continue;
+      if (C[c, ev] < 0) C[c, _] *= -1;
       for (ptrdiff_t i = 1; i < C.numRow(); ++i)
         if (i != ptrdiff_t(c)) NormalForm::zeroWithRowOp(C, i, c, ev, 0);
       int64_t oldBasicVar = basicVars[cc];
@@ -667,7 +667,7 @@ public:
              varCap = numVar + numSlack;
     // see how many slack vars are infeasible as solution
     // each of these will require an augment variable
-    for (unsigned i = 0; i < numSlack; ++i) varCap += A(i, 0) < 0;
+    for (unsigned i = 0; i < numSlack; ++i) varCap += A[i, 0] < 0;
     // try to avoid reallocating
     auto checkpoint{alloc->checkpoint()};
     Simplex *simplex{
@@ -676,11 +676,11 @@ public:
     // [ I A
     //   0 B ]
     // then drop the extra variables
-    slackEqualityConstraints(simplex->getConstraints()(_, _(1, end)),
-                             A(_, _(1, end)), B(_, _(1, end)));
+    slackEqualityConstraints(simplex->getConstraints()[_, _(1, end)],
+                             A[_, _(1, end)], B[_, _(1, end)]);
     auto consts{simplex->getConstants()};
-    consts[_(0, numSlack)] << A(_, 0);
-    consts[_(numSlack, numSlack + numStrict)] << B(_, 0);
+    consts[_(0, numSlack)] << A[_, 0];
+    consts[_(numSlack, numSlack + numStrict)] << B[_, 0];
     // for (ptrdiff_t i = 0; i < numSlack; ++i) consts[i] = A(i, 0);
     // for (ptrdiff_t i = 0; i < numStrict; ++i) consts[i + numSlack] = B(i, 0);
     if (!simplex->initiateFeasible()) return simplex;
@@ -693,7 +693,7 @@ public:
              numCon = numSlack, varCap = numVar + numSlack;
     // see how many slack vars are infeasible as solution
     // each of these will require an augment variable
-    for (unsigned i = 0; i < numSlack; ++i) varCap += A(i, 0) < 0;
+    for (unsigned i = 0; i < numSlack; ++i) varCap += A[i, 0] < 0;
     // try to avoid reallocating
     auto checkpoint{alloc->checkpoint()};
     Simplex *simplex{
@@ -701,11 +701,11 @@ public:
     // construct:
     // [ I A ]
     // then drop the extra variables
-    slackEqualityConstraints(simplex->getConstraints()(_, _(1, end)),
-                             A(_, _(1, end)));
+    slackEqualityConstraints(simplex->getConstraints()[_, _(1, end)],
+                             A[_, _(1, end)]);
     // auto consts{simplex.getConstants()};
     // for (ptrdiff_t i = 0; i < numSlack; ++i) consts[i] = A(i, 0);
-    simplex->getConstants() << A(_, 0);
+    simplex->getConstants() << A[_, 0];
     if (!simplex->initiateFeasible()) return simplex;
     alloc->rollback(checkpoint);
     return nullptr;
@@ -719,10 +719,10 @@ public:
     for (unsigned c = 0; c < getNumCons(); ++c) {
       *simplex << *this;
       MutPtrMatrix<int64_t> constraints = simplex->getConstraints();
-      int64_t bumpedBound = ++constraints(c, 0);
+      int64_t bumpedBound = ++constraints[c, 0];
       MutPtrVector<int64_t> cost = simplex->getCost();
       for (ptrdiff_t v = numSlack; v < cost.size(); ++v)
-        cost[v] = -constraints(c, v + 1);
+        cost[v] = -constraints[c, v + 1];
       if (simplex->run() != bumpedBound) deleteConstraint(c--);
     }
   }
@@ -778,12 +778,12 @@ public:
     // subSimp.tableau(0, 1) = 0;
     auto fC{getTableau()};
     auto sC{subSimp->getTableau()};
-    sC(_, 0) << fC(_, 0) - fC(_, _(1 + off, 1 + off + numFix)) * x;
+    sC[_, 0] << fC[_, 0] - fC[_, _(1 + off, 1 + off + numFix)] * x;
     // sC(_, 0) = fC(_, 0);
     // for (ptrdiff_t i = 0; i < numFix; ++i)
     //     sC(_, 0) -= x(i) * fC(_, i + 1 + off);
-    sC(_, _(1, 1 + off)) << fC(_, _(1, 1 + off));
-    sC(_, _(1 + off, end)) << fC(_, _(1 + off + numFix, end));
+    sC[_, _(1, 1 + off)] << fC[_, _(1, 1 + off)];
+    sC[_, _(1 + off, end)] << fC[_, _(1 + off + numFix, end)];
     // returns `true` if unsatisfiable
     return subSimp->initiateFeasible();
   }
@@ -807,9 +807,9 @@ public:
     Simplex *subSimp{Simplex::create(&alloc, numRow, off++)};
     auto fC{getConstraints()};
     auto sC{subSimp->getConstraints()};
-    sC(_, 0) << fC(_(begin, numRow), 0) -
-                  fC(_(begin, numRow), _(off, off + numFix)) * x;
-    sC(_, _(1, off)) << fC(_(begin, numRow), _(1, off));
+    sC[_, 0] << fC[_(begin, numRow), 0] -
+                  fC[_(begin, numRow), _(off, off + numFix)] * x;
+    sC[_, _(1, off)] << fC[_(begin, numRow), _(1, off)];
     return subSimp->initiateFeasible();
   }
   /// indsFree gives how many variables are free to take  any >= 0 value
@@ -826,8 +826,8 @@ public:
     auto fC{getConstraints()};
     auto sC{subSimp->getConstraints()};
     auto r = _(0, numRow);
-    sC(_, 0) << fC(r, 0) - (fC(r, inds[0] + iFree) + fC(r, inds[1] + iFree));
-    sC(_, _(1, iFree)) << fC(r, _(1, iFree));
+    sC[_, 0] << fC[r, 0] - (fC[r, inds[0] + iFree] + fC[r, inds[1] + iFree]);
+    sC[_, _(1, iFree)] << fC[r, _(1, iFree)];
     return subSimp->initiateFeasible();
   }
   [[nodiscard]] constexpr auto
@@ -841,12 +841,12 @@ public:
     for (ptrdiff_t i = 0; i < basicVars.size(); ++i) {
       ptrdiff_t v = basicVars[i];
       if (v <= numSlack) continue;
-      if (C(i, 0)) {
+      if (C[i, 0]) {
         if (++v < C.numCol()) {
-          std::cout << "v_" << v - numSlack << " = " << C(i, 0) << " / "
-                    << C(i, v) << "\n";
+          std::cout << "v_" << v - numSlack << " = " << C[i, 0] << " / "
+                    << C[i, v] << "\n";
         } else {
-          std::cout << "v_" << v << " = " << C(i, 0) << "\n";
+          std::cout << "v_" << v << " = " << C[i, 0] << "\n";
           __builtin_trap();
         }
       }

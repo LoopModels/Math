@@ -278,7 +278,7 @@ constexpr auto hessian(HessianResultCore hr, PtrVector<double> x, const auto &f,
       // DD fx = utils::call(arena, f, x);
       for (ptrdiff_t k = 0; ((k < Uj) && (j + k < N)); ++k)
         for (ptrdiff_t l = 0; ((l < Ui) && (i + l < N)); ++l)
-          update(hess(j + k, i + l), fx.gradient()[k].gradient()[l]);
+          update(hess[j + k, i + l], fx.gradient()[k].gradient()[l]);
       if (jbr)
         for (ptrdiff_t k = 0; ((k < Ui) && (i + k < N)); ++k)
           grad[i + k] = fx.value().gradient()[k];

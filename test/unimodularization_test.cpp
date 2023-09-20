@@ -1,10 +1,9 @@
 #include "Math/Math.hpp"
 #include "Math/Unimodularization.hpp"
 #include "Utilities/MatrixStringParse.hpp"
-#include <cstdint>
 #include <gtest/gtest.h>
 #include <ostream>
-#include <random>
+
 using namespace poly::math;
 using poly::utils::operator""_mat;
 
@@ -28,9 +27,9 @@ TEST(UnimodularizationTest, BasicAssertions) {
   IntMatrix A13{"[6; -5; 15]"_mat};
   auto test6_10_15 = unimodularize(A13); //, 1, 93, 1001);
   EXPECT_TRUE(test6_10_15.has_value());
-  A13(0, 0) = 102;
-  A13(1, 0) = 190;
-  A13(2, 0) = 345;
+  A13[0, 0] = 102;
+  A13[1, 0] = 190;
+  A13[2, 0] = 345;
   auto test102_190_345 = unimodularize(A13); //, 1, 93, 1001);
   EXPECT_TRUE(test102_190_345.has_value());
 }

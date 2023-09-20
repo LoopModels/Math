@@ -140,7 +140,7 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   // TODO: switch to operator[] when we enable c++23
   // for vectors, we just drop the column, essentially broadcasting
   template <class R, class C>
-  constexpr auto operator()(R r, C c) const noexcept -> decltype(auto) {
+  constexpr auto operator[](R r, C c) const noexcept -> decltype(auto) {
     if constexpr (MatrixDimension<S>)
       return (*this)[CartesianIndex<R, C>{r, c}];
     else return (*this)[ptrdiff_t(r)];
@@ -192,13 +192,13 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
     if (N != ptrdiff_t(numCol())) return false;
     for (ptrdiff_t i = 0; i < N; ++i) {
       for (ptrdiff_t j = 0; j < N; ++j)
-        if ((*this)(i, j) != (i + j == N - 1)) return false;
+        if ((*this)[i, j] != (i + j == N - 1)) return false;
     }
   }
   [[nodiscard]] constexpr auto isDiagonal() const -> bool {
     for (Row r = 0; r < numRow(); ++r)
       for (Col c = 0; c < numCol(); ++c)
-        if (r != c && (*this)(r, c) != 0) return false;
+        if (r != c && (*this)[r, c] != 0) return false;
     return true;
   }
   [[nodiscard]] constexpr auto view() const noexcept -> Array<T, S> {
@@ -219,8 +219,8 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
     auto newDim = dim().similar(numRow() - 1);
     ManagedArray<T, decltype(newDim)> A(newDim);
     for (ptrdiff_t m = 0; m < numRow(); ++m) {
-      A(m, _(0, c)) = (*this)(m, _(0, c));
-      A(m, _(c, math::end)) = (*this)(m, _(c + 1, math::end));
+      A[m, _(0, c)] = (*this)[m, _(0, c)];
+      A[m, _(c, math::end)] = (*this)[m, _(c + 1, math::end)];
     }
     return A;
   }
@@ -230,7 +230,7 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
     if constexpr (std::is_same_v<S, StridedDims>) {
       // may not be dense, iterate over rows
       for (Row i = 0; i < numRow(); ++i)
-        if ((*this)(i, _) != other(i, _)) return false;
+        if ((*this)[i, _] != other[i, _]) return false;
       return true;
     }
     return std::equal(begin(), end(), other.begin());
@@ -282,9 +282,9 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
       if constexpr (MatrixDimension<S>) {
         for (ptrdiff_t i = 0; i < Row{sz}; ++i) {
           if (i) (void)std::fprintf(f, "\n");
-          (void)std::fprintf(f, "%ld", int64_t((*this)(i, 0)));
+          (void)std::fprintf(f, "%ld", int64_t((*this)[i, 0]));
           for (ptrdiff_t j = 1; j < Col{sz}; ++j)
-            (void)std::fprintf(f, " %ld", int64_t((*this)(i, j)));
+            (void)std::fprintf(f, " %ld", int64_t((*this)[i, j]));
         }
       } else {
         (void)std::fprintf(f, "%ld", int64_t((*this)[0]));
@@ -308,8 +308,8 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
                                         ArrayOps<T, S, MutArray<T, S>> {
   using BaseT = Array<T, S>;
   // using BaseT::BaseT;
-  using BaseT::operator[], BaseT::operator(), BaseT::data, BaseT::begin,
-    BaseT::end, BaseT::rbegin, BaseT::rend, BaseT::front, BaseT::back;
+  using BaseT::operator[], BaseT::data, BaseT::begin, BaseT::end, BaseT::rbegin,
+    BaseT::rend, BaseT::front, BaseT::back;
 
   constexpr MutArray(const MutArray &) = default;
   constexpr MutArray(MutArray &&) noexcept = default;
@@ -431,7 +431,7 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
   }
   // TODO: switch to operator[] when we enable c++23
   template <class R, class C>
-  constexpr auto operator()(R r, C c) noexcept -> decltype(auto) {
+  constexpr auto operator[](R r, C c) noexcept -> decltype(auto) {
     if constexpr (MatrixDimension<S>)
       return (*this)[CartesianIndex<R, C>{r, c}];
     else return (*this)[ptrdiff_t(r)];
@@ -522,12 +522,12 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
     if (j == this->numCol()) return;
     Col Nd = this->numCol() - 1;
     for (ptrdiff_t m = 0; m < this->numRow(); ++m) {
-      auto x = (*this)(m, j);
+      auto x = (*this)[m, j];
       for (Col n = j; n < Nd;) {
         Col o = n++;
-        (*this)(m, o) = (*this)(m, n);
+        (*this)[m, o] = (*this)[m, n];
       }
-      (*this)(m, Nd) = x;
+      (*this)[m, Nd] = x;
     }
   }
 };
@@ -1207,7 +1207,7 @@ struct POLY_MATH_GSL_OWNER ManagedArray
         uint32_t tz = std::countr_zero(m);
         m >>= tz + 1;
         j += tz;
-        (*this)(i, j++) = T(B.getNonZeros()[k++]);
+        (*this)[i, j++] = T(B.getNonZeros()[k++]);
       }
     }
     invariant(k == B.getNonZeros().size());
@@ -1396,12 +1396,13 @@ static_assert(!AbstractVector<const PtrMatrix<int64_t>>,
 
 static_assert(AbstractMatrix<PtrMatrix<int64_t>>,
               "PtrMatrix<int64_t> isa AbstractMatrix failed");
-static_assert(std::same_as<decltype(PtrMatrix<int64_t>(nullptr, Row{0}, Col{0})(
-                             ptrdiff_t(0), ptrdiff_t(0))),
-                           const int64_t &>);
+static_assert(
+  std::same_as<decltype(PtrMatrix<int64_t>(nullptr, Row{0},
+                                           Col{0})[ptrdiff_t(0), ptrdiff_t(0)]),
+               const int64_t &>);
 static_assert(
   std::same_as<std::remove_reference_t<decltype(MutPtrMatrix<int64_t>(
-                 nullptr, Row{0}, Col{0})(ptrdiff_t(0), ptrdiff_t(0)))>,
+                 nullptr, Row{0}, Col{0})[ptrdiff_t(0), ptrdiff_t(0)])>,
                int64_t>);
 
 static_assert(AbstractMatrix<MutPtrMatrix<int64_t>>,
@@ -1529,7 +1530,7 @@ constexpr auto getMaxDigits(PtrMatrix<Rational> A) -> Vector<ptrdiff_t> {
   // we could optimize this by reducing the number of calls to countDigits
   for (Row i = 0; i < M; i++) {
     for (ptrdiff_t j = 0; j < N; j++) {
-      ptrdiff_t c = countDigits(A(i, j));
+      ptrdiff_t c = countDigits(A[i, j]);
       maxDigits[j] = std::max(maxDigits[j], c);
     }
   }
@@ -1549,7 +1550,7 @@ constexpr auto getMaxDigits(PtrMatrix<T> A) -> Vector<T> {
       // negative numbers need one more digit
       // first, we find the maximum value per column,
       // dividing positive numbers by -10
-      T Aij = A(i, j);
+      T Aij = A[i, j];
       if constexpr (std::signed_integral<T>)
         maxDigits[j] = std::min(maxDigits[j], Aij > 0 ? Aij / -10 : Aij);
       else maxDigits[j] = std::max(maxDigits[j], Aij);
@@ -1573,7 +1574,7 @@ inline auto printMatrix(std::ostream &os, PtrMatrix<T> A) -> std::ostream & {
     if (i) os << "  ";
     else os << "\n[ ";
     for (ptrdiff_t j = 0; j < N; j++) {
-      auto Aij = A(i, j);
+      auto Aij = A[i, j];
       for (U k = 0; k < U(maxDigits[j]) - countDigits(Aij); k++) os << " ";
       os << Aij;
       if (j != ptrdiff_t(N) - 1) os << " ";
@@ -1604,11 +1605,11 @@ inline auto printMatrix(std::ostream &os, PtrMatrix<double> A)
   char *pEnd = digits.end();
   for (ptrdiff_t m = 0; m < M; m++) {
     for (ptrdiff_t n = 0; n < N; n++) {
-      auto Aij = A(m, n);
+      auto Aij = A[m, n];
       while (true) {
         auto [p, ec] = std::to_chars(ptr, pEnd, Aij);
         if (ec == std::errc()) [[likely]] {
-          numDigits(m, n) = std::distance(ptr, p);
+          numDigits[m, n] = std::distance(ptr, p);
           ptr = p;
           break;
         }
@@ -1627,10 +1628,10 @@ inline auto printMatrix(std::ostream &os, PtrMatrix<double> A)
   }
   Vector<uint8_t> maxDigits;
   maxDigits.resizeForOverwrite(N);
-  maxDigits << numDigits(0, _);
+  maxDigits << numDigits[0, _];
   for (ptrdiff_t m = 0; m < M; m++)
     for (ptrdiff_t n = 0; n < N; n++)
-      maxDigits[n] = std::max(maxDigits[n], numDigits(m, n));
+      maxDigits[n] = std::max(maxDigits[n], numDigits[m, n]);
 
   ptr = digits.begin();
   // we will allocate 512 bytes at a time
@@ -1638,7 +1639,7 @@ inline auto printMatrix(std::ostream &os, PtrMatrix<double> A)
     if (i) os << "  ";
     else os << "\n[ ";
     for (ptrdiff_t j = 0; j < N; j++) {
-      ptrdiff_t nD = numDigits(i, j);
+      ptrdiff_t nD = numDigits[i, j];
       for (ptrdiff_t k = 0; k < maxDigits[j] - nD; k++) os << " ";
       os << std::string_view(ptr, nD);
       if (j != ptrdiff_t(N) - 1) os << " ";
