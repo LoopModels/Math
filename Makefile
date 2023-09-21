@@ -1,4 +1,6 @@
-all: gccnosan	clangnosan gccsan clangsan
+all: clangnosan clangsan #gccnosan gccsan
+#TODO: re-enable GCC once multidimensional indexing in `requires` is fixed:
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=111493
 
 buildgcc/nosan/:
 	CXXFLAGS="" CXX=g++ cmake -S test -B buildgcc/nosan/ -DCMAKE_BUILD_TYPE=Debug
@@ -29,4 +31,4 @@ clangsan: buildclang/test/
 	cmake --build buildclang/test/ --target test
 
 clean:
-	rm -r buildgcc buildclang
+	rm -r buildclang #buildgcc
