@@ -23,6 +23,7 @@
 #include <iostream>
 #include <memory>
 #include <utility>
+#include <version>
 
 // https://llvm.org/doxygen/Compiler_8h_source.html#l00307
 #ifndef POLY_MATH_HAS_CPP_ATTRIBUTE

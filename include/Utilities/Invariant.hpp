@@ -4,6 +4,7 @@
 #include <iostream>
 #include <ostream>
 #include <source_location>
+#include <version>
 
 namespace poly::utils {
 [[gnu::artificial]] constexpr inline void
@@ -32,13 +33,19 @@ invariant(const T &x, const T &y,
 #define ASSERT(condition) ::poly::utils::invariant(condition)
 } // namespace poly::utils
 #else // ifdef NDEBUG
-#if __cplusplus >= 202202L
+#ifdef __cpp_lib_unreachable
 #include <utility>
 #endif
 namespace poly::utils {
 [[gnu::artificial]] constexpr inline void invariant(bool condition) {
+
+#ifdef __has_cpp_attribute
+#if __has_cpp_attribute(assume)
+  [[assume(condition)]];
+#endif
+#endif
   if (!condition) {
-#if __cplusplus >= 202202L
+#if __cpp_lib_unreachable
     std::unreachable();
 #else
 #ifdef __has_builtin
@@ -51,8 +58,13 @@ namespace poly::utils {
 }
 template <typename T>
 [[gnu::artificial]] constexpr inline void invariant(const T &x, const T &y) {
+#ifdef __has_cpp_attribute
+#if __has_cpp_attribute(assume)
+  [[assume(x == y)]];
+#endif
+#endif
   if (x != y) {
-#if __cplusplus >= 202202L
+#ifdef __cpp_lib_unreachable
     std::unreachable();
 #else
 #ifdef __has_builtin
