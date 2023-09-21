@@ -71,8 +71,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_compile_options(${PROJECT_NAME} PRIVATE -ferror-limit=8 -fcolor-diagnostics)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   target_compile_options(
-    ${PROJECT_NAME} PRIVATE -fmax-errors=8 -fconcepts-diagnostics-depth=4
-                            -fno-semantic-interposition -fdiagnostics-color=always -Wno-comma-subscript
+    ${PROJECT_NAME}
+    PRIVATE -fmax-errors=8 -fconcepts-diagnostics-depth=4 -fno-semantic-interposition
+            -fdiagnostics-color=always -Wno-comma-subscript
   )
 endif()
 # target_compile_options(Math INTERFACE -D_GLIBCXX_ASSERTIONS)
