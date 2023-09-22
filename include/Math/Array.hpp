@@ -918,7 +918,7 @@ struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S, U> {
 #ifdef __cpp_lib_allocate_at_least
     std::allocation_result res = allocator.allocate_at_least(newCapacity);
     T *newPtr = res.ptr;
-    newCapacity = U(res.size);
+    newCapacity = U(res.count);
 #else
     T *newPtr = allocator.allocate(newCapacity);
 #endif

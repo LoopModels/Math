@@ -1,7 +1,6 @@
 #pragma once
 #include "Math/Array.hpp"
 #include "Utilities/Invariant.hpp"
-#include <bits/ranges_base.h>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
