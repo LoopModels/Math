@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
+option(ENABLE_LLD "Use LLD? Off by default." OFF)
 # ---- Project ----
 
 # Note: update this to your new project's name and version

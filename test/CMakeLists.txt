@@ -18,6 +18,13 @@ include(../cmake/CPM.cmake)
 # ---- compile_commands.json ----
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+if(((USE_SANITIZER MATCHES "([Aa]ddress)") OR (USE_SANITIZER MATCHES "([Aa]ddress);([Uu]ndefined)"
+                                               )
+) AND (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+  set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -lunwind -Wno-unused-command-line-argument")
+endif()
+
+
 CPMAddPackage(
   NAME googletest
   GITHUB_REPOSITORY google/googletest
@@ -80,7 +87,6 @@ endif()
 target_compile_options(${PROJECT_NAME} PRIVATE -D_GLIBCXX_ASSERTIONS)
 if(ENABLE_LLD)
   target_link_options(${PROJECT_NAME} PRIVATE -fuse-ld=lld)
-  # target_link_options(Math PRIVATE -fuse-ld=lld)
 endif()
 
 target_precompile_headers(

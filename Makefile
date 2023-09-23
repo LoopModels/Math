@@ -9,10 +9,10 @@ buildgcc/test/:
 	CXXFLAGS="" CXX=g++ cmake -S test -B buildgcc/test/ -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER='Address;Undefined'
 
 buildclang/nosan/:
-	CXXFLAGS="" CXX=/usr/bin/clang++ cmake -S test -B buildclang/nosan/ -DCMAKE_BUILD_TYPE=Debug
+	CXXFLAGS="" CXX=clang++ cmake -S test -B buildclang/nosan/ -DCMAKE_BUILD_TYPE=Debug
 
 buildclang/test/:
-	CXXFLAGS="" CXX=/usr/bin/clang++ cmake -S test -B buildclang/test/ -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER='Address;Undefined'
+	CXXFLAGS="" CXX=clang++ cmake -S test -B buildclang/test/ -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER='Address;Undefined'
 
 gccnosan: buildgcc/nosan/
 	cmake --build buildgcc/nosan/
