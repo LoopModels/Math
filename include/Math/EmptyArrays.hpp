@@ -16,7 +16,7 @@ template <typename T> struct EmptyMatrix {
   static constexpr auto getConstCol() -> ptrdiff_t { return 0; }
 
   static constexpr auto data() -> T * { return nullptr; }
-  constexpr auto operator()(ptrdiff_t, ptrdiff_t) -> T { return 0; }
+  static constexpr auto operator[](ptrdiff_t, ptrdiff_t) -> T { return 0; }
   static constexpr auto size() -> CartesianIndex<Row, Col> {
     return {Row{0}, Col{0}};
   }

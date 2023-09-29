@@ -3,13 +3,14 @@
 #include "Math/MatrixDimensions.hpp"
 #include "Math/Vector.hpp"
 #include "Utilities/TypePromotion.hpp"
+#include <cstddef>
 #include <type_traits>
 
 namespace poly::math {
 
 template <typename T, typename S = utils::eltype_t<T>>
 concept CartesianIndexable = requires(T t, ptrdiff_t i) {
-  { t(i, i) } -> std::convertible_to<S>;
+  { t[i, i] } -> std::convertible_to<S>;
 };
 template <typename T, typename S>
 concept CartesianIndexableOrConvertible =
@@ -53,8 +54,8 @@ template <typename A> struct Transpose {
 
   using value_type = utils::eltype_t<A>;
   [[no_unique_address]] A a;
-  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const -> value_type {
-    if constexpr (AbstractMatrix<A>) return a(j, i);
+  constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) const -> value_type {
+    if constexpr (AbstractMatrix<A>) return a[j, i];
     else {
       invariant(i == 0);
       return a[j];

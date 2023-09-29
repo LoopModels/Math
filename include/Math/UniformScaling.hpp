@@ -6,7 +6,7 @@ template <class T> struct UniformScaling {
   using value_type = T;
   T value;
   constexpr UniformScaling(T x) : value(x) {}
-  constexpr auto operator()(Row r, Col c) const -> T {
+  constexpr auto operator[](Row r, Col c) const -> T {
     return r == c ? value : T{};
   }
   static constexpr auto numRow() -> Row { return 0; }
@@ -24,7 +24,7 @@ template <class T> struct UniformScaling {
     if (R != A.numCol()) return false;
     for (ptrdiff_t r = 0; r < R; ++r)
       for (ptrdiff_t c = 0; c < R; ++c)
-        if (A(r, c) != ((r == c) * value)) return false;
+        if (A[r, c] != ((r == c) * value)) return false;
     return true;
   }
   constexpr auto operator==(const AbstractMatrix auto &A) const -> bool {
@@ -47,7 +47,7 @@ constexpr auto operator*(const U &x, UniformScaling<T> d) {
   else return UniformScaling<U>{d.value * x};
 }
 
-static constexpr inline UniformScaling<std::true_type> I{
+[[maybe_unused]] static constexpr inline UniformScaling<std::true_type> I{
   std::true_type{}}; // identity
 
 template <class T> UniformScaling(T) -> UniformScaling<T>;

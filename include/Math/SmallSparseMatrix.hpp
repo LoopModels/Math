@@ -50,7 +50,7 @@ public:
     uint32_t rowOffset = std::popcount(r & (jshift - 1));
     return nonZeros[rowOffset + prevRowOffset];
   }
-  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) const -> T {
+  constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) const -> T {
     return get(Row{i}, Col{j});
   }
   constexpr void insert(T x, Row i, Col j) {
@@ -80,7 +80,7 @@ public:
       return *this;
     }
   };
-  constexpr auto operator()(ptrdiff_t i, ptrdiff_t j) -> Reference {
+  constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) -> Reference {
     return Reference{this, i, j};
   }
 };

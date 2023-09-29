@@ -18,6 +18,13 @@ include(../cmake/CPM.cmake)
 # ---- compile_commands.json ----
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+if(((USE_SANITIZER MATCHES "([Aa]ddress)") OR (USE_SANITIZER MATCHES "([Aa]ddress);([Uu]ndefined)"
+                                               )
+) AND (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+  set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -lunwind -Wno-unused-command-line-argument")
+endif()
+
+
 CPMAddPackage(
   NAME googletest
   GITHUB_REPOSITORY google/googletest
@@ -38,7 +45,7 @@ endif()
 file(GLOB sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 add_executable(${PROJECT_NAME} ${sources})
 target_link_libraries(${PROJECT_NAME} Math::Math GTest::gtest_main)
-set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
+set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 23)
 
 target_compile_options(${PROJECT_NAME} PRIVATE -fno-exceptions)
 if((USE_SANITIZER MATCHES "([Uu]ndefined)") OR (USE_SANITIZER MATCHES "([Aa]ddress);([Uu]ndefined)"
@@ -71,15 +78,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_compile_options(${PROJECT_NAME} PRIVATE -ferror-limit=8 -fcolor-diagnostics)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   target_compile_options(
-    ${PROJECT_NAME} PRIVATE -fmax-errors=8 -fconcepts-diagnostics-depth=4
-                            -fno-semantic-interposition -fdiagnostics-color=always
+    ${PROJECT_NAME}
+    PRIVATE -fmax-errors=8 -fconcepts-diagnostics-depth=4 -fno-semantic-interposition
+            -fdiagnostics-color=always -Wno-comma-subscript
   )
 endif()
 # target_compile_options(Math INTERFACE -D_GLIBCXX_ASSERTIONS)
 target_compile_options(${PROJECT_NAME} PRIVATE -D_GLIBCXX_ASSERTIONS)
 if(ENABLE_LLD)
   target_link_options(${PROJECT_NAME} PRIVATE -fuse-ld=lld)
-  # target_link_options(Math PRIVATE -fuse-ld=lld)
 endif()
 
 target_precompile_headers(

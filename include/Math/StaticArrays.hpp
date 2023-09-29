@@ -89,7 +89,7 @@ struct StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
   // TODO: switch to operator[] when we enable c++23
   // for vectors, we just drop the column, essentially broadcasting
   template <class R, class C>
-  constexpr auto operator()(R r, C c) const noexcept -> decltype(auto) {
+  constexpr auto operator[](R r, C c) const noexcept -> decltype(auto) {
     if constexpr (MatrixDimension<S>)
       return (*this)[CartesianIndex<R, C>{r, c}];
     else return (*this)[ptrdiff_t(r)];
@@ -178,7 +178,7 @@ struct StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
   }
   // TODO: switch to operator[] when we enable c++23
   template <class R, class C>
-  constexpr auto operator()(R r, C c) noexcept -> decltype(auto) {
+  constexpr auto operator[](R r, C c) noexcept -> decltype(auto) {
     if constexpr (MatrixDimension<S>)
       return (*this)[CartesianIndex<R, C>{r, c}];
     else return (*this)[ptrdiff_t(r)];
