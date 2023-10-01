@@ -257,7 +257,7 @@ public:
   struct Solution {
     using value_type = Rational;
     // view of tableau dropping const column
-    NotNull<const Simplex> simplex;
+    Valid<const Simplex> simplex;
     ptrdiff_t skippedVars;
     ptrdiff_t numVars;
     class iterator { // NOLINT(readability-identifier-naming)
@@ -853,12 +853,12 @@ public:
     }
   }
   static constexpr auto create(Arena<> *alloc, unsigned numCon, unsigned numVar)
-    -> NotNull<Simplex> {
+    -> Valid<Simplex> {
     return create(alloc, numCon, numVar, numCon, numVar + numCon);
   }
   static constexpr auto create(Arena<> *alloc, unsigned numCon, unsigned numVar,
                                unsigned conCap, unsigned varCap)
-    -> NotNull<Simplex> {
+    -> Valid<Simplex> {
 
     size_t memNeeded = tableauOffset(conCap, varCap) +
                        sizeof(value_type) * reservedTableau(conCap, varCap);
@@ -899,12 +899,12 @@ public:
   static constexpr auto
   create(Arena<> *alloc, unsigned numCon,
          unsigned numVar, // NOLINT(bugprone-easily-swappable-parameters)
-         unsigned numSlack) -> NotNull<Simplex> {
+         unsigned numSlack) -> Valid<Simplex> {
     unsigned conCap = numCon, varCap = numVar + numSlack + numCon;
     return create(alloc, numCon, numVar, conCap, varCap);
   }
-  constexpr auto copy(Arena<> *alloc) const -> NotNull<Simplex> {
-    NotNull<Simplex> res =
+  constexpr auto copy(Arena<> *alloc) const -> Valid<Simplex> {
+    Valid<Simplex> res =
       create(alloc, getNumCons(), getNumVars(), getConCap(), getVarCap());
     *res << *this;
     return res;

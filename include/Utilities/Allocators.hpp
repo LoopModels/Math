@@ -423,7 +423,7 @@ static_assert(!std::is_trivially_destructible_v<OwningArena<>>);
 template <typename T, size_t SlabSize = 16384, bool BumpUp = true>
 class WArena {
   using Alloc = Arena<SlabSize, BumpUp>;
-  [[no_unique_address]] NotNull<Alloc> A;
+  [[no_unique_address]] Valid<Alloc> A;
 
 public:
   using value_type = T;
@@ -432,7 +432,7 @@ public:
   };
   constexpr explicit WArena(Alloc *alloc) : A(alloc) {}
   constexpr explicit WArena(Alloc &alloc) : A(&alloc) {}
-  constexpr explicit WArena(NotNull<Alloc> alloc) : A(alloc) {}
+  constexpr explicit WArena(Valid<Alloc> alloc) : A(alloc) {}
   constexpr WArena(const WArena &other) = default;
   template <typename U>
   constexpr WArena(WArena<U> other) : A(other.get_allocator()) {}
@@ -450,7 +450,7 @@ public:
   constexpr void rollback(typename Alloc::CheckPoint p) { A->rollback(p); }
 };
 template <typename T, size_t SlabSize, bool BumpUp>
-constexpr auto wrap(NotNull<Arena<SlabSize, BumpUp>> a)
+constexpr auto wrap(Valid<Arena<SlabSize, BumpUp>> a)
   -> WArena<T, SlabSize, BumpUp> {
   return WArena<T, SlabSize, BumpUp>(a);
 }
@@ -460,7 +460,7 @@ static_assert(
 static_assert(
   std::same_as<std::allocator_traits<WArena<int64_t>>::pointer, int64_t *>);
 
-static_assert(std::is_trivially_copyable_v<NotNull<Arena<>>>);
+static_assert(std::is_trivially_copyable_v<Valid<Arena<>>>);
 static_assert(std::is_trivially_copyable_v<WArena<int64_t>>);
 
 template <typename A>

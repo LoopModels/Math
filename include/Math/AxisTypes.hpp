@@ -27,6 +27,7 @@
 /// Their lifetimes are governed by the Arena or RAII type used to back
 /// them.
 namespace poly::math {
+
 using utils::invariant;
 enum class AxisType {
   Row,

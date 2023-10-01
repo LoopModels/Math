@@ -75,7 +75,7 @@ struct StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
   // indexing has two components:
   // 1. offsetting the pointer
   // 2. calculating new dim
-  // static constexpr auto slice(NotNull<T>, Index<S> auto i){
+  // static constexpr auto slice(Valid<T>, Index<S> auto i){
   //   auto
   // }
   constexpr auto operator[](Index<S> auto i) const noexcept -> decltype(auto) {

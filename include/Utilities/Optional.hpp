@@ -95,7 +95,7 @@ template <typename T> struct Optional<T *> {
   [[nodiscard]] constexpr auto operator*() const -> const T & {
     return getValue();
   }
-  [[nodiscard]] constexpr operator NotNull<T>() { return value; }
+  [[nodiscard]] constexpr operator Valid<T>() { return value; }
   constexpr explicit operator bool() const { return hasValue(); }
   constexpr auto operator->() -> T * {
     invariant(hasValue());
@@ -107,6 +107,6 @@ template <typename T> struct Optional<T *> {
   }
   constexpr Optional() = default;
   constexpr Optional(T *v) : value(v) {}
-  constexpr Optional(NotNull<T> v) : value(v) {}
+  constexpr Optional(Valid<T> v) : value(v) {}
 };
 } // namespace poly::utils

@@ -5,20 +5,20 @@
 
 namespace poly::utils {
 // TODO: communicate not-null to the compiler somehow?
-template <typename T> class NotNull {
+template <typename T> class Valid {
   [[no_unique_address]] T *value;
 
 public:
-  NotNull() = delete;
-  constexpr NotNull(T &v) : value(&v) {}
-  constexpr NotNull(T *v) : value(v) { invariant(value != nullptr); }
+  Valid() = delete;
+  constexpr Valid(T &v) : value(&v) {}
+  constexpr Valid(T *v) : value(v) { invariant(value != nullptr); }
   constexpr explicit operator bool() const {
     invariant(value != nullptr);
     return true;
   }
-  constexpr operator NotNull<const T>() const {
+  constexpr operator Valid<const T>() const {
     invariant(value != nullptr);
-    return NotNull<const T>(*value);
+    return Valid<const T>(*value);
   }
   [[gnu::returns_nonnull]] constexpr operator T *() {
     invariant(value != nullptr);
@@ -52,75 +52,75 @@ public:
     invariant(value != nullptr);
     return value[index];
   }
-  constexpr auto operator+(ptrdiff_t offset) -> NotNull<T> {
+  constexpr auto operator+(ptrdiff_t offset) -> Valid<T> {
     invariant(value != nullptr);
     return value + offset;
   }
-  constexpr auto operator-(ptrdiff_t offset) -> NotNull<T> {
+  constexpr auto operator-(ptrdiff_t offset) -> Valid<T> {
     invariant(value != nullptr);
     return value - offset;
   }
-  constexpr auto operator+(ptrdiff_t offset) const -> NotNull<T> {
+  constexpr auto operator+(ptrdiff_t offset) const -> Valid<T> {
     invariant(value != nullptr);
     return value + offset;
   }
-  constexpr auto operator-(ptrdiff_t offset) const -> NotNull<T> {
+  constexpr auto operator-(ptrdiff_t offset) const -> Valid<T> {
     invariant(value != nullptr);
     return value - offset;
   }
-  constexpr auto operator++() -> NotNull<T> & {
+  constexpr auto operator++() -> Valid<T> & {
     invariant(value != nullptr);
     ++value;
     return *this;
   }
-  constexpr auto operator++(int) -> NotNull<T> {
+  constexpr auto operator++(int) -> Valid<T> {
     invariant(value != nullptr);
     return value++;
   }
-  constexpr auto operator--() -> NotNull<T> & {
+  constexpr auto operator--() -> Valid<T> & {
     invariant(value != nullptr);
     --value;
     return *this;
   }
-  constexpr auto operator--(int) -> NotNull<T> {
+  constexpr auto operator--(int) -> Valid<T> {
     invariant(value != nullptr);
     return value--;
   }
-  constexpr auto operator+=(ptrdiff_t offset) -> NotNull<T> & {
+  constexpr auto operator+=(ptrdiff_t offset) -> Valid<T> & {
     invariant(value != nullptr);
     value += offset;
     return *this;
   }
-  constexpr auto operator-=(ptrdiff_t offset) -> NotNull<T> & {
+  constexpr auto operator-=(ptrdiff_t offset) -> Valid<T> & {
     invariant(value != nullptr);
     value -= offset;
     return *this;
   }
-  // constexpr auto operator==(const NotNull<T> &other) const -> bool {
+  // constexpr auto operator==(const Valid<T> &other) const -> bool {
   //   invariant(value != nullptr);
   //   return value == other.value;
   // }
-  // constexpr auto operator!=(const NotNull<T> &other) const -> bool {
+  // constexpr auto operator!=(const Valid<T> &other) const -> bool {
   //   invariant(value != nullptr);
   //   return value != other.value;
   // }
-  // constexpr auto operator<(const NotNull<T> &other) const -> bool {
+  // constexpr auto operator<(const Valid<T> &other) const -> bool {
   //   invariant(value != nullptr);
   //   return value < other.value;
   // }
-  // constexpr auto operator<=(const NotNull<T> &other) const -> bool {
+  // constexpr auto operator<=(const Valid<T> &other) const -> bool {
   //   invariant(value != nullptr);
   //   return value <= other.value;
   // }
-  // constexpr auto operator>(const NotNull<T> &other) const -> bool {
+  // constexpr auto operator>(const Valid<T> &other) const -> bool {
   //   invariant(value != nullptr);
   //   return value > other.value;
   // }
-  // constexpr auto operator>=(const NotNull<T> &other) const -> bool {
+  // constexpr auto operator>=(const Valid<T> &other) const -> bool {
   //   invariant(value != nullptr);
   //   return value >= other.value;
   // }
-  constexpr auto operator-(const NotNull<T> &other) const -> ptrdiff_t {
+  constexpr auto operator-(const Valid<T> &other) const -> ptrdiff_t {
     invariant(value != nullptr);
     return value - other.value;
   }
@@ -129,8 +129,8 @@ public:
     return (reinterpret_cast<ptrdiff_t>(value) % x) == 0;
   }
 };
-template <typename T> NotNull(T &) -> NotNull<T>;
-template <typename T> NotNull(T *) -> NotNull<T *>;
-static_assert(std::is_trivially_destructible_v<NotNull<ptrdiff_t>>);
-static_assert(std::is_trivially_copy_constructible_v<NotNull<ptrdiff_t>>);
+template <typename T> Valid(T &) -> Valid<T>;
+template <typename T> Valid(T *) -> Valid<T *>;
+static_assert(std::is_trivially_destructible_v<Valid<ptrdiff_t>>);
+static_assert(std::is_trivially_copy_constructible_v<Valid<ptrdiff_t>>);
 } // namespace poly::utils

@@ -62,7 +62,7 @@ template <typename F, typename S>
 void print_obj(std::ostream &os, const std::pair<F, S> &x) {
   os << "(" << x.first << ", " << x.second << ")";
 };
-using utils::NotNull, utils::Optional;
+using utils::Valid, utils::Optional;
 
 /// Constant Array
 template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
@@ -86,9 +86,9 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   constexpr auto operator=(const Array &) -> Array & = default;
   constexpr auto operator=(Array &&) noexcept -> Array & = default;
   constexpr Array(const T *p, S s) : ptr(p), sz(s) {}
-  constexpr Array(NotNull<const T> p, S s) : ptr(p), sz(s) {}
+  constexpr Array(Valid<const T> p, S s) : ptr(p), sz(s) {}
   constexpr Array(const T *p, Row r, Col c) : ptr(p), sz(S{r, c}) {}
-  constexpr Array(NotNull<const T> p, Row r, Col c)
+  constexpr Array(Valid<const T> p, Row r, Col c)
     : ptr(p), sz(dimension<S>(r, c)) {}
   template <std::convertible_to<S> V>
   constexpr Array(Array<T, V> a) : ptr(a.data()), sz(a.dim()) {}
@@ -99,9 +99,7 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
     invariant(ptr != nullptr);
     return ptr;
   }
-  [[nodiscard]] constexpr auto wrappedPtr() noexcept -> NotNull<T> {
-    return ptr;
-  }
+  [[nodiscard]] constexpr auto wrappedPtr() noexcept -> Valid<T> { return ptr; }
 
   [[nodiscard]] constexpr auto begin() const noexcept {
     const T *p = ptr;
@@ -127,7 +125,7 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   // indexing has two components:
   // 1. offsetting the pointer
   // 2. calculating new dim
-  // static constexpr auto slice(NotNull<T>, Index<S> auto i){
+  // static constexpr auto slice(Valid<T>, Index<S> auto i){
   //   auto
   // }
   constexpr auto operator[](Index<S> auto i) const noexcept -> decltype(auto) {
@@ -393,7 +391,7 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
     invariant(this->ptr != nullptr);
     return const_cast<T *>(this->ptr);
   }
-  [[nodiscard]] constexpr auto wrappedPtr() noexcept -> NotNull<T> {
+  [[nodiscard]] constexpr auto wrappedPtr() noexcept -> Valid<T> {
     return data();
   }
 

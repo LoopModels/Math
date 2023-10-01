@@ -123,15 +123,15 @@ public:
 };
 template <typename T, class Op, class Proj>
 ListRange(T *, Op, Proj) -> ListRange<T, Op, Proj>;
-template <typename T> class NotNull;
+template <typename T> class Valid;
 template <typename T, class Op, class Proj>
-ListRange(NotNull<T>, Op, Proj) -> ListRange<T, Op, Proj>;
+ListRange(Valid<T>, Op, Proj) -> ListRange<T, Op, Proj>;
 
 template <typename T, class Op>
 ListRange(T *, Op) -> ListRange<T, Op, Identity>;
-template <typename T> class NotNull;
+template <typename T> class Valid;
 template <typename T, class Op>
-ListRange(NotNull<T>, Op) -> ListRange<T, Op, Identity>;
+ListRange(Valid<T>, Op) -> ListRange<T, Op, Identity>;
 
 template <std::forward_iterator O, std::forward_iterator I, class P, class J,
           class F>
