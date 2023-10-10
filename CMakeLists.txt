@@ -52,13 +52,18 @@ target_include_directories(
 
 # --- Allocator override ----
 
-if (USE_MI_MALLOC)
+set(SEARCH_JE_MALLOC USE_JE_MALLOC)
+if(USE_MI_MALLOC)
   find_package(mimalloc 2.1 REQUIRED)
-  target_link_libraries(${PROJECT_NAME} INTERFACE mimalloc) # mimalloc-static
-  target_compile_definitions(${PROJECT_NAME} INTERFACE USING_MIMALLOC)
+  if(mimalloc_FOUND)
+    target_link_libraries(${PROJECT_NAME} INTERFACE mimalloc) # mimalloc-static
+    target_compile_definitions(${PROJECT_NAME} INTERFACE USING_MIMALLOC)
+    set(SEARCH_JE_MALLOC OFF)
+  endif()
 endif()
+if(SEARCH_JE_MALLOC)
 
-
+endif()
 # ---- Create an installable target ----
 # this allows users to install and find the library via `find_package()`.
 
