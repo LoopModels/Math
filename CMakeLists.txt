@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.14)
 
 option(ENABLE_LLD "Use LLD? Off by default." OFF)
+option(USE_MI_MALLOC "Use MI_MALLOC if available." ON)
+option(USE_JE_MALLOC "Use jemallc if available and not using mi_malloc." ON)
 # ---- Project ----
 
 # Note: update this to your new project's name and version
@@ -47,6 +49,15 @@ target_include_directories(
   ${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
                             $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
 )
+
+# --- Allocator override ----
+
+if (USE_MI_MALLOC)
+  find_package(mimalloc 2.1 REQUIRED)
+  target_link_libraries(${PROJECT_NAME} INTERFACE mimalloc) # mimalloc-static
+  target_compile_definitions(${PROJECT_NAME} INTERFACE USING_MIMALLOC)
+endif()
+
 
 # ---- Create an installable target ----
 # this allows users to install and find the library via `find_package()`.

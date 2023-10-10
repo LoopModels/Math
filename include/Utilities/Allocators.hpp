@@ -10,6 +10,11 @@
 #include <limits>
 #include <memory>
 #include <utility>
+#include <version>
+
+#ifdef USING_MIMALLOC
+#include <mimalloc-new-delete.h>
+#endif
 
 #ifndef __has_feature      // Optional of course.
 #define __has_feature(x) 0 // Compatibility with non-clang compilers.
@@ -58,6 +63,16 @@ namespace poly::utils {
 ///
 /// Use `allocate<T>` and `create<T>` methods for actually performing the
 /// allocations.
+/// Contains two fields: slab, sEnd.
+/// Optionally bumps either up or down.
+/// Memory layout when `BumpUp == true`:
+/// [end, first slab], region, [next slab, first slab]
+/// Here, first/next slab point to the start, while `sEnd` points to the end.
+/// Memory layout when `BumpUp == false`:
+/// [next slab, first slab], region, [start, first slab]
+/// Here, first/next slab point to the end, while `sEnd` points to the start.
+/// In both cases, the start/end references are to the region
+/// So, meta is indexed with negative/positive indices depending on size.
 template <size_t SlabSize = 16384, bool BumpUp = true> class Arena {
   static constexpr size_t Alignment = alignof(std::max_align_t);
   static constexpr auto align(size_t x) -> size_t {
@@ -67,6 +82,7 @@ template <size_t SlabSize = 16384, bool BumpUp = true> class Arena {
   // the rare accidental case of huge slabs separately.
   static constexpr size_t MetaSize = align(2 * sizeof(void *));
   static_assert(std::has_single_bit(Alignment));
+  static_assert(__STDCPP_DEFAULT_NEW_ALIGNMENT__ >= Alignment);
 
 public:
   using value_type = void;
@@ -75,36 +91,31 @@ public:
   constexpr auto operator=(const Arena &) -> Arena & = default;
 #ifndef NDEBUG
   constexpr void fillWithJunk(void *p, size_t Size) {
-    if (((Size & 7) == 0)) {
+    if ((Size & 7) == 0) {
       std::fill_n(static_cast<std::int64_t *>(p), Size >> 3,
                   std::numeric_limits<std::int64_t>::min());
-    } else std::fill_n((char *)(p), Size, -1);
+    } else std::fill_n(static_cast<char *>(p), Size, -1);
   }
 #endif
+  constexpr void bigAlloc(size_t Size) {
+    void **oldMeta = getMetaEnd(sEnd);
+    void *next = oldMeta[0];
+    if (next && Size <= (SlabSize - 2*MetaSize)) return initSlab(next);
+    initNewSlab(align(Size) + SlabSize);
+    oldMeta[0] = slab;
+    void *firstSlab = oldMeta[1];
+    getMetaStart(slab)[1] = firstSlab;
+    getMetaEnd(sEnd)[0] = next;
+    getMetaEnd(sEnd)[1] = firstSlab;
+  }
   [[using gnu: returns_nonnull, alloc_size(2), assume_aligned(Alignment),
     malloc]] constexpr auto
   allocate(size_t Size) -> void * {
-    // we allocate this slab and insert it.
-    // this is a pretty bad path.
-    if (Size > SlabSize - MetaSize) [[unlikely]] {
-      void *p = std::malloc(Size + MetaSize);
-      void *q = std::malloc(SlabSize);
-      void **meta = getMeta(p);
-      void **oldMeta = getMeta(sEnd);
-      void **newMeta = getMeta(q);
-      void *firstSlab = oldMeta[1];
-      oldMeta[0] = p;
-      meta[0] = q;
-      meta[1] = firstSlab;
-      newMeta[0] = nullptr;
-      newMeta[1] = firstSlab;
-      initSlab(q);
-#ifndef NDEBUG
-      fillWithJunk(static_cast<char *>(p) + MetaSize, Size);
-#endif
-      return static_cast<char *>(p) + MetaSize;
+    void *p = allocCore(Size);
+    if (outOfSlab()) [[unlikely]] {
+      bigAlloc(Size);
+      p = allocCore(Size);
     }
-    auto p = bumpAlloc(Size);
 #if MATH_ADDRESS_SANITIZER_BUILD
     __asan_unpoison_memory_region(p, Size);
 #endif
@@ -136,9 +147,9 @@ public:
     __asan_poison_memory_region(Ptr, Size);
 #endif
     if constexpr (BumpUp) {
-      if ((char *)Ptr + align(Size) == slab) slab = Ptr;
+      if (static_cast<char *>(Ptr) + align(Size) == slab) slab = Ptr;
     } else if (Ptr == slab) {
-      slab = (char *)slab + align(Size);
+      slab = static_cast<char *>(slab) + align(Size);
       return;
     }
   }
@@ -154,29 +165,29 @@ public:
   reallocateImpl(void *Ptr, size_t capOld, size_t capNew, size_t szOld)
     -> void * {
     if (capOld >= capNew) return Ptr;
+    char *cptr = static_cast<char *>(Ptr);
     if (Ptr) {
       if (void *p = tryReallocate(Ptr, capOld, capNew)) {
         if constexpr ((!BumpUp) & (!ForOverwrite))
-          std::copy_n((char *)Ptr, szOld, (char *)p);
+          std::copy_n(cptr, szOld, static_cast<char *>(p));
         return p;
       }
       if constexpr (BumpUp) {
         if (Ptr == (char *)slab - align(capOld)) {
-          slab = (char *)Ptr + align(capNew);
+          slab = cptr + align(capNew);
           if (!outOfSlab()) {
 #if MATH_ADDRESS_SANITIZER_BUILD
-            __asan_unpoison_memory_region((char *)Ptr + capOld,
-                                          capNew - capOld);
+            __asan_unpoison_memory_region(cptr + capOld, capNew - capOld);
 #endif
 #if MATH_MEMORY_SANITIZER_BUILD
-            __msan_allocated_memory((char *)Ptr + capOld, capNew - capOld);
+            __msan_allocated_memory(cptr + capOld, capNew - capOld);
 #endif
             return Ptr;
           }
         }
       } else if (Ptr == slab) {
         size_t extraSize = align(capNew - capOld);
-        slab = (char *)slab - extraSize;
+        slab = static_cast<char *>(slab) - extraSize;
         if (!outOfSlab()) {
 #if MATH_ADDRESS_SANITIZER_BUILD
           __asan_unpoison_memory_region(slab, extraSize);
@@ -184,8 +195,7 @@ public:
 #if MATH_MEMORY_SANITIZER_BUILD
           __msan_allocated_memory(SlabCur, extraSize);
 #endif
-          if constexpr (!ForOverwrite)
-            std::copy_n((char *)Ptr, capOld, (char *)slab);
+          if constexpr (!ForOverwrite) std::copy_n(cptr, capOld, (char *)slab);
           return slab;
         }
       }
@@ -193,18 +203,28 @@ public:
     // we need to allocate new memory
     auto newPtr = allocate(capNew);
     if (szOld && Ptr) {
-      if constexpr (!ForOverwrite)
-        std::copy_n((char *)Ptr, szOld, (char *)newPtr);
+      if constexpr (!ForOverwrite) std::copy_n(cptr, szOld, (char *)newPtr);
       deallocate(Ptr, capOld);
     }
     return newPtr;
   }
+#if MATH_ADDRESS_SANITIZER_BUILD
+  constexpr void poision_slabs(void *slab, void *sEnd) {
+    for (char *s = static_cast<char *>(slab), e = static_cast<char *>(sEnd);
+         s;) {
+      if constexpr (BumpUp) __asan_poison_memory_region(s, e - s);
+      else __asan_poison_memory_region(e, s - e);
+      s = static_cast<char *>(getNext(e));
+      if (!s) break;
+      e = static_cast<char *>(getEnd(s));
+    }
+  }
+#endif
   /// free all memory, but the Arena holds onto it.
   constexpr void reset() {
-    initSlab(getFirst(sEnd));
+    initSlab(getFirstEnd(sEnd));
 #if MATH_ADDRESS_SANITIZER_BUILD
-    for (void *p = sEnd; p; p = getNext(p))
-      __asan_poison_memory_region((char *)p + MetaSize, SlabSize - MetaSize);
+    poison_slabs(slab, sEnd);
 #endif
   }
   template <bool ForOverwrite = false, typename T>
@@ -222,23 +242,13 @@ public:
       Ptr, oldCapacity * sizeof(T), newCapacity * sizeof(T),
       oldSize * sizeof(T)));
   }
-  //   : slab{other.slab}, sEnd{other.sEnd} {
-  //   other.slab = nullptr;
-  //   other.sEnd = nullptr;
-  // }
 
   template <typename T, typename... Args>
   constexpr auto construct(Args &&...args) -> T * {
     auto *p = allocate(sizeof(T));
     return new (p) T(std::forward<Args>(args)...);
   }
-  constexpr auto isPointInSlab(void *p) -> bool {
-    if constexpr (BumpUp) return (p >= sEnd) && (p < (char *)sEnd + SlabSize);
-    else return (p > sEnd) && ((char *)p <= ((char *)sEnd + SlabSize));
-  }
   struct CheckPoint {
-    constexpr CheckPoint(void *b, void *l) : p(b), e(l) {}
-    constexpr auto isInSlab(void *send) const -> bool { return send == e; }
     void *const p;
     void *const e;
   };
@@ -247,12 +257,7 @@ public:
   }
   constexpr void rollback(CheckPoint p) {
 #if MATH_ADDRESS_SANITIZER_BUILD
-    // poison remainder of slab
-    if constexpr (BumpUp)
-      __asan_poison_memory_region(p.p, (char *)slab - (char *)p.p);
-    else __asan_poison_memory_region(slab, (char *)p.p - (char *)slab);
-    for (void *m = getNext(p.e); m; m = getNext(m))
-      __asan_poison_memory_region((char *)m + MetaSize, SlabSize - MetaSize);
+    poison_slabs(p.p, p.e);
 #endif
     slab = p.p;
     sEnd = p.e;
@@ -305,37 +310,17 @@ private:
       tryReallocate(Ptr, OldSize * sizeof(T), NewSize * sizeof(T)));
   }
   static constexpr auto bump(void *ptr, ptrdiff_t N) -> void * {
-    if constexpr (BumpUp) return (char *)ptr + N;
-    else return (char *)ptr - N;
+    if constexpr (BumpUp) return static_cast<char *>(ptr) + N;
+    else return static_cast<char *>(ptr) - N;
   }
   static constexpr auto outOfSlab(void *current, void *last) -> bool {
     if constexpr (BumpUp) return current >= last;
     else return current < last;
   }
-  constexpr auto outOfSlab() -> bool { return outOfSlab(slab, getEnd()); }
-  constexpr auto getEnd() -> void * {
-    if constexpr (BumpUp) return static_cast<char *>(sEnd) + SlabSize;
-    else return static_cast<char *>(sEnd) + MetaSize;
-  }
-  static constexpr auto initValue(void *p) -> void * {
-    if constexpr (BumpUp) return static_cast<char *>(p) + MetaSize;
-    else return static_cast<char *>(p) + SlabSize;
-  }
+  constexpr auto outOfSlab() -> bool { return outOfSlab(slab, sEnd); }
   constexpr void initSlab(void *p) {
-    sEnd = p;
-    slab = initValue(p);
-  }
-  constexpr void newSlab(void **oldMeta) {
-    initNewSlab();
-    void **newMeta = getMeta(sEnd);
-    oldMeta[0] = sEnd;
-    newMeta[0] = nullptr;
-    newMeta[1] = oldMeta[1];
-  }
-  constexpr void nextSlab() {
-    void **meta = getMeta(sEnd);
-    if (void *p = meta[0]) initSlab(p);
-    else newSlab(meta);
+    slab = p;
+    sEnd = getEnd(p);
   }
   // updates SlabCur and returns the allocated pointer
   [[gnu::returns_nonnull]] constexpr auto allocCore(ptrdiff_t Size) -> void * {
@@ -346,43 +331,70 @@ private:
 #if MATH_ADDRESS_SANITIZER_BUILD
     slab = bump(slab, Alignment); // poisoned zone
 #endif
-    if constexpr (BumpUp) {
-      void *old = slab;
-      slab = (char *)slab + align(Size);
-      return old;
-    } else {
-      slab = (char *)slab - align(Size);
-      return slab;
-    }
+    void *old = slab;
+    slab = bump(old, align(Size));
+    if constexpr (BumpUp) return old;
+    else return slab;
   }
-  [[gnu::returns_nonnull]] constexpr auto bumpAlloc(ptrdiff_t Size) -> void * {
-    void *ret = allocCore(Size);
-    if (outOfSlab()) [[unlikely]] {
-      nextSlab();
-      ret = allocCore(Size);
-    }
-    return ret;
-  }
-
-  void *slab;
 
 protected:
+  void *slab;
   void *sEnd;
-
-  static constexpr auto getMeta(void *p) -> void ** {
-    return static_cast<void **>(p);
+  /// meta layout:
+  /// Either an array of length 2.
+  /// 0: sEnd
+  /// 1: first slab
+  static constexpr auto getMetaStart(void *p) -> void ** {
+    if constexpr (BumpUp) return static_cast<void **>(p) - 2;
+    else return static_cast<void **>(p);
   }
-  static constexpr auto getFirst(void *p) -> void * { return getMeta(p)[1]; }
-  static constexpr auto getNext(void *p) -> void * { return getMeta(p)[0]; }
-  constexpr void initNewSlab() {
-    void *p = std::malloc(SlabSize);
-    initSlab(p);
+  /// meta layout:
+  /// Either an array of length 2.
+  /// 0: next slab
+  /// 1: first slab
+  static constexpr auto getMetaEnd(void *p) -> void ** {
+    if constexpr (BumpUp) return static_cast<void **>(p);
+    else return static_cast<void **>(p) - 2;
+  }
+  static constexpr auto getFirstStart(void *p) -> void * {
+    return getMetaStart(p)[1];
+  }
+  static constexpr auto getFirstEnd(void *p) -> void * {
+    return getMetaEnd(p)[1];
+  }
+  static constexpr auto getNext(void *p) -> void * { return getMetaEnd(p)[0]; }
+  static constexpr auto getEnd(void *p) -> void * { return getMetaStart(p)[0]; }
+
+  constexpr void initNewSlab(size_t sz) {
+#ifdef __cpp_lib_allocate_at_least
+    std::allocation_result res = std::allocator<char>{}.allocate_at_least(sz);
+    void *p = res.ptr;
+    sz = res.count;
+#else
+    void *p = std::allocator<char>{}.allocate(sz);
+#endif
+    char *c = static_cast<char *>(p) + MetaSize;
+    char *q = static_cast<char *>(p) + sz - MetaSize;
+    void **metac = static_cast<void **>(p);
+    void **metaq = static_cast<void **>(static_cast<void *>(q));
+    if constexpr (BumpUp) {
+      metac[0] = q;
+      slab = c;
+      sEnd = q;
+    } else {
+      metaq[0] = c;
+      slab = q;
+      sEnd = c;
+    }
+#ifndef NDEBUG
+    fillWithJunk(c, sz - 2 * MetaSize);
+#endif
     // poison everything except the meta data
 #if MATH_ADDRESS_SANITIZER_BUILD
-    __asan_poison_memory_region(static_cast<char *>(p) + MetaSize,
-                                SlabSize - MetaSize);
+    __asan_poison_memory_region(c, q - c);
 #endif
   }
+
   // constexpr Arena() : slab(nullptr), sEnd(nullptr){};
   constexpr Arena() = default;
 };
@@ -396,19 +408,24 @@ template <size_t SlabSize = 16384, bool BumpUp = true>
 class OwningArena : public Arena<SlabSize, BumpUp> {
 public:
   constexpr explicit OwningArena() {
-    this->initNewSlab();
-    void **meta = this->getMeta(this->sEnd);
-    meta[0] = nullptr;
-    meta[1] = this->sEnd; // sEnd is first
+    this->initNewSlab(SlabSize);
+    getMetaStart(this->slab)[1] = this->slab;
+    getMetaEnd(this->sEnd)[0] = nullptr;
+    getMetaEnd(this->sEnd)[1] = this->slab;
   }
 
   OwningArena(OwningArena &&other) = delete;
   OwningArena(const OwningArena &) = delete;
   constexpr ~OwningArena() {
-    void *p = this->getFirst(this->sEnd);
+    char *p = static_cast<char *>(this->getFirstEnd(this->sEnd));
+    constexpr size_t m = this->MetaSize;
+    constexpr size_t mpad = 2 * m;
     while (p) {
-      void *next = this->getNext(p); // load before free!
-      std::free(p);
+      char *end = static_cast<char *>(this->getEnd(p));
+      char *next = static_cast<char *>(this->getNext(end)); // load before free!
+      if constexpr (BumpUp)
+        std::allocator<char>{}.deallocate(p - m, end - p + mpad);
+      else std::allocator<char>{}.deallocate(end - m, p - end + mpad);
       p = next;
     }
   }
