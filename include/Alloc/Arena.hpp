@@ -47,7 +47,9 @@ void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 #define MATH_NO_SANITIZE_MEMORY_ATTRIBUTE
 #endif
 
-namespace poly::utils {
+namespace poly::alloc{
+
+using utils::invariant, utils::Valid;
 
 /// An Arena allocator
 /// API:
@@ -536,13 +538,13 @@ constexpr auto call(Arena<> alloc, const F &f, T &&...t) {
   else return f(std::forward<T>(t)...);
 }
 
-} // namespace poly::utils
+} // namespace poly::alloc
 
 template <size_t SlabSize, bool BumpUp>
-auto operator new(size_t Size, poly::utils::Arena<SlabSize, BumpUp> &Alloc)
+auto operator new(size_t Size, poly::alloc::Arena<SlabSize, BumpUp> &Alloc)
   -> void * {
   return Alloc.allocate(Size);
 }
 
 template <size_t SlabSize, bool BumpUp>
-void operator delete(void *, poly::utils::Arena<SlabSize, BumpUp> &) {}
+void operator delete(void *, poly::alloc::Arena<SlabSize, BumpUp> &) {}

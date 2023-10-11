@@ -62,7 +62,13 @@ if(USE_MI_MALLOC)
   endif()
 endif()
 if(SEARCH_JE_MALLOC)
-
+  find_package(PkgConfig)
+  if(PKG_CONFIG_FOUND)
+    pkg_check_modules(JEMALLOC jemalloc)
+    target_link_libraries(${PROJECT_NAME} INTERFACE ${JEMALLOC_LIBRARIES})
+    target_include_directories(${PROJECT_NAME} INTERFACE ${JEMALLOC_INCLUDE_DIRS})
+    target_compile_definitions(${PROJECT_NAME} INTERFACE USING_JEMALLOC)
+  endif()
 endif()
 # ---- Create an installable target ----
 # this allows users to install and find the library via `find_package()`.
