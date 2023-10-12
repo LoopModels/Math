@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Alloc/Mallocator.hpp"
 #include "Utilities/Invariant.hpp"
 #include "Utilities/Valid.hpp"
 #include <algorithm>
@@ -11,10 +12,6 @@
 #include <memory>
 #include <utility>
 #include <version>
-
-#ifdef USING_MIMALLOC
-#include <mimalloc-new-delete.h>
-#endif
 
 #ifndef __has_feature      // Optional of course.
 #define __has_feature(x) 0 // Compatibility with non-clang compilers.
@@ -47,7 +44,7 @@ void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 #define MATH_NO_SANITIZE_MEMORY_ATTRIBUTE
 #endif
 
-namespace poly::alloc{
+namespace poly::alloc {
 
 using utils::invariant, utils::Valid;
 
@@ -102,7 +99,7 @@ public:
   constexpr void bigAlloc(size_t Size) {
     void **oldMeta = getMetaEnd(sEnd);
     void *next = oldMeta[0];
-    if (next && Size <= (SlabSize - 2*MetaSize)) return initSlab(next);
+    if (next && Size <= (SlabSize - 2 * MetaSize)) return initSlab(next);
     initNewSlab(align(Size) + SlabSize);
     oldMeta[0] = slab;
     void *firstSlab = oldMeta[1];
@@ -367,14 +364,8 @@ protected:
   static constexpr auto getNext(void *p) -> void * { return getMetaEnd(p)[0]; }
   static constexpr auto getEnd(void *p) -> void * { return getMetaStart(p)[0]; }
 
-  constexpr void initNewSlab(size_t sz) {
-#ifdef __cpp_lib_allocate_at_least
-    std::allocation_result res = std::allocator<char>{}.allocate_at_least(sz);
-    void *p = res.ptr;
-    sz = res.count;
-#else
-    void *p = std::allocator<char>{}.allocate(sz);
-#endif
+  constexpr void initNewSlab(size_t size) {
+    auto [p, sz] = alloc_at_least(size);
     char *c = static_cast<char *>(p) + MetaSize;
     char *q = static_cast<char *>(p) + sz - MetaSize;
     void **metac = static_cast<void **>(p);
@@ -425,9 +416,8 @@ public:
     while (p) {
       char *end = static_cast<char *>(this->getEnd(p));
       char *next = static_cast<char *>(this->getNext(end)); // load before free!
-      if constexpr (BumpUp)
-        std::allocator<char>{}.deallocate(p - m, end - p + mpad);
-      else std::allocator<char>{}.deallocate(end - m, p - end + mpad);
+      if constexpr (BumpUp) free(p - m, end - p + mpad);
+      else free(end - m, p - end + mpad);
       p = next;
     }
   }
