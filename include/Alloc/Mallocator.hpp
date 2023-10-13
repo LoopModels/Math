@@ -17,7 +17,7 @@ template <class Pointer> using AllocResult = std::allocation_result<Pointer *>;
 #else
 template <class Pointer> struct AllocResult {
   Pointer *ptr;
-  SizeType count;
+  size_t count;
 };
 #endif
 
