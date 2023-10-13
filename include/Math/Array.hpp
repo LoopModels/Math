@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Alloc/Arena.hpp"
 #include "Containers/Storage.hpp"
 #include "Math/ArrayOps.hpp"
 #include "Math/AxisTypes.hpp"
@@ -9,7 +10,6 @@
 #include "Math/MatrixDimensions.hpp"
 #include "Math/Rational.hpp"
 #include "Math/Vector.hpp"
-#include "Utilities/Allocators.hpp"
 #include "Utilities/Invariant.hpp"
 #include "Utilities/Optional.hpp"
 #include "Utilities/TypePromotion.hpp"
@@ -48,7 +48,7 @@
 
 namespace poly::math {
 template <class T, class S, size_t N = PreAllocStorage<T>(),
-          class A = std::allocator<T>,
+          class A = alloc::Mallocator<T>,
           std::unsigned_integral U = default_capacity_type_t<S>>
 struct ManagedArray;
 
@@ -552,7 +552,7 @@ struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
   constexpr ResizeableView() noexcept : BaseT(nullptr, 0), capacity(0) {}
   constexpr ResizeableView(T *p, S s, U c) noexcept
     : BaseT(p, s), capacity(c) {}
-  constexpr ResizeableView(utils::Arena<> *a, S s, U c) noexcept
+  constexpr ResizeableView(alloc::Arena<> *a, S s, U c) noexcept
     : ResizeableView{a->template allocate<T>(c), s, c} {}
 
   [[nodiscard]] constexpr auto isFull() const -> bool {
@@ -569,7 +569,7 @@ struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
   /// Allocates extra space if needed
   /// Has a different name to make sure we avoid ambiguities.
   template <class... Args>
-  constexpr auto emplace_backa(utils::Arena<> *alloc, Args &&...args)
+  constexpr auto emplace_backa(alloc::Arena<> *alloc, Args &&...args)
     -> decltype(auto) {
     static_assert(std::is_integral_v<S>, "emplace_back requires integral size");
     if (isFull()) reserve(alloc, (capacity + 1) * 2);
@@ -581,7 +581,7 @@ struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
     invariant(U(this->sz) < capacity);
     std::construct_at<T>(this->data() + this->sz++, std::move(value));
   }
-  constexpr void push_back(utils::Arena<> *alloc, T value) {
+  constexpr void push_back(alloc::Arena<> *alloc, T value) {
     static_assert(std::is_integral_v<S>, "push_back requires integral size");
     if (isFull()) reserve(alloc, (capacity + 1) * 2);
     std::construct_at<T>(this->data() + this->sz++, std::move(value));
@@ -737,7 +737,7 @@ struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
     return p;
   }
   template <size_t SlabSize, bool BumpUp>
-  constexpr void reserve(utils::Arena<SlabSize, BumpUp> *alloc, U newCapacity) {
+  constexpr void reserve(alloc::Arena<SlabSize, BumpUp> *alloc, U newCapacity) {
     if (newCapacity <= capacity) return;
     this->ptr = alloc->template reallocate<false, T>(
       const_cast<T *>(this->ptr), capacity, newCapacity, U{this->sz});
@@ -756,7 +756,7 @@ protected:
 /// Non-owning view of a managed array, capable of reallocating, etc.
 /// It does not own memory. Mostly, it serves to drop the inlined
 /// stack capacity of the `ManagedArray` from the type.
-template <class T, class S, class P, class A = std::allocator<T>,
+template <class T, class S, class P, class A = alloc::Mallocator<T>,
 
           std::unsigned_integral U = default_capacity_type_t<S>>
 struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S, U> {
@@ -796,15 +796,9 @@ struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S, U> {
       if (nz <= oz) return;
       if (nz > this->capacity) {
         U newCapacity = U(nz);
-#ifdef __cpp_lib_allocate_at_least
-        std::allocation_result res = allocator.allocate_at_least(newCapacity);
-        T *newPtr = res.ptr;
-        newCapacity = U(res.count);
-#else
-        T *newPtr = allocator.allocate(newCapacity);
-#endif
+        auto [newPtr, newCap] = alloc::alloc_at_least(allocator, newCapacity);
         if (oz) std::copy_n(this->data(), oz, newPtr);
-        maybeDeallocate(newPtr, newCapacity);
+        maybeDeallocate(newPtr, newCap);
         invariant(newCapacity > oz);
       }
       std::fill(this->data() + oz, this->data() + nz, T{});
@@ -817,16 +811,12 @@ struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S, U> {
            newM = unsigned{Row{nz}}, oldM = unsigned{Row{oz}};
       bool newAlloc = len > this->capacity;
       bool inPlace = !newAlloc;
-#ifdef __cpp_lib_allocate_at_least
       T *npt = this->data();
       if (newAlloc) {
-        std::allocation_result res = allocator.allocate_at_least(len);
+        alloc::AllocResult<T> res = alloc::alloc_at_least(allocator, len);
         npt = res.ptr;
-        len = U(res.count);
+        len = res.count;
       }
-#else
-      T *npt = newAlloc ? allocator.allocate(len) : this->data();
-#endif
       // we can copy forward so long as the new stride is smaller
       // so that the start of the dst range is outside of the src range
       // we can also safely forward copy if we allocated a new ptr
@@ -912,17 +902,11 @@ struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S, U> {
   constexpr void reserve(S nz) {
     U newCapacity = U(nz);
     if (newCapacity <= this->capacity) return;
-      // allocate new, copy, deallocate old
-#ifdef __cpp_lib_allocate_at_least
-    std::allocation_result res = allocator.allocate_at_least(newCapacity);
-    T *newPtr = res.ptr;
-    newCapacity = U(res.count);
-#else
-    T *newPtr = allocator.allocate(newCapacity);
-#endif
+    // allocate new, copy, deallocate old
+    auto [newPtr, newCap] = alloc::alloc_at_least(allocator, newCapacity);
     if (U oldLen = U(this->sz))
       std::uninitialized_copy_n(this->data(), oldLen, newPtr);
-    maybeDeallocate(newPtr, newCapacity);
+    maybeDeallocate(newPtr, newCap);
   }
   [[nodiscard]] constexpr auto get_allocator() const noexcept -> A {
     return allocator;
@@ -981,14 +965,9 @@ protected:
   [[no_unique_address]] A allocator{};
 
   constexpr void allocateAtLeast(U len) {
-#ifdef __cpp_lib_allocate_at_least
-    std::allocation_result res = allocator.allocate_at_least(len);
+    alloc::AllocResult<T> res = alloc::alloc_at_least(allocator, len);
     this->ptr = res.ptr;
     this->capacity = res.count;
-#else
-    this->ptr = allocator.allocate(len);
-    this->capacity = len;
-#endif
   }
   [[nodiscard]] constexpr auto isSmall() const -> bool {
     return static_cast<const P *>(this)->isSmall();
@@ -1313,18 +1292,19 @@ static_assert(std::copyable<ManagedArray<intptr_t, unsigned>>);
 // [ptr, dims, capacity, allocator, array]
 // 8 + 3*4 + 4 + 0 + 64*8 = 24 + 512 = 536
 static_assert(
-  sizeof(ManagedArray<int64_t, StridedDims, 64, std::allocator<int64_t>>) ==
+  sizeof(ManagedArray<int64_t, StridedDims, 64, alloc::Mallocator<int64_t>>) ==
   536);
 // sizes should be:
 // [ptr, dims, capacity, allocator, array]
 // 8 + 2*4 + 8 + 0 + 64*8 = 24 + 512 = 536
 static_assert(
-  sizeof(ManagedArray<int64_t, DenseDims, 64, std::allocator<int64_t>>) == 536);
+  sizeof(ManagedArray<int64_t, DenseDims, 64, alloc::Mallocator<int64_t>>) ==
+  536);
 // sizes should be:
 // [ptr, dims, capacity, allocator, array]
 // 8 + 1*4 + 4 + 0 + 64*8 = 16 + 512 = 528
 static_assert(
-  sizeof(ManagedArray<int64_t, SquareDims, 64, std::allocator<int64_t>>) ==
+  sizeof(ManagedArray<int64_t, SquareDims, 64, alloc::Mallocator<int64_t>>) ==
   528);
 
 template <class T, size_t N = PreAllocStorage<T>()>

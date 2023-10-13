@@ -1,5 +1,5 @@
 #pragma once
-#include "Utilities/Allocators.hpp"
+#include "Alloc/Arena.hpp"
 #include "Utilities/Invariant.hpp"
 #include <cstddef>
 #include <memory>
@@ -113,7 +113,7 @@ public:
   //   std::allocator<UList<T>> alloc;
   //   push_ordered(alloc, t);
   // }
-  [[nodiscard]] constexpr auto push(utils::Arena<> *alloc, T t) -> UList * {
+  [[nodiscard]] constexpr auto push(alloc::Arena<> *alloc, T t) -> UList * {
     invariant(count <= std::ssize(data));
     if (!isFull()) {
       data[count++] = t;
@@ -121,7 +121,7 @@ public:
     }
     return alloc->create<UList<T>>(t, this);
   };
-  constexpr void push_ordered(utils::Arena<> *alloc, T t) {
+  constexpr void push_ordered(alloc::Arena<> *alloc, T t) {
     invariant(count <= std::ssize(data));
     if (!isFull()) {
       data[count++] = t;
@@ -130,7 +130,7 @@ public:
     if (next == nullptr) next = alloc->create<UList<T>>(t);
     else next->push_ordered(alloc, t);
   }
-  constexpr auto copy(utils::Arena<> *alloc) const -> UList * {
+  constexpr auto copy(alloc::Arena<> *alloc) const -> UList * {
     UList<T> *L = alloc->create<UList<T>>();
     L->count = count;
     std::copy(std::begin(data), std::end(data), std::begin(L->data));

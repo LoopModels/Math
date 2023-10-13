@@ -1,6 +1,6 @@
 
 #include "Containers/UnrolledList.hpp"
-#include "Utilities/Allocators.hpp"
+#include "Alloc/Arena.hpp"
 #include <cstdint>
 #include <gtest/gtest.h>
 
@@ -8,7 +8,7 @@ using namespace poly;
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(UListTest, BasicAssertions) {
-  utils::OwningArena<> alloc;
+  alloc::OwningArena<> alloc;
   auto *list = alloc.create<containers::UList<int64_t>>();
   for (int64_t i = 0; i < 100; ++i) {
     list = list->push(&alloc, i);

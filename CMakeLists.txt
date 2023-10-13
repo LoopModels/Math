@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.14)
 
 option(ENABLE_LLD "Use LLD? Off by default." OFF)
+option(USE_MI_MALLOC "Use MI_MALLOC if available." ON)
+option(USE_JE_MALLOC "Use jemallc if available and not using mi_malloc." ON)
 # ---- Project ----
 
 # Note: update this to your new project's name and version
@@ -48,6 +50,26 @@ target_include_directories(
                             $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
+# --- Allocator override ----
+
+set(SEARCH_JE_MALLOC USE_JE_MALLOC)
+if(USE_MI_MALLOC)
+  find_package(mimalloc 2.1 REQUIRED)
+  if(mimalloc_FOUND)
+    target_link_libraries(${PROJECT_NAME} INTERFACE mimalloc) # mimalloc-static
+    target_compile_definitions(${PROJECT_NAME} INTERFACE USING_MIMALLOC)
+    set(SEARCH_JE_MALLOC OFF)
+  endif()
+endif()
+if(SEARCH_JE_MALLOC)
+  find_package(PkgConfig)
+  if(PKG_CONFIG_FOUND)
+    pkg_check_modules(JEMALLOC jemalloc)
+    target_link_libraries(${PROJECT_NAME} INTERFACE ${JEMALLOC_LIBRARIES})
+    target_include_directories(${PROJECT_NAME} INTERFACE ${JEMALLOC_INCLUDE_DIRS})
+    target_compile_definitions(${PROJECT_NAME} INTERFACE USING_JEMALLOC)
+  endif()
+endif()
 # ---- Create an installable target ----
 # this allows users to install and find the library via `find_package()`.
 

@@ -6,7 +6,7 @@
 namespace poly::math {
 
 // recursive branch and bound
-constexpr auto branch(utils::Arena<> *alloc, BoxTransform &box, double upper,
+constexpr auto branch(alloc::Arena<> *alloc, BoxTransform &box, double upper,
                       double lower, const auto &f) -> double {
   auto [j, fl] = box.maxFractionalComponent<>();
   if (j < 0) return lower; // was an integer solution
@@ -23,7 +23,7 @@ constexpr auto branch(utils::Arena<> *alloc, BoxTransform &box, double upper,
   return oupper;
 }
 // recursive branch and bound
-constexpr auto bound(utils::Arena<> *alloc, BoxTransform &box, double upper,
+constexpr auto bound(alloc::Arena<> *alloc, BoxTransform &box, double upper,
                      const auto &f) -> double {
   double lower = minimize(alloc, box, f);
   if (lower >= upper) return upper; // bad solution
@@ -32,7 +32,7 @@ constexpr auto bound(utils::Arena<> *alloc, BoxTransform &box, double upper,
 // set floor and ceil
 // Assumes that integer floor of values is optimal
 constexpr auto
-minimizeIntSol(utils::Arena<> *alloc, MutPtrVector<int32_t> r, int32_t lb,
+minimizeIntSol(alloc::Arena<> *alloc, MutPtrVector<int32_t> r, int32_t lb,
                int32_t ub, const auto &f,
                double globalupper = std::numeric_limits<double>::infinity()) {
   // goal is to shrink all bounds such that lb==ub, i.e. we have all

@@ -1,4 +1,4 @@
-#include "Utilities/Allocators.hpp"
+#include "Alloc/Arena.hpp"
 #include "Utilities/ListRanges.hpp"
 #include <concepts>
 #include <gtest/gtest.h>
@@ -46,7 +46,7 @@ static_assert(std::ranges::range<LR>);
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(ListRangeTest, BasicAssertions) {
-  utils::OwningArena<> arena;
+  alloc::OwningArena<> arena;
   List<int> *list = nullptr;
   for (int i = 0; i < 10; ++i) list = arena.create<List<int>>(i)->setNext(list);
   {
