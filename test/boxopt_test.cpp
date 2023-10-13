@@ -25,7 +25,7 @@ TEST(BoxOptTest, BasicAssertions) {
     auto u1 = x[1];
     return fcore(u0, u1) + 0.25 * poly::math::softplus(8.0 * gcore(u0, u1));
   };
-  poly::utils::OwningArena<> arena;
+  poly::alloc::OwningArena<> arena;
   double opt0 = poly::math::minimize(&arena, box, fsoft);
   double u0 = box.transformed()[0];
   double u1 = box.transformed()[1];

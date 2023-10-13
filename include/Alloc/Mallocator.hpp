@@ -2,9 +2,11 @@
 
 #include <cstddef>
 #ifdef USING_MIMALLOC
-#include <mimalloc-new-delete.h>
+// #include <mimalloc-new-delete.h>
+#include <mimalloc-2.1/mimalloc.h>
 #elifdef USING_JEMALLOC
-#include "jemalloc-new-delete.hpp"
+// #include "jemalloc-new-delete.hpp"
+#include <jemalloc/jemalloc.h>
 #else
 #include <cstdlib>
 #endif
@@ -96,7 +98,7 @@ inline auto exalloc(void *p, size_t n) -> void * {
 inline auto realloc(void *p, size_t n, std::align_val_t al) -> void * {
   auto a = static_cast<size_t>(al);
 #ifdef USING_MIMALLOC
-  return mi_realloc(p, n, a);
+  return mi_realloc_aligned(p, n, a);
 #elifdef USING_JEMALLOC
   return rallocx(p, n MALLOCX_ALIGN(a));
 #else
@@ -129,7 +131,7 @@ inline void free(void *p, size_t n) {
 inline void free(void *p, std::align_val_t al) {
   auto a = static_cast<size_t>(al);
 #ifdef USING_MIMALLOC
-  return mi_free_aligned(p);
+  return mi_free_aligned(p, a);
 #elifdef USING_JEMALLOC
   return dallocx(p, MALLOCX_ALIGN(a)));
 #else
@@ -217,6 +219,8 @@ template <class T> struct Mallocator {
     free(p, n * sizeof(T), al);
   };
   constexpr auto operator==(const Mallocator &) { return true; };
+  template <class U>
+  constexpr operator Mallocator<U>() { return {};} 
 };
 template <class A>
 concept CanAllocAtLeast = requires(A a) {

@@ -182,7 +182,7 @@ public:
   [[nodiscard]] constexpr auto hessian() const -> MutSquarePtrMatrix<double> {
     return {ptr + dim, dim};
   }
-  constexpr HessianResultCore(utils::Arena<> *alloc, unsigned d)
+  constexpr HessianResultCore(alloc::Arena<> *alloc, unsigned d)
     : ptr{alloc->allocate<double>(size_t(d) * (d + 1))}, dim{d} {}
 };
 class HessianResult : public HessianResultCore {
@@ -192,7 +192,7 @@ public:
   [[nodiscard]] constexpr auto value() -> double & { return x; }
   [[nodiscard]] constexpr auto value() const -> double { return x; }
 
-  constexpr HessianResult(utils::Arena<> *alloc, unsigned d)
+  constexpr HessianResult(alloc::Arena<> *alloc, unsigned d)
     : HessianResultCore{alloc, d} {}
 
   template <size_t I> constexpr auto get() const {
@@ -234,7 +234,7 @@ struct ScaledIncrement {
   constexpr void operator()(double &x, double y) const { x += scale * y; }
 };
 
-constexpr auto gradient(utils::Arena<> *arena, PtrVector<double> x,
+constexpr auto gradient(alloc::Arena<> *arena, PtrVector<double> x,
                         const auto &f) {
   constexpr ptrdiff_t U = 8;
   using D = Dual<double, U>;
@@ -242,7 +242,7 @@ constexpr auto gradient(utils::Arena<> *arena, PtrVector<double> x,
   MutPtrVector<double> grad = vector<double>(arena, N);
   auto p = arena->scope();
   for (ptrdiff_t i = 0;; i += U) {
-    D fx = utils::call(*arena, f, dual<U>(x, i));
+    D fx = alloc::call(*arena, f, dual<U>(x, i));
     for (ptrdiff_t j = 0; ((j < U) && (i + j < N)); ++j)
       grad[i + j] = fx.gradient()[j];
     if (i + U >= N) return std::make_pair(fx.value(), grad);
@@ -275,7 +275,7 @@ constexpr auto hessian(HessianResultCore hr, PtrVector<double> x, const auto &f,
       // we want to copy into both regions _(j, j+Uj) and _(i, i+Ui)
       // these regions overlap for the last `i` iteration only
       DD fx = f(dual<Uj>(dual<Ui>(x, i), j));
-      // DD fx = utils::call(arena, f, x);
+      // DD fx = alloc::call(arena, f, x);
       for (ptrdiff_t k = 0; ((k < Uj) && (j + k < N)); ++k)
         for (ptrdiff_t l = 0; ((l < Ui) && (i + l < N)); ++l)
           update(hess[j + k, i + l], fx.gradient()[k].gradient()[l]);
@@ -294,7 +294,7 @@ constexpr auto hessian(HessianResultCore hr, PtrVector<double> x, const auto &f)
   return hessian(hr, x, f, assign);
 }
 
-constexpr auto hessian(utils::Arena<> *arena, PtrVector<double> x,
+constexpr auto hessian(alloc::Arena<> *arena, PtrVector<double> x,
                        const auto &f) -> HessianResult {
   unsigned N = x.size();
   HessianResult hr{arena, N};

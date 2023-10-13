@@ -7,7 +7,7 @@
 #include "Math/MatrixDimensions.hpp"
 #include "Math/NormalForm.hpp"
 #include "Math/Rational.hpp"
-#include "Utilities/Allocators.hpp"
+#include "Alloc/Arena.hpp"
 #include "Utilities/Invariant.hpp"
 #include <cstddef>
 #include <cstdint>

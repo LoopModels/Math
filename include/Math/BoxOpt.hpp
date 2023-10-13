@@ -4,7 +4,7 @@
 #include "Math/Exp.hpp"
 #include "Math/LinearAlgebra.hpp"
 #include "Math/Math.hpp"
-#include "Utilities/Allocators.hpp"
+#include "Alloc/Arena.hpp"
 #include <cstddef>
 #include <cstdint>
 
@@ -265,7 +265,7 @@ template <typename F> struct IsBoxCall<BoxCall<F>> {
   static constexpr bool value = true;
 };
 
-constexpr auto minimize(utils::Arena<> *alloc, MutPtrVector<double> x,
+constexpr auto minimize(alloc::Arena<> *alloc, MutPtrVector<double> x,
                         const auto &f) -> double {
   constexpr bool constrained =
     IsBoxCall<std::remove_cvref_t<decltype(f)>>::value;
@@ -355,7 +355,7 @@ constexpr auto minimize(utils::Arena<> *alloc, MutPtrVector<double> x,
   return fx;
 }
 
-constexpr auto minimize(utils::Arena<> *alloc, BoxTransformView trf,
+constexpr auto minimize(alloc::Arena<> *alloc, BoxTransformView trf,
                         const auto &f) -> double {
   return minimize(alloc, trf.getRaw(), BoxCall<decltype(f)>{f, trf});
 }

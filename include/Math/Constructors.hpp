@@ -2,10 +2,10 @@
 
 #include "Math/Array.hpp"
 #include "Math/MatrixDimensions.hpp"
-#include "Utilities/Allocators.hpp"
+#include "Alloc/Arena.hpp"
 
 namespace poly::math {
-using utils::Arena, utils::WArena, utils::OwningArena;
+using alloc::Arena, alloc::WArena, alloc::OwningArena;
 template <class T>
 constexpr auto vector(std::allocator<T>, unsigned int M) -> Vector<T> {
   return Vector<T>(M);

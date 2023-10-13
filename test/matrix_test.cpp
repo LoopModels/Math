@@ -3,7 +3,7 @@
 #include "Math/MatrixDimensions.hpp"
 #include "Math/SmallSparseMatrix.hpp"
 #include "Math/StaticArrays.hpp"
-#include "Utilities/Allocators.hpp"
+#include "Alloc/Arena.hpp"
 #include "Utilities/MatrixStringParse.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -200,7 +200,7 @@ TEST(SquareMatrixTest, BasicAssertions) {
     for (ptrdiff_t i = 0; i < 2; ++i) EXPECT_EQ((B[j, i]), 4 * (i + 2) + j);
 }
 TEST(VectorTest, BasicAssertions) {
-  poly::utils::OwningArena<> alloc;
+  poly::alloc::OwningArena<> alloc;
   ResizeableView<int64_t, unsigned> x;
   for (size_t i = 0; i < 100; ++i) {
     if (x.getCapacity() <= x.size())

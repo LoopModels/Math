@@ -77,6 +77,8 @@ template <size_t SlabSize = 16384, bool BumpUp = true> class Arena {
   static constexpr auto align(size_t x) -> size_t {
     return (x + Alignment - 1) & ~(Alignment - 1);
   }
+
+protected:
   // meta data is always in front, so we don't have to handle
   // the rare accidental case of huge slabs separately.
   static constexpr size_t MetaSize = align(2 * sizeof(void *));
@@ -208,9 +210,8 @@ public:
     return newPtr;
   }
 #if MATH_ADDRESS_SANITIZER_BUILD
-  constexpr void poision_slabs(void *slab, void *sEnd) {
-    for (char *s = static_cast<char *>(slab), e = static_cast<char *>(sEnd);
-         s;) {
+  constexpr void poison_slabs(void *s0, void *e0) {
+    for (char *s = static_cast<char *>(s0), *e = static_cast<char *>(e0); s;) {
       if constexpr (BumpUp) __asan_poison_memory_region(s, e - s);
       else __asan_poison_memory_region(e, s - e);
       s = static_cast<char *>(getNext(e));
@@ -402,16 +403,16 @@ class OwningArena : public Arena<SlabSize, BumpUp> {
 public:
   constexpr explicit OwningArena() {
     this->initNewSlab(SlabSize);
-    getMetaStart(this->slab)[1] = this->slab;
-    getMetaEnd(this->sEnd)[0] = nullptr;
-    getMetaEnd(this->sEnd)[1] = this->slab;
+    this->getMetaStart(this->slab)[1] = this->slab;
+    this->getMetaEnd(this->sEnd)[0] = nullptr;
+    this->getMetaEnd(this->sEnd)[1] = this->slab;
   }
 
   OwningArena(OwningArena &&other) = delete;
   OwningArena(const OwningArena &) = delete;
   constexpr ~OwningArena() {
     char *p = static_cast<char *>(this->getFirstEnd(this->sEnd));
-    constexpr size_t m = this->MetaSize;
+    constexpr size_t m = Arena<SlabSize, BumpUp>::MetaSize;
     constexpr size_t mpad = 2 * m;
     while (p) {
       char *end = static_cast<char *>(this->getEnd(p));

@@ -196,8 +196,8 @@
 
 {
   "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan",
-  "command": "/usr/local/bin/clang++ -I/home/chriselrod/Documents/progwork/cxx/Math/include -I/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/_deps/math-build/PackageProjectInclude -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/include -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest -g -std=gnu++23 -fno-exceptions -fno-rtti -Wall -Wpedantic -Wextra -Wshadow -Werror -ferror-limit=8 -fcolor-diagnostics -D_GLIBCXX_ASSERTIONS -O0 -g --coverage -Winvalid-pch -Xclang -include-pch -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx.pch -Xclang -include -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx -c /home/chriselrod/Documents/progwork/cxx/Math/include/Utilities/Allocators.hpp",
-  "file": "/home/chriselrod/Documents/progwork/cxx/Math/include/Utilities/Allocators.hpp"
+  "command": "/usr/local/bin/clang++ -I/home/chriselrod/Documents/progwork/cxx/Math/include -I/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/_deps/math-build/PackageProjectInclude -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/include -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest -g -std=gnu++23 -fno-exceptions -fno-rtti -Wall -Wpedantic -Wextra -Wshadow -Werror -ferror-limit=8 -fcolor-diagnostics -D_GLIBCXX_ASSERTIONS -O0 -g --coverage -Winvalid-pch -Xclang -include-pch -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx.pch -Xclang -include -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx -c /home/chriselrod/Documents/progwork/cxx/Math/include/Alloc/Arena.hpp",
+  "file": "/home/chriselrod/Documents/progwork/cxx/Math/include/Alloc/Arena.hpp"
 },
 
 {

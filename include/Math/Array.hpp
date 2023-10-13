@@ -552,7 +552,7 @@ struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
   constexpr ResizeableView() noexcept : BaseT(nullptr, 0), capacity(0) {}
   constexpr ResizeableView(T *p, S s, U c) noexcept
     : BaseT(p, s), capacity(c) {}
-  constexpr ResizeableView(utils::Arena<> *a, S s, U c) noexcept
+  constexpr ResizeableView(alloc::Arena<> *a, S s, U c) noexcept
     : ResizeableView{a->template allocate<T>(c), s, c} {}
 
   [[nodiscard]] constexpr auto isFull() const -> bool {
@@ -569,7 +569,7 @@ struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
   /// Allocates extra space if needed
   /// Has a different name to make sure we avoid ambiguities.
   template <class... Args>
-  constexpr auto emplace_backa(utils::Arena<> *alloc, Args &&...args)
+  constexpr auto emplace_backa(alloc::Arena<> *alloc, Args &&...args)
     -> decltype(auto) {
     static_assert(std::is_integral_v<S>, "emplace_back requires integral size");
     if (isFull()) reserve(alloc, (capacity + 1) * 2);
@@ -581,7 +581,7 @@ struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
     invariant(U(this->sz) < capacity);
     std::construct_at<T>(this->data() + this->sz++, std::move(value));
   }
-  constexpr void push_back(utils::Arena<> *alloc, T value) {
+  constexpr void push_back(alloc::Arena<> *alloc, T value) {
     static_assert(std::is_integral_v<S>, "push_back requires integral size");
     if (isFull()) reserve(alloc, (capacity + 1) * 2);
     std::construct_at<T>(this->data() + this->sz++, std::move(value));
