@@ -1029,11 +1029,12 @@ struct POLY_MATH_GSL_OWNER ManagedArray
 #if !defined(__clang__) && defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#pragma GCC diagnostic ignored "-Wuninitialized"
 #else
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wuninitialized"
 #endif
-  constexpr ManagedArray() noexcept : BaseT{memory.data(), S{}, N} {
+  constexpr ManagedArray(A a) noexcept : BaseT{memory.data(), S{}, N, a} {
 #ifndef NDEBUG
     if (!N) return;
     if constexpr (std::numeric_limits<T>::has_signaling_NaN)
@@ -1042,7 +1043,7 @@ struct POLY_MATH_GSL_OWNER ManagedArray
       std::fill_n(this->data(), N, std::numeric_limits<T>::min());
 #endif
   }
-  constexpr ManagedArray(S s) noexcept : BaseT{memory.data(), s, N} {
+  constexpr ManagedArray(S s, A a) noexcept : BaseT{memory.data(), s, N, a} {
     U len = U(this->sz);
     if (len > N) this->allocateAtLeast(len);
 #ifndef NDEBUG
@@ -1053,11 +1054,15 @@ struct POLY_MATH_GSL_OWNER ManagedArray
       std::fill_n(this->data(), len, std::numeric_limits<T>::min());
 #endif
   }
-  constexpr ManagedArray(S s, T x) noexcept : BaseT{memory.data(), s, N} {
+  constexpr ManagedArray(S s, T x, A a) noexcept
+    : BaseT{memory.data(), s, N, a} {
     U len = U(this->sz);
     if (len > N) this->allocateAtLeast(len);
     if (len) std::fill_n(this->data(), len, x);
   }
+  constexpr ManagedArray() noexcept : ManagedArray(A{}){};
+  constexpr ManagedArray(S s) noexcept : ManagedArray(s, A{}){};
+  constexpr ManagedArray(S s, T x) noexcept : ManagedArray(s, x, A{}){};
   template <class D, std::unsigned_integral I>
   constexpr ManagedArray(const ManagedArray<T, D, N, A, I> &b) noexcept
     : BaseT{memory.data(), S(b.dim()), U(N), b.get_allocator()} {
@@ -1191,6 +1196,7 @@ struct POLY_MATH_GSL_OWNER ManagedArray
     invariant(k == B.getNonZeros().size());
   }
 #if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic pop
 #pragma GCC diagnostic pop
 #else
 #pragma clang diagnostic pop

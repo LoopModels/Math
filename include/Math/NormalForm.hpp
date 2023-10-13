@@ -127,7 +127,7 @@ constexpr auto orthogonalizeBang(MutPtrMatrix<int64_t> &A)
   // we try to orthogonalize with respect to as many rows of `A` as we can
   // prioritizing earlier rows.
   auto [M, N] = A.size();
-  SquareMatrix<int64_t> K{identity(std::allocator<int64_t>{}, unsigned(M))};
+  SquareMatrix<int64_t> K{identity(alloc::Mallocator<int64_t>{}, unsigned(M))};
   Vector<unsigned> included;
   included.reserve(std::min(ptrdiff_t(M), ptrdiff_t(N)));
   for (ptrdiff_t i = 0, j = 0; i < std::min(ptrdiff_t(M), ptrdiff_t(N)); ++j) {

@@ -484,6 +484,11 @@ concept Allocator = requires(A a) {
 static_assert(Allocator<WArena<int64_t>>);
 static_assert(Allocator<std::allocator<int64_t>>);
 
+template <typename A>
+concept FreeAllocator =
+  Allocator<A> &&
+  !std::same_as<std::remove_cvref_t<A>, WArena<typename A::value_type>>;
+
 struct NoCheckpoint {};
 
 constexpr auto checkpoint(const auto &) { return NoCheckpoint{}; }

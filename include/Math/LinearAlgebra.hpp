@@ -184,7 +184,7 @@ template <size_t L>
   Row M = B.numRow();
   SquareMatrix<Rational, L> A{B};
   // auto ipiv = Vector<unsigned>{.s = unsigned(M)};
-  auto ipiv{vector(std::allocator<unsigned>{}, unsigned(M))};
+  auto ipiv{vector(alloc::Mallocator<unsigned>{}, unsigned(M))};
   // Vector<unsigned> ipiv{.s = unsigned(M)};
   invariant(ptrdiff_t(ipiv.size()), ptrdiff_t(M));
   for (ptrdiff_t i = 0; i < M; ++i) ipiv[i] = i;
@@ -217,7 +217,7 @@ template <size_t L>
 }
 template <typename S> constexpr auto factImpl(MutSquarePtrMatrix<S> A) {
   Row M = A.numRow();
-  auto ipiv{vector(std::allocator<unsigned>{}, unsigned(M))};
+  auto ipiv{vector(alloc::Mallocator<unsigned>{}, unsigned(M))};
   invariant(ptrdiff_t(ipiv.size()), ptrdiff_t(M));
   for (ptrdiff_t i = 0; i < M; ++i) ipiv[i] = i;
   for (ptrdiff_t k = 0; k < M; ++k) {

@@ -219,8 +219,7 @@ template <class T> struct Mallocator {
     free(p, n * sizeof(T), al);
   };
   constexpr auto operator==(const Mallocator &) { return true; };
-  template <class U>
-  constexpr operator Mallocator<U>() { return {};} 
+  template <class U> constexpr operator Mallocator<U>() { return {}; }
 };
 template <class A>
 concept CanAllocAtLeast = requires(A a) {
@@ -231,7 +230,7 @@ concept CanAllocAtLeast = requires(A a) {
 static_assert(CanAllocAtLeast<Mallocator<ptrdiff_t>>);
 
 template <class A>
-[[gnu::always_inline]] inline auto alloc_at_least(const A &a, size_t n)
+[[gnu::always_inline]] inline auto alloc_at_least(A a, size_t n)
   -> AllocResult<typename A::value_type> {
   if constexpr (CanAllocAtLeast<A>) return a.allocate_at_least(n);
   else return {a.allocate(n), n};
