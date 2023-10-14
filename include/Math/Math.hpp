@@ -667,8 +667,8 @@ static_assert(
 static_assert(AbstractVector<Vector<int64_t>>);
 static_assert(AbstractVector<const Vector<int64_t>>);
 static_assert(AbstractVector<Vector<int64_t> &>);
-static_assert(AbstractMatrix<IntMatrix>);
-static_assert(AbstractMatrix<IntMatrix &>);
+static_assert(AbstractMatrix<IntMatrix<>>);
+static_assert(AbstractMatrix<IntMatrix<> &>);
 static_assert(!AbstractMatrix<Array<int64_t, StridedRange>>);
 static_assert(!AbstractMatrix<
               Elementwise<std::negate<void>, Array<int64_t, StridedRange>>>);

@@ -1,9 +1,9 @@
+#include "Alloc/Arena.hpp"
 #include "Math/Array.hpp"
 #include "Math/Math.hpp"
 #include "Math/MatrixDimensions.hpp"
 #include "Math/SmallSparseMatrix.hpp"
 #include "Math/StaticArrays.hpp"
-#include "Alloc/Arena.hpp"
 #include "Utilities/MatrixStringParse.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -22,9 +22,9 @@ TEST(SparseIndexingTest, BasicAssertions) {
   sparseA[2, 0] = -1;
   sparseA[2, 1] = 4;
   sparseA[2, 2] = -2;
-  IntMatrix A = sparseA;
+  IntMatrix<> A = sparseA;
   {
-    IntMatrix A2(DenseDims{3, 4});
+    IntMatrix<> A2(DenseDims{3, 4});
     MutPtrMatrix<int64_t> MA2 = A2;
     MA2 << sparseA;
     EXPECT_EQ(A, A2);
@@ -36,7 +36,7 @@ TEST(SparseIndexingTest, BasicAssertions) {
     }
   }
   // EXPECT_EQ(A(i, j), Asparse(i, j));
-  IntMatrix B(DenseDims{4, 5});
+  ManagedArray B(std::type_identity<int64_t>{}, DenseDims{4, 5});
   EXPECT_FALSE(B.isSquare());
   B[0, 0] = 3;
   B[0, 1] = -1;
@@ -58,7 +58,7 @@ TEST(SparseIndexingTest, BasicAssertions) {
   B[3, 2] = 2;
   B[3, 3] = -3;
   B[3, 4] = 5;
-  IntMatrix C{DenseDims{3, 5}};
+  IntMatrix<> C{DenseDims{3, 5}};
   C[0, 0] = -20;
   C[0, 1] = 25;
   C[0, 2] = -5;
@@ -77,10 +77,10 @@ TEST(SparseIndexingTest, BasicAssertions) {
   EXPECT_EQ(A.numRow(), (A * B).numRow());
   EXPECT_EQ(B.numCol(), (A * B).numCol());
   EXPECT_TRUE(C == A * B);
-  IntMatrix C2{A * B};
+  IntMatrix<> C2{A * B};
   std::cout << "C=\n" << C << "\nC2=\n" << C2 << "\n";
   EXPECT_TRUE(C == C2);
-  IntMatrix At{A.transpose()}, Bt{B.transpose()};
+  IntMatrix<> At{A.transpose()}, Bt{B.transpose()};
   // At << A.transpose();
   // Bt << B.transpose();
   C2 += At.transpose() * Bt.transpose();
@@ -104,11 +104,11 @@ TEST(ExpressionTemplateTest, BasicAssertions) {
     "-20 0 40 -16 20 -12]"_mat};
   // IntMatrix B{A*4};
   auto templateA4{A * 4};
-  IntMatrix C{templateA4};
-  IntMatrix B{A * 4};
+  IntMatrix<> C{templateA4};
+  IntMatrix<> B{A * 4};
   EXPECT_EQ(A4, B);
   EXPECT_EQ(A4, C);
-  IntMatrix Z = A * 4 - A4;
+  IntMatrix<> Z = A * 4 - A4;
   for (ptrdiff_t i = 0; i < Z.numRow(); ++i)
     for (ptrdiff_t j = 0; j < Z.numCol(); ++j) EXPECT_FALSE((Z[i, j]));
   auto D{
@@ -119,12 +119,12 @@ TEST(ExpressionTemplateTest, BasicAssertions) {
     "[-38 -28 62 6 116 105 -138; -13 -22 -69 29 -10 -99 42; -1 54 91 45 "
     "-95 142 -36; -13 118 31 -91 78 8 151; 19 -74 15 26 153 31 -145; 86 "
     "-61 -18 -111 -22 -55 -135]"_mat};
-  IntMatrix AD = A * D;
+  IntMatrix<> AD = A * D;
   EXPECT_EQ(AD, refAD);
-  IntMatrix E{
+  IntMatrix<> E{
     "[-4 7 9 -4 2 9 -8; 3 -5 6 0 -1 8 7; -7 9 -1 1 -5 2 10; -3 10 -10 -3 6 "
     "5 5; -6 7 -4 -7 10 5 3; 9 -8 7 9 2 2 6]"_mat};
-  IntMatrix m7EpAD = A * D - 7 * E;
+  IntMatrix<> m7EpAD = A * D - 7 * E;
   auto refADm7E{
     "[-10 -77 -1 34 102 42 -82; -34 13 -111 29 -3 -155 -7; 48 -9 98 38 -60 "
     "128 -106; 8 48 101 -70 36 -27 116; 61 -123 43 75 83 -4 -166; 23 -5 "
@@ -141,9 +141,9 @@ TEST(ExpressionTemplateTest, BasicAssertions) {
   c.push_back(14);
   c.push_back(6);
   EXPECT_EQ(b, c);
-  IntMatrix dA1x1(DenseDims{1, 1}, 0);
+  IntMatrix<> dA1x1(DenseDims{1, 1}, 0);
   EXPECT_TRUE(dA1x1.isSquare());
-  IntMatrix dA2x2(DenseDims{2, 2}, 0);
+  IntMatrix<> dA2x2(DenseDims{2, 2}, 0);
   dA1x1.antiDiag() << 1;
   EXPECT_EQ((dA1x1[0, 0]), 1);
   dA2x2.antiDiag() << 1;
@@ -152,7 +152,7 @@ TEST(ExpressionTemplateTest, BasicAssertions) {
   EXPECT_EQ((dA2x2[1, 0]), 1);
   EXPECT_EQ((dA2x2[1, 1]), 0);
   for (ptrdiff_t i = 1; i < 20; ++i) {
-    IntMatrix F(DenseDims{i, i});
+    IntMatrix<> F(DenseDims{i, i});
     F << 0;
     F.antiDiag() << 1;
     for (ptrdiff_t j = 0; j < i; ++j)
@@ -186,7 +186,7 @@ TEST(ArrayPrint, BasicAssertions) {
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(OffsetEnd, BasicAssertions) {
   auto A{"[3 3 3 3; 2 2 2 2; 1 1 1 1; 0 0 0 0]"_mat};
-  auto B = IntMatrix{DenseDims{4, 4}};
+  auto B = IntMatrix<>{DenseDims{4, 4}};
   for (ptrdiff_t i = 0; i < 4; ++i) B[last - i, _] << i;
   EXPECT_EQ(A, B);
 }

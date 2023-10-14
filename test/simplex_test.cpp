@@ -12,8 +12,8 @@ using poly::utils::operator""_mat;
 TEST(SimplexTest, BasicAssertions) {
   // 10 >= 3x + 2y + z
   // 15 >= 2x + 5y + 3z
-  IntMatrix A{"[10 3 2 1; 15 2 5 3]"_mat};
-  IntMatrix B{DenseDims{0, 4}};
+  IntMatrix<> A{"[10 3 2 1; 15 2 5 3]"_mat};
+  IntMatrix<> B{DenseDims{0, 4}};
   OwningArena<> alloc;
   Optional<Simplex *> optS0{Simplex::positiveVariables(&alloc, A)};
   EXPECT_TRUE(optS0.hasValue());
@@ -41,7 +41,7 @@ TEST(LexMinSmallTest, BasicAssertions) {
   OwningArena alloc;
   // -10 == -3x - 2y - z  + s0
   // -15 == -2x - 5y - 3z + s1
-  IntMatrix tableau{"[-10 0 1 -1 -2 -3; -15 1 0 -3 -5 -2]"_mat};
+  IntMatrix<> tableau{"[-10 0 1 -1 -2 -3; -15 1 0 -3 -5 -2]"_mat};
   // IntMatrix A{"[-10 -3 -2 -1; -15 -2 -5 -3]"_mat};
   Simplex *simp{Simplex::create(&alloc, 2, 5)};
   simp->getConstraints() << tableau;
@@ -111,7 +111,7 @@ TEST(LexMinSmallTest, BasicAssertions) {
   EXPECT_EQ(sol[last - 4], 15);
 }
 
-auto simplexFromTableau(Arena<> *alloc, IntMatrix &tableau) -> Valid<Simplex> {
+auto simplexFromTableau(Arena<> *alloc, IntMatrix<> &tableau) -> Valid<Simplex> {
   unsigned numCon = unsigned(tableau.numRow()) - 1;
   unsigned numVar = unsigned(tableau.numCol()) - 1;
   Simplex *simp{Simplex::create(alloc, numCon, numVar)};
@@ -121,7 +121,7 @@ auto simplexFromTableau(Arena<> *alloc, IntMatrix &tableau) -> Valid<Simplex> {
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(LexMinSimplexTest, BasicAssertions) {
-  IntMatrix tableau{
+  IntMatrix<> tableau{
     "[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 "
     "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 "
     "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 "
@@ -1052,7 +1052,7 @@ TEST(LexMinSimplexTest, BasicAssertions) {
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(LexMinSimplexTest2, BasicAssertions) {
-  IntMatrix tableau{
+  IntMatrix<> tableau{
     "[0 0 0 1 0 -1 0 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 1 0 -1 0 0 725849473193 "
     "94205055327856 11 11 11 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 1 -1 0 0 0 0 0 "
     "0 0 0 0 0 0 0 0 0 0 0 1 0 -1 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 "
@@ -1344,7 +1344,7 @@ TEST(LexMinSimplexTest2, BasicAssertions) {
 }
 
 TEST(Infesaible, BasicAssertions) {
-  IntMatrix C{DenseDims{220, 383}, 0};
+  IntMatrix<> C{DenseDims{220, 383}, 0};
   C[0, 0] = -1;
   C[0, 1] = 1;
   C[0, 2] = -1;

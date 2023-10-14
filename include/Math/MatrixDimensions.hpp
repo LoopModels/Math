@@ -162,19 +162,21 @@ struct SquareDims {
 //   return c.rowCapacity * c.strideM;
 // }
 
-constexpr auto StridedDims::operator=(const DenseDims &D) -> StridedDims & {
+constexpr inline auto StridedDims::operator=(const DenseDims &D)
+  -> StridedDims & {
   M = D.M;
   N = D.N;
   strideM = N;
   return *this;
 }
-constexpr auto StridedDims::operator=(const SquareDims &D) -> StridedDims & {
+constexpr inline auto StridedDims::operator=(const SquareDims &D)
+  -> StridedDims & {
   M = D.M;
   N = M;
   strideM = M;
   return *this;
 }
-constexpr auto DenseDims::operator=(const SquareDims &D) -> DenseDims & {
+constexpr inline auto DenseDims::operator=(const SquareDims &D) -> DenseDims & {
   M = D.M;
   N = M;
   return *this;
@@ -187,5 +189,10 @@ static_assert(MatrixDimension<SquareDims>);
 static_assert(MatrixDimension<DenseDims>);
 static_assert(MatrixDimension<StridedDims>);
 static_assert(!MatrixDimension<unsigned>);
+
+template <typename T, typename S>
+concept PromoteDimTo = (!std::same_as<T, S>) && std::convertible_to<T, S>;
+template <typename T, typename S>
+concept PromoteDimFrom = (!std::same_as<T, S>) && std::convertible_to<S, T>;
 
 } // namespace poly::math

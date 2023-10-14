@@ -535,6 +535,18 @@ template <typename T, typename S> MutArray(T *, S) -> MutArray<T, S>;
 
 template <typename T, typename S> MutArray(MutArray<T, S>) -> MutArray<T, S>;
 
+static_assert(std::convertible_to<Array<int64_t, SquareDims>,
+                                  Array<int64_t, DenseDims>>);
+static_assert(std::convertible_to<Array<int64_t, SquareDims>,
+                                  Array<int64_t, StridedDims>>);
+static_assert(std::convertible_to<Array<int64_t, DenseDims>,
+                                  Array<int64_t, StridedDims>>);
+static_assert(std::convertible_to<MutArray<int64_t, SquareDims>,
+                                  Array<int64_t, DenseDims>>);
+static_assert(std::convertible_to<MutArray<int64_t, SquareDims>,
+                                  Array<int64_t, StridedDims>>);
+static_assert(std::convertible_to<MutArray<int64_t, DenseDims>,
+                                  Array<int64_t, StridedDims>>);
 static_assert(std::convertible_to<MutArray<int64_t, SquareDims>,
                                   MutArray<int64_t, DenseDims>>);
 static_assert(std::convertible_to<MutArray<int64_t, SquareDims>,
@@ -753,11 +765,18 @@ protected:
   [[no_unique_address]] U capacity{0};
 };
 
+// Figure out offset of first element
+template <class T, class S, class A, class U>
+struct ArrayAlignmentAndSize : Array<T, S> {
+  [[no_unique_address]] U capacity;
+  [[no_unique_address]] A a;
+  alignas(T) char memory[sizeof(T)];
+};
+
 /// Non-owning view of a managed array, capable of reallocating, etc.
 /// It does not own memory. Mostly, it serves to drop the inlined
 /// stack capacity of the `ManagedArray` from the type.
-template <class T, class S, class P, class A = alloc::Mallocator<T>,
-
+template <class T, class S, class A = alloc::Mallocator<T>,
           std::unsigned_integral U = default_capacity_type_t<S>>
 struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S, U> {
   using BaseT = ResizeableView<T, S, U>;
@@ -767,7 +786,7 @@ struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S, U> {
     : BaseT(p, s, c), allocator(alloc) {}
 
   [[nodiscard]] constexpr auto newCapacity() const -> U {
-    return static_cast<const P *>(this)->newCapacity();
+    return this->capacity ? 2 * this->capacity : U{4};
   }
   template <class... Args>
   constexpr auto emplace_back(Args &&...args) -> decltype(auto) {
@@ -969,28 +988,29 @@ protected:
     this->ptr = res.ptr;
     this->capacity = res.count;
   }
-  [[nodiscard]] constexpr auto isSmall() const -> bool {
-    return static_cast<const P *>(this)->isSmall();
+  [[nodiscard]] auto firstElt() const -> const void * {
+    using AS = ArrayAlignmentAndSize<T, S, A, U>;
+    constexpr size_t offset = offsetof(AS, memory);
+    return static_cast<const void *>(
+      static_cast<const char *>(static_cast<const void *>(this)) + offset);
   }
-  [[nodiscard]] constexpr auto getmemptr() const -> const T * {
-    return static_cast<const P *>(this)->getmemptr();
-  }
-  [[nodiscard]] constexpr auto wasAllocated() const -> bool {
-    return static_cast<const P *>(this)->wasAllocated();
+  [[nodiscard]] auto isSmall() const -> bool { return this->ptr == firstElt(); }
+  [[nodiscard]] auto wasAllocated() const -> bool {
+    return this->ptr && this->ptr != firstElt();
   }
   // this method should only be called from the destructor
   // (and the implementation taking the new ptr and capacity)
-  constexpr void maybeDeallocate() noexcept {
+  void maybeDeallocate() noexcept {
     if (wasAllocated()) allocator.deallocate(this->data(), this->capacity);
   }
   // this method should be called whenever the buffer lives
-  constexpr void maybeDeallocate(T *newPtr, U newCapacity) noexcept {
+  void maybeDeallocate(T *newPtr, U newCapacity) noexcept {
     maybeDeallocate();
     this->ptr = newPtr;
     this->capacity = newCapacity;
   }
   // grow, discarding old data
-  constexpr void growUndef(U M) {
+  void growUndef(U M) {
     if (M <= this->capacity) return;
     maybeDeallocate();
     // because this doesn't care about the old data,
@@ -1021,10 +1041,9 @@ concept AbstractSimilar =
 /// This caused invalid frees, as the pointer still pointed to the old
 /// stack memory.
 template <class T, class S, size_t N, class A, std::unsigned_integral U>
-struct POLY_MATH_GSL_OWNER ManagedArray
-  : ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U> {
+struct POLY_MATH_GSL_OWNER ManagedArray : ReallocView<T, S, A, U> {
   static_assert(std::is_trivially_destructible_v<T>);
-  using BaseT = ReallocView<T, S, ManagedArray<T, S, N, A, U>, A, U>;
+  using BaseT = ReallocView<T, S, A, U>;
   // We're deliberately not initializing storage.
 #if !defined(__clang__) && defined(__GNUC__)
 #pragma GCC diagnostic push
@@ -1063,6 +1082,16 @@ struct POLY_MATH_GSL_OWNER ManagedArray
   constexpr ManagedArray() noexcept : ManagedArray(A{}){};
   constexpr ManagedArray(S s) noexcept : ManagedArray(s, A{}){};
   constexpr ManagedArray(S s, T x) noexcept : ManagedArray(s, x, A{}){};
+
+  // constexpr ManagedArray(std::type_identity<T>) noexcept :
+  // ManagedArray(A{}){};
+  constexpr ManagedArray(std::type_identity<T>, S s) noexcept
+    : ManagedArray(s, A{}){};
+  // constexpr ManagedArray(std::type_identity<T>, A a) noexcept :
+  // ManagedArray(a){}; constexpr ManagedArray(std::type_identity<T>, S s, A a)
+  // noexcept
+  //   : ManagedArray(s, a){};
+
   template <class D, std::unsigned_integral I>
   constexpr ManagedArray(const ManagedArray<T, D, N, A, I> &b) noexcept
     : BaseT{memory.data(), S(b.dim()), U(N), b.get_allocator()} {
@@ -1276,16 +1305,6 @@ struct POLY_MATH_GSL_OWNER ManagedArray
   friend inline void PrintTo(const ManagedArray &x, ::std::ostream *os) {
     *os << x;
   }
-  [[nodiscard]] auto getmemptr() const -> const T * { return memory.data(); }
-  [[nodiscard]] constexpr auto newCapacity() const -> U {
-    if constexpr (N == 0)
-      return this->capacity == 0 ? U{4} : 2 * this->capacity;
-    else return 2 * this->capacity;
-  }
-  [[nodiscard]] constexpr auto wasAllocated() const -> bool {
-    if constexpr (N == 0) return this->ptr != nullptr;
-    else return !isSmall();
-  }
 
 private:
   [[no_unique_address]] containers::Storage<T, N> memory;
@@ -1369,7 +1388,7 @@ static_assert(std::is_trivially_copyable_v<PtrVector<int64_t>>,
 static_assert(sizeof(ManagedArray<int32_t, DenseDims, 15>) ==
               sizeof(int32_t *) + 4 * sizeof(unsigned int) +
                 16 * sizeof(int32_t));
-static_assert(sizeof(ReallocView<int32_t, DenseDims, DenseMatrix<int32_t>>) ==
+static_assert(sizeof(ReallocView<int32_t, DenseDims>) ==
               sizeof(int32_t *) + 4 * sizeof(unsigned int));
 
 static_assert(!AbstractVector<PtrMatrix<int64_t>>,
@@ -1425,10 +1444,18 @@ static_assert(std::is_convertible_v<SquareMatrix<int64_t>, Matrix<int64_t>>);
 static_assert(
   std::is_convertible_v<SquareMatrix<int64_t>, MutPtrMatrix<int64_t>>);
 
-using IntMatrix = Matrix<int64_t>;
-static_assert(std::same_as<IntMatrix::value_type, int64_t>);
-static_assert(AbstractMatrix<IntMatrix>);
-static_assert(std::copyable<IntMatrix>);
+template <class T, class S>
+ManagedArray(std::type_identity<T>, S s) -> ManagedArray<T, S>;
+
+template <class S> using IntArray = Array<int64_t, S>;
+template <VectorDimension S = unsigned>
+using IntVector = ManagedArray<int64_t, S>;
+template <MatrixDimension S = DenseDims>
+using IntMatrix = ManagedArray<int64_t, S>;
+
+static_assert(std::same_as<IntMatrix<>::value_type, int64_t>);
+static_assert(AbstractMatrix<IntMatrix<>>);
+static_assert(std::copyable<IntMatrix<>>);
 static_assert(std::same_as<utils::eltype_t<Matrix<int64_t>>, int64_t>);
 
 static_assert(

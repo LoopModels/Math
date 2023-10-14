@@ -122,7 +122,7 @@ constexpr void dropCol(MutPtrMatrix<int64_t> A, ptrdiff_t i, Row M, Col N) {
     for (ptrdiff_t n = i; n < N; ++n) A[m, n] = A[m, n + 1];
 }
 
-constexpr auto orthogonalizeBang(MutPtrMatrix<int64_t> &A)
+constexpr auto orthogonalizeBang(MutDensePtrMatrix<int64_t> &A)
   -> std::pair<SquareMatrix<int64_t>, Vector<unsigned>> {
   // we try to orthogonalize with respect to as many rows of `A` as we can
   // prioritizing earlier rows.
@@ -153,7 +153,7 @@ constexpr auto orthogonalizeBang(MutPtrMatrix<int64_t> &A)
   return std::make_pair(std::move(K), std::move(included));
 }
 
-constexpr auto orthogonalize(IntMatrix A)
+constexpr auto orthogonalize(IntMatrix<> A)
   -> std::pair<SquareMatrix<int64_t>, Vector<unsigned>> {
   return orthogonalizeBang(A);
 }
@@ -331,7 +331,7 @@ constexpr void simplifySystem(MutPtrMatrix<int64_t> &E, ptrdiff_t colInit = 0) {
 // Perhaps we should define `MutPtrMatrix(const MutPtrMatrix &) = delete;`?
 //
 // NOLINTNEXTLINE(performance-unnecessary-value-param)
-constexpr auto rank(IntMatrix A) -> ptrdiff_t {
+constexpr auto rank(IntMatrix<> A) -> ptrdiff_t {
   return ptrdiff_t(simplifySystemImpl(A, 0));
 }
 constexpr void reduceColumn(std::array<MutPtrMatrix<int64_t>, 2> AB, Col c,
@@ -345,16 +345,17 @@ constexpr void simplifySystemsImpl(std::array<MutPtrMatrix<int64_t>, 2> AB) {
     if (!pivotRowsPair(AB, Col{c}, M, Row{r}))
       reduceColumn(AB, Col{c}, Row{r++});
 }
-constexpr void simplifySystem(MutPtrMatrix<int64_t> &A,
-                              MutPtrMatrix<int64_t> &B) {
+template <MatrixDimension S0, MatrixDimension S1>
+constexpr void simplifySystem(MutArray<int64_t,S0> &A,
+                              MutArray<int64_t,S1> &B) {
   simplifySystemsImpl({A, B});
   if (Row newM = numNonZeroRows(A); newM < A.numRow()) {
     A.truncate(newM);
     B.truncate(newM);
   }
 }
-[[nodiscard]] constexpr auto hermite(IntMatrix A)
-  -> std::pair<IntMatrix, SquareMatrix<int64_t>> {
+[[nodiscard]] constexpr auto hermite(IntMatrix<> A)
+  -> std::pair<IntMatrix<>, SquareMatrix<int64_t>> {
   SquareMatrix<int64_t> U{
     SquareMatrix<int64_t>::identity(ptrdiff_t(A.numRow()))};
   simplifySystemsImpl({A, U});
@@ -506,7 +507,7 @@ constexpr void bareiss(MutPtrMatrix<int64_t> A,
   }
 }
 
-[[nodiscard]] constexpr auto bareiss(IntMatrix &A) -> Vector<ptrdiff_t> {
+[[nodiscard]] constexpr auto bareiss(IntMatrix<> &A) -> Vector<ptrdiff_t> {
   Vector<ptrdiff_t> pivots(A.minRowCol());
   bareiss(A, pivots);
   return pivots;
