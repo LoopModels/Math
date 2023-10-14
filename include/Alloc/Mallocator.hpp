@@ -3,7 +3,7 @@
 #include <cstddef>
 #ifdef USING_MIMALLOC
 // #include <mimalloc-new-delete.h>
-#include <mimalloc-2.1/mimalloc.h>
+#include <mimalloc.h>
 #elifdef USING_JEMALLOC
 // #include "jemalloc-new-delete.hpp"
 #include <jemalloc/jemalloc.h>
