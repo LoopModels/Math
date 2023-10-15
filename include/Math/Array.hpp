@@ -767,8 +767,7 @@ protected:
 
 // Figure out offset of first element
 template <class T, class S, class A, class U>
-struct ArrayAlignmentAndSize : Array<T, S> {
-  [[no_unique_address]] U capacity;
+struct ArrayAlignmentAndSize : ResizeableView<T, S, U> {
   [[no_unique_address]] A a;
   alignas(T) char memory[sizeof(T)];
 };
@@ -990,7 +989,23 @@ protected:
   }
   [[nodiscard]] auto firstElt() const -> const void * {
     using AS = ArrayAlignmentAndSize<T, S, A, U>;
+// AS is not a standard layout type, as more than one layer of the hierarchy
+// contain non-static data members. Using `offsetof` is conditionally supported
+// by some compilers as of c++17 (it was UB prior). Both Clang and GCC support
+// it.
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#else
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#endif
     constexpr size_t offset = offsetof(AS, memory);
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic pop
+#else
+#pragma clang diagnostic pop
+#endif
     return reinterpret_cast<const char *>(this) + offset;
   }
   [[nodiscard]] auto isSmall() const -> bool { return this->ptr == firstElt(); }

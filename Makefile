@@ -1,4 +1,4 @@
-all: clangnosan clangsan #gccnosan gccsan
+all: clangnosan clangsan gccnosan gccsan
 #TODO: re-enable GCC once multidimensional indexing in `requires` is fixed:
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=111493
 
