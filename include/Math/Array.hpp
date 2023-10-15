@@ -535,12 +535,12 @@ template <typename T, typename S> MutArray(T *, S) -> MutArray<T, S>;
 
 template <typename T, typename S> MutArray(MutArray<T, S>) -> MutArray<T, S>;
 
-static_assert(std::convertible_to<Array<int64_t, SquareDims>,
-                                  Array<int64_t, DenseDims>>);
-static_assert(std::convertible_to<Array<int64_t, SquareDims>,
-                                  Array<int64_t, StridedDims>>);
-static_assert(std::convertible_to<Array<int64_t, DenseDims>,
-                                  Array<int64_t, StridedDims>>);
+static_assert(
+  std::convertible_to<Array<int64_t, SquareDims>, Array<int64_t, DenseDims>>);
+static_assert(
+  std::convertible_to<Array<int64_t, SquareDims>, Array<int64_t, StridedDims>>);
+static_assert(
+  std::convertible_to<Array<int64_t, DenseDims>, Array<int64_t, StridedDims>>);
 static_assert(std::convertible_to<MutArray<int64_t, SquareDims>,
                                   Array<int64_t, DenseDims>>);
 static_assert(std::convertible_to<MutArray<int64_t, SquareDims>,
@@ -991,8 +991,7 @@ protected:
   [[nodiscard]] auto firstElt() const -> const void * {
     using AS = ArrayAlignmentAndSize<T, S, A, U>;
     constexpr size_t offset = offsetof(AS, memory);
-    return static_cast<const void *>(
-      static_cast<const char *>(static_cast<const void *>(this)) + offset);
+    return reinterpret_cast<const char *>(this) + offset;
   }
   [[nodiscard]] auto isSmall() const -> bool { return this->ptr == firstElt(); }
   [[nodiscard]] auto wasAllocated() const -> bool {
