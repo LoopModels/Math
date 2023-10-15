@@ -1,4 +1,4 @@
-// #pragma once
+#pragma once
 
 #include <cstddef>
 #ifdef USING_MIMALLOC
