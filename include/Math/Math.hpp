@@ -6,6 +6,7 @@
 #include "Math/AxisTypes.hpp"
 #include "Math/Indexing.hpp"
 #include "Math/Matrix.hpp"
+#include "Utilities/Parameters.hpp"
 #include "Math/MatrixDimensions.hpp"
 #include "Utilities/TypePromotion.hpp"
 #include <algorithm>
@@ -459,24 +460,6 @@ requires is_uint_v<64, T>
   return x >> 32;
 }
 
-template <typename T>
-concept TriviallyCopyable = std::is_trivially_copyable_v<T>;
-/*
- * An idea that's a little interesting:
-template <typename T> struct InParameter {
-  using type = const T &;
-};
-template <TriviallyCopyable T> struct InParameter<T> {
-  using type = T;
-};
-template <typename T> using inparam_t = typename InParameter<T>::type;
-* then this can be used like
-auto foo_impl(inparam_t<T> x, ...);
-template <typename T>
-[[gnu::always_inline]] inline auto foo(const T& x){
-  return foo_impl<T>(x); // inparam_t blocks deduction
-}
-*/
 static_assert(
   AbstractMatrix<MatMatMul<PtrMatrix<int64_t>, PtrMatrix<int64_t>>>);
 
