@@ -80,7 +80,7 @@ template <typename T> struct Optional<T &> {
   [[nodiscard]] constexpr auto operator*() -> T & { return getValue(); }
   constexpr explicit operator bool() const { return hasValue(); }
   constexpr auto operator->() -> T * { return value; }
-  constexpr auto operator->() const -> const T * { return &value; }
+  constexpr auto operator->() const -> const T * { return value; }
   constexpr Optional() = default;
   constexpr Optional(T &v) : value(&v) {}
   constexpr Optional(std::nullopt_t) {}
