@@ -772,6 +772,11 @@ struct ArrayAlignmentAndSize : ResizeableView<T, S, U> {
   alignas(T) char memory[sizeof(T)];
 };
 
+static_assert(std::is_copy_assignable_v<Array<void*,unsigned>>);
+static_assert(!std::is_copy_assignable_v<MutArray<void*,unsigned>>);
+static_assert(std::is_trivially_copyable_v<MutArray<void*,unsigned>>);
+static_assert(std::is_trivially_move_assignable_v<MutArray<void*,unsigned>>);
+
 /// Non-owning view of a managed array, capable of reallocating, etc.
 /// It does not own memory. Mostly, it serves to drop the inlined
 /// stack capacity of the `ManagedArray` from the type.

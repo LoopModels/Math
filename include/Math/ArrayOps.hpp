@@ -20,6 +20,9 @@
 namespace poly::math {
 template <typename T> class SmallSparseMatrix;
 template <class T, class S, class P> class ArrayOps {
+  static_assert(std::is_copy_assignable_v<T> ||
+                (std::is_trivially_copyable_v<T> &&
+                 std::is_trivially_move_assignable_v<T>));
   [[gnu::returns_nonnull]] constexpr auto data_() -> T * {
     return static_cast<P *>(this)->data();
   }
@@ -66,8 +69,16 @@ public:
     } else {
       ptrdiff_t L = size_();
       invariant(L, ptrdiff_t(B.size()));
-      POLYMATHVECTORIZE
-      for (ptrdiff_t i = 0; i < L; ++i) self[i] = B[i];
+      if constexpr (std::is_copy_assignable_v<T>) {
+        POLYMATHVECTORIZE
+        for (ptrdiff_t i = 0; i < L; ++i) self[i] = B[i];
+      } else {
+        // MutArray is trivially copyable and move-assignable
+        // we require triviality to avoid silently being slow.
+        // we should fix it if hitting another case.
+        POLYMATHVECTORIZE
+        for (ptrdiff_t i = 0; i < L; ++i) self[i] = auto{B[i]};
+      }
     }
     return self;
   }
@@ -82,11 +93,18 @@ public:
     if constexpr (DenseLayout<S> &&
                   DataMatrix<std::remove_cvref_t<decltype(B)>> &&
                   DenseLayout<std::remove_cvref_t<decltype(B.dim())>>) {
-      std::copy_n(B.data(), M * N, data_());
+      if constexpr (std::is_copy_assignable_v<T>)
+        std::copy_n(B.data(), M * N, data_());
+      else std::memcpy(data_(), M * N * sizeof(T), B.data());
     } else {
       for (ptrdiff_t i = 0; i < M; ++i) {
-        POLYMATHVECTORIZE
-        for (ptrdiff_t j = 0; j < N; ++j) self[i, j] = B[i, j];
+        if constexpr (std::is_copy_assignable_v<T>) {
+          POLYMATHVECTORIZE
+          for (ptrdiff_t j = 0; j < N; ++j) self[i, j] = B[i, j];
+        } else {
+          POLYMATHVECTORIZE
+          for (ptrdiff_t j = 0; j < N; ++j) self[i, j] = auto{B[i, j]};
+        }
       }
     }
     return self;
