@@ -29,14 +29,14 @@ TEST(Optional, BasicAssertions) {
                 sizeof(ptrdiff_t *));
   EXPECT_TRUE(p);
   EXPECT_FALSE(q);
-  *p += 10;
-  EXPECT_EQ(*p, 52);
+  **p += 10;
+  EXPECT_EQ(**p, 52);
   q = &b;
   EXPECT_TRUE(q);
   p = &c;
-  *p += 18;
+  **p += 18;
   EXPECT_EQ(a, 52);
-  EXPECT_EQ(*q, 11);
+  EXPECT_EQ(**q, 11);
   EXPECT_EQ(c, 26);
   p = {};
   EXPECT_FALSE(p);

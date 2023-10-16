@@ -69,7 +69,7 @@ template <std::unsigned_integral T> struct Optional<T> {
 };
 
 template <typename T> struct Optional<T &> {
-  [[no_unique_address]] T *value{nullptr};
+  T *value{nullptr};
   [[nodiscard]] constexpr auto hasValue() const -> bool {
     return value != nullptr;
   }
@@ -92,23 +92,21 @@ template <typename T> Optional(T *) -> Optional<T *>;
 template <typename T> Optional(T &) -> Optional<T &>;
 
 template <typename T> struct Optional<T *> {
-  [[no_unique_address]] T *value{nullptr};
+  T *value{nullptr};
   [[nodiscard]] constexpr auto hasValue() const -> bool {
     return value != nullptr;
   }
-  [[nodiscard]] constexpr auto getValue() -> T & {
+  [[nodiscard]] constexpr auto getValue() -> T * {
     invariant(value != nullptr);
-    return *value;
+    return value;
   }
-  [[nodiscard]] constexpr auto getValue() const -> const T & {
+  [[nodiscard]] constexpr auto getValue() const -> const T * {
     invariant(value != nullptr);
-    return *value;
+    return value;
   }
-  [[nodiscard]] constexpr auto operator*() -> T & { return getValue(); }
-  [[nodiscard]] constexpr auto operator*() const -> const T & {
-    return getValue();
-  }
-  [[nodiscard]] constexpr operator Valid<T>() {
+  [[nodiscard]] constexpr auto operator*() -> T * { return value; }
+  [[nodiscard]] constexpr auto operator*() const -> const T * { return value; }
+  [[nodiscard]] constexpr explicit operator Valid<T>() {
     invariant(value != nullptr);
     return value;
   }

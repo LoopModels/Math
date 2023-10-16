@@ -22,8 +22,8 @@ TEST(SimplexTest, BasicAssertions) {
   ASSERT(optS0.hasValue());
   ASSERT(optS1.hasValue());
   for (ptrdiff_t i = 0; i < 2; ++i) {
-    Simplex &S{i ? *optS1 : *optS0};
-    auto C{S.getCost()};
+    Simplex *S{i ? *optS1 : *optS0};
+    auto C{S->getCost()};
     // minimize -2x - 3y - 4z
     C[0] = 0;
     C[1] = 0;
@@ -31,8 +31,8 @@ TEST(SimplexTest, BasicAssertions) {
     C[3] = -2;
     C[4] = -3;
     C[5] = -4;
-    std::cout << "S.tableau =" << S.getTableau() << "\n";
-    EXPECT_EQ(S.run(), 20);
+    std::cout << "S.tableau =" << S->getTableau() << "\n";
+    EXPECT_EQ(S->run(), 20);
   }
 }
 
