@@ -5,6 +5,7 @@
 #include "Math/UniformScaling.hpp"
 #include "Math/Vector.hpp"
 #include <algorithm>
+#include <cstring>
 #include <type_traits>
 
 #if defined __GNUC__ && __GNUC__ >= 8
