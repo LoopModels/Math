@@ -154,6 +154,14 @@ template <class T, ptrdiff_t N>
 constexpr auto softplus(Dual<T, N> x) -> Dual<T, N> {
   return {softplus(x.value()), sigmoid(x.value()) * x.gradient()};
 }
+template <class T, ptrdiff_t N> constexpr auto log(Dual<T, N> x) -> Dual<T, N> {
+  return {log2(x.value()), x.gradient() / x.value()};
+}
+template <class T, ptrdiff_t N>
+constexpr auto log2(Dual<T, N> x) -> Dual<T, N> {
+  constexpr double log2 = 0.6931471805599453; // log(2);
+  return {log2(x.value()), x.gradient() / (log2 * x.value())};
+}
 
 constexpr auto dval(double &x) -> double & { return x; }
 template <typename T, ptrdiff_t N>
