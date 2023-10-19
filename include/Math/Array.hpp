@@ -234,24 +234,6 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
     }
     return std::equal(begin(), end(), other.begin());
   }
-  [[nodiscard]] constexpr auto operator<(const Array &other) const noexcept
-    -> bool {
-    static_assert(std::integral<S>);
-    return std::lexicographical_compare(begin(), end(), other.begin(),
-                                        other.end());
-  }
-  [[nodiscard]] constexpr auto operator>(const Array &other) const noexcept
-    -> bool {
-    return other < *this;
-  }
-  [[nodiscard]] constexpr auto operator>=(const Array &other) const noexcept
-    -> bool {
-    return !(*this < other);
-  }
-  [[nodiscard]] constexpr auto operator<=(const Array &other) const noexcept
-    -> bool {
-    return !(*this > other);
-  }
   // FIXME: strided should skip over elements
   [[nodiscard]] constexpr auto norm2() const noexcept -> value_type {
     static_assert(DenseLayout<S>);
@@ -300,6 +282,16 @@ protected:
   const T *ptr;
   // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
   [[no_unique_address]] S sz{};
+};
+
+template <class T, DenseLayout S>
+[[nodiscard]] constexpr auto operator<=>(Array<T,S> x, Array<T,S> y){
+  ptrdiff_t M = x.size();
+  ptrdiff_t N = y.size();
+  for (ptrdiff_t i = 0, L = std::min(M,N); i < L; ++i){
+    if (auto cmp = x[i] <=> y[i]; cmp != 0) return cmp;
+  }
+  return M<=>N;
 };
 
 template <class T, class S>

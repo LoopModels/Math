@@ -68,17 +68,6 @@ template <AxisType T> struct AxisInt {
   }
   explicit constexpr operator bool() const { return value; }
 
-  constexpr auto operator+(V i) const -> AxisInt<T> { return value + i; }
-  constexpr auto operator-(V i) const -> AxisInt<T> { return value - i; }
-  constexpr auto operator*(V i) const -> AxisInt<T> { return value * i; }
-  constexpr auto operator/(V i) const -> AxisInt<T> { return value / i; }
-  constexpr auto operator%(V i) const -> AxisInt<T> { return value % i; }
-  constexpr auto operator==(V i) const -> bool { return value == i; }
-  constexpr auto operator!=(V i) const -> bool { return value != i; }
-  constexpr auto operator<(V i) const -> bool { return value < i; }
-  constexpr auto operator<=(V i) const -> bool { return value <= i; }
-  constexpr auto operator>(V i) const -> bool { return value > i; }
-  constexpr auto operator>=(V i) const -> bool { return value >= i; }
   constexpr auto operator++() -> AxisInt<T> & {
     ++value;
     return *this;
@@ -135,6 +124,50 @@ template <AxisType T> struct AxisInt {
     return os << T << "{" << *x << "}";
   }
 };
+template <AxisType T>
+constexpr auto operator+(AxisInt<T> x, ptrdiff_t i) -> AxisInt<T> {
+  return ptrdiff_t(x) + i;
+}
+template <AxisType T>
+constexpr auto operator-(AxisInt<T> x, ptrdiff_t i) -> AxisInt<T> {
+  return ptrdiff_t(x) - i;
+}
+template <AxisType T>
+constexpr auto operator*(AxisInt<T> x, ptrdiff_t i) -> AxisInt<T> {
+  return ptrdiff_t(x) * i;
+}
+template <AxisType T>
+constexpr auto operator/(AxisInt<T> x, ptrdiff_t i) -> AxisInt<T> {
+  return ptrdiff_t(x) / i;
+}
+template <AxisType T>
+constexpr auto operator%(AxisInt<T> x, ptrdiff_t i) -> AxisInt<T> {
+  return ptrdiff_t(x) % i;
+}
+template <AxisType T>
+constexpr auto operator==(AxisInt<T> x, ptrdiff_t i) -> bool {
+  return ptrdiff_t(x) == i;
+}
+template <AxisType T>
+constexpr auto operator!=(AxisInt<T> x, ptrdiff_t i) -> bool {
+  return ptrdiff_t(x) != i;
+}
+template <AxisType T>
+constexpr auto operator<(AxisInt<T> x, ptrdiff_t i) -> bool {
+  return ptrdiff_t(x) < i;
+}
+template <AxisType T>
+constexpr auto operator<=(AxisInt<T> x, ptrdiff_t i) -> bool {
+  return ptrdiff_t(x) <= i;
+}
+template <AxisType T>
+constexpr auto operator>(AxisInt<T> x, ptrdiff_t i) -> bool {
+  return ptrdiff_t(x) > i;
+}
+template <AxisType T>
+constexpr auto operator>=(AxisInt<T> x, ptrdiff_t i) -> bool {
+  return ptrdiff_t(x) >= i;
+}
 template <typename T, AxisType W>
 constexpr auto operator+(T *p, AxisInt<W> y) -> T * {
   return p + *y;
