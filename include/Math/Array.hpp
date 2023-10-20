@@ -64,6 +64,74 @@ void print_obj(std::ostream &os, const std::pair<F, S> &x) {
 };
 using utils::Valid, utils::Optional;
 
+template <class T, class S> struct Array;
+template <class T, class S> struct MutArray;
+
+template <typename T, bool Column = false> struct SliceIterator {
+  using stride_type = std::conditional_t<Column, StridedRange, unsigned>;
+  using value_type =
+    std::conditional_t<std::is_const_v<T>,
+                       Array<std::remove_cvref_t<T>, stride_type>,
+                       MutArray<std::remove_reference_t<T>, stride_type>>;
+  T *data;
+  unsigned len;
+  unsigned rowStride;
+  ptrdiff_t idx;
+  constexpr auto operator*() -> value_type;
+  constexpr auto operator->() -> value_type *;
+  constexpr auto operator++() -> SliceIterator & {
+    idx++;
+    return *this;
+  }
+  constexpr auto operator++(int) -> SliceIterator {
+    SliceIterator ret{*this};
+    ++(*this);
+    return ret;
+  }
+  constexpr auto operator--() -> SliceIterator & {
+    idx--;
+    return *this;
+  }
+  constexpr auto operator--(int) -> SliceIterator {
+    SliceIterator ret{*this};
+    --(*this);
+    return ret;
+  }
+  constexpr auto operator-(SliceIterator other) -> ptrdiff_t {
+    return idx - other.idx;
+  }
+  constexpr auto operator+(ptrdiff_t i) -> SliceIterator {
+    return {data, len, rowStride, idx + i};
+  }
+};
+template <typename T>
+constexpr auto operator==(SliceIterator<T> a, SliceIterator<T> b) -> bool {
+  return a.idx == b.idx;
+}
+template <typename T>
+constexpr auto operator<=>(SliceIterator<T> a, SliceIterator<T> b)
+  -> std::strong_ordering {
+  return a.idx <=> b.idx;
+}
+template <typename T>
+constexpr auto operator==(SliceIterator<T, false> a, Row r) -> bool {
+  return a.idx == r;
+}
+template <typename T>
+constexpr auto operator<=>(SliceIterator<T, false> a, Row r)
+  -> std::strong_ordering {
+  return a.idx <=> r;
+}
+template <typename T>
+constexpr auto operator==(SliceIterator<T, true> a, Col r) -> bool {
+  return a.idx == r;
+}
+template <typename T>
+constexpr auto operator<=>(SliceIterator<T, true> a, Col r)
+  -> std::strong_ordering {
+  return a.idx <=> r;
+}
+
 /// Constant Array
 template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   static_assert(!std::is_const_v<T>, "T shouldn't be const");
@@ -285,13 +353,12 @@ protected:
 };
 
 template <class T, DenseLayout S>
-[[nodiscard]] constexpr auto operator<=>(Array<T,S> x, Array<T,S> y){
+[[nodiscard]] constexpr auto operator<=>(Array<T, S> x, Array<T, S> y) {
   ptrdiff_t M = x.size();
   ptrdiff_t N = y.size();
-  for (ptrdiff_t i = 0, L = std::min(M,N); i < L; ++i){
+  for (ptrdiff_t i = 0, L = std::min(M, N); i < L; ++i)
     if (auto cmp = x[i] <=> y[i]; cmp != 0) return cmp;
-  }
-  return M<=>N;
+  return M <=> N;
 };
 
 template <class T, class S>
@@ -764,10 +831,10 @@ struct ArrayAlignmentAndSize : ResizeableView<T, S, U> {
   alignas(T) char memory[sizeof(T)];
 };
 
-static_assert(std::is_copy_assignable_v<Array<void*,unsigned>>);
-static_assert(!std::is_copy_assignable_v<MutArray<void*,unsigned>>);
-static_assert(std::is_trivially_copyable_v<MutArray<void*,unsigned>>);
-static_assert(std::is_trivially_move_assignable_v<MutArray<void*,unsigned>>);
+static_assert(std::is_copy_assignable_v<Array<void *, unsigned>>);
+static_assert(!std::is_copy_assignable_v<MutArray<void *, unsigned>>);
+static_assert(std::is_trivially_copyable_v<MutArray<void *, unsigned>>);
+static_assert(std::is_trivially_move_assignable_v<MutArray<void *, unsigned>>);
 
 /// Non-owning view of a managed array, capable of reallocating, etc.
 /// It does not own memory. Mostly, it serves to drop the inlined
