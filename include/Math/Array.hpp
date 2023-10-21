@@ -77,8 +77,7 @@ template <typename T, bool Column = false> struct SliceIterator {
   unsigned len;
   unsigned rowStride;
   ptrdiff_t idx;
-  constexpr auto operator*() -> value_type;
-  constexpr auto operator->() -> value_type *;
+  // constexpr auto operator*() -> value_type;
   constexpr auto operator++() -> SliceIterator & {
     idx++;
     return *this;
@@ -97,13 +96,17 @@ template <typename T, bool Column = false> struct SliceIterator {
     --(*this);
     return ret;
   }
-  constexpr auto operator-(SliceIterator other) -> ptrdiff_t {
-    return idx - other.idx;
-  }
-  constexpr auto operator+(ptrdiff_t i) -> SliceIterator {
-    return {data, len, rowStride, idx + i};
-  }
 };
+template <typename T, bool Column>
+constexpr auto operator-(SliceIterator<T, Column> a, SliceIterator<T, Column> b)
+  -> ptrdiff_t {
+  return a.idx - b.idx;
+}
+template <typename T, bool Column>
+constexpr auto operator+(SliceIterator<T, Column> a, ptrdiff_t i)
+  -> SliceIterator<T, Column> {
+  return {a.data, a.len, a.rowStride, a.idx + i};
+}
 template <typename T>
 constexpr auto operator==(SliceIterator<T> a, SliceIterator<T> b) -> bool {
   return a.idx == b.idx;
@@ -131,6 +134,20 @@ constexpr auto operator<=>(SliceIterator<T, true> a, Col r)
   -> std::strong_ordering {
   return a.idx <=> r;
 }
+
+template <typename T, bool Column = false> struct SliceRange {
+  T *data;
+  unsigned len;
+  unsigned rowStride;
+  ptrdiff_t stop;
+  [[nodiscard]] constexpr auto begin() const -> SliceIterator<T, Column> {
+    return {data, len, rowStride, 0};
+  }
+  [[nodiscard]] constexpr auto end() const {
+    if constexpr (Column) return Col{stop};
+    else return Row{stop};
+  }
+};
 
 /// Constant Array
 template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
@@ -588,6 +605,18 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
       (*this)[m, Nd] = x;
     }
   }
+  constexpr auto eachRow() -> SliceRange<T, false>
+  requires(MatrixDimension<S>)
+  {
+    return {data(), unsigned(Col{this->sz}), unsigned(RowStride{this->sz}),
+            ptrdiff_t(Row{this->sz})};
+  }
+  constexpr auto eachCol() -> SliceRange<T, true>
+  requires(MatrixDimension<S>)
+  {
+    return {data(), unsigned(Row{this->sz}), unsigned(RowStride{this->sz}),
+            ptrdiff_t(Col{this->sz})};
+  }
 };
 
 template <typename T, typename S> MutArray(T *, S) -> MutArray<T, S>;
@@ -612,6 +641,22 @@ static_assert(std::convertible_to<MutArray<int64_t, SquareDims>,
                                   MutArray<int64_t, StridedDims>>);
 static_assert(std::convertible_to<MutArray<int64_t, DenseDims>,
                                   MutArray<int64_t, StridedDims>>);
+
+template <typename T>
+auto operator*(SliceIterator<T, false> it)
+  -> SliceIterator<T, false>::value_type {
+  return {it.data + it.rowStride * it.idx, it.len};
+}
+template <typename T>
+auto operator*(SliceIterator<T, true> it)
+  -> SliceIterator<T, true>::value_type {
+  return {it.data + it.idx, StridedRange{it.len, it.rowStride}};
+}
+
+static_assert(std::weakly_incrementable<SliceIterator<int64_t, false>>);
+static_assert(std::forward_iterator<SliceIterator<int64_t, false>>);
+static_assert(std::ranges::forward_range<SliceRange<int64_t, false>>);
+static_assert(std::ranges::range<SliceRange<int64_t, false>>);
 
 /// Non-owning view of a managed array, capable of resizing,
 /// but not of re-allocating in case the capacity is exceeded.

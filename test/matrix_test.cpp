@@ -78,7 +78,7 @@ TEST(SparseIndexingTest, BasicAssertions) {
   EXPECT_EQ(B.numCol(), (A * B).numCol());
   EXPECT_TRUE(C == A * B);
   IntMatrix<> C2{A * B};
-  std::cout << "C=\n" << C << "\nC2=\n" << C2 << "\n";
+  std::cout << "C=" << C << "\nC2=" << C2 << "\n";
   EXPECT_TRUE(C == C2);
   IntMatrix<> At{A.transpose()}, Bt{B.transpose()};
   // At << A.transpose();
@@ -90,6 +90,19 @@ TEST(SparseIndexingTest, BasicAssertions) {
   EXPECT_TRUE(C == At.transpose() * Bt.transpose());
   C2 -= A * Bt.transpose();
   EXPECT_TRUE(C == C2);
+  int64_t i = 0;
+  IntMatrix<> D{C};
+  std::cout << "C=" << C << "\n";
+  for (Row r : _(0, D.numRow())) D[r, _] += ptrdiff_t(r) + 1;
+  for (auto r : C.eachRow()) {
+    EXPECT_EQ(r.size(), unsigned(C.numCol()));
+    r += (++i);
+  }
+  EXPECT_EQ(C, D);
+  for (Col c : _(0, D.numCol()))
+    D[_, c] += ptrdiff_t(c) + ptrdiff_t(D.numRow()) + 1;
+  for (auto c : C.eachCol()) c += (++i);
+  EXPECT_EQ(C, D);
 }
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
