@@ -64,6 +64,91 @@ void print_obj(std::ostream &os, const std::pair<F, S> &x) {
 };
 using utils::Valid, utils::Optional;
 
+template <class T, class S> struct Array;
+template <class T, class S> struct MutArray;
+
+template <typename T, bool Column = false> struct SliceIterator {
+  using stride_type = std::conditional_t<Column, StridedRange, unsigned>;
+  using value_type =
+    std::conditional_t<std::is_const_v<T>,
+                       Array<std::remove_cvref_t<T>, stride_type>,
+                       MutArray<std::remove_reference_t<T>, stride_type>>;
+  T *data;
+  unsigned len;
+  unsigned rowStride;
+  ptrdiff_t idx;
+  // constexpr auto operator*() -> value_type;
+  constexpr auto operator++() -> SliceIterator & {
+    idx++;
+    return *this;
+  }
+  constexpr auto operator++(int) -> SliceIterator {
+    SliceIterator ret{*this};
+    ++(*this);
+    return ret;
+  }
+  constexpr auto operator--() -> SliceIterator & {
+    idx--;
+    return *this;
+  }
+  constexpr auto operator--(int) -> SliceIterator {
+    SliceIterator ret{*this};
+    --(*this);
+    return ret;
+  }
+};
+template <typename T, bool Column>
+constexpr auto operator-(SliceIterator<T, Column> a, SliceIterator<T, Column> b)
+  -> ptrdiff_t {
+  return a.idx - b.idx;
+}
+template <typename T, bool Column>
+constexpr auto operator+(SliceIterator<T, Column> a, ptrdiff_t i)
+  -> SliceIterator<T, Column> {
+  return {a.data, a.len, a.rowStride, a.idx + i};
+}
+template <typename T>
+constexpr auto operator==(SliceIterator<T> a, SliceIterator<T> b) -> bool {
+  return a.idx == b.idx;
+}
+template <typename T>
+constexpr auto operator<=>(SliceIterator<T> a, SliceIterator<T> b)
+  -> std::strong_ordering {
+  return a.idx <=> b.idx;
+}
+template <typename T>
+constexpr auto operator==(SliceIterator<T, false> a, Row r) -> bool {
+  return a.idx == r;
+}
+template <typename T>
+constexpr auto operator<=>(SliceIterator<T, false> a, Row r)
+  -> std::strong_ordering {
+  return a.idx <=> r;
+}
+template <typename T>
+constexpr auto operator==(SliceIterator<T, true> a, Col r) -> bool {
+  return a.idx == r;
+}
+template <typename T>
+constexpr auto operator<=>(SliceIterator<T, true> a, Col r)
+  -> std::strong_ordering {
+  return a.idx <=> r;
+}
+
+template <typename T, bool Column = false> struct SliceRange {
+  T *data;
+  unsigned len;
+  unsigned rowStride;
+  ptrdiff_t stop;
+  [[nodiscard]] constexpr auto begin() const -> SliceIterator<T, Column> {
+    return {data, len, rowStride, 0};
+  }
+  [[nodiscard]] constexpr auto end() const {
+    if constexpr (Column) return Col{stop};
+    else return Row{stop};
+  }
+};
+
 /// Constant Array
 template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   static_assert(!std::is_const_v<T>, "T shouldn't be const");
@@ -285,13 +370,12 @@ protected:
 };
 
 template <class T, DenseLayout S>
-[[nodiscard]] constexpr auto operator<=>(Array<T,S> x, Array<T,S> y){
+[[nodiscard]] constexpr auto operator<=>(Array<T, S> x, Array<T, S> y) {
   ptrdiff_t M = x.size();
   ptrdiff_t N = y.size();
-  for (ptrdiff_t i = 0, L = std::min(M,N); i < L; ++i){
+  for (ptrdiff_t i = 0, L = std::min(M, N); i < L; ++i)
     if (auto cmp = x[i] <=> y[i]; cmp != 0) return cmp;
-  }
-  return M<=>N;
+  return M <=> N;
 };
 
 template <class T, class S>
@@ -521,6 +605,18 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
       (*this)[m, Nd] = x;
     }
   }
+  constexpr auto eachRow() -> SliceRange<T, false>
+  requires(MatrixDimension<S>)
+  {
+    return {data(), unsigned(Col{this->sz}), unsigned(RowStride{this->sz}),
+            ptrdiff_t(Row{this->sz})};
+  }
+  constexpr auto eachCol() -> SliceRange<T, true>
+  requires(MatrixDimension<S>)
+  {
+    return {data(), unsigned(Row{this->sz}), unsigned(RowStride{this->sz}),
+            ptrdiff_t(Col{this->sz})};
+  }
 };
 
 template <typename T, typename S> MutArray(T *, S) -> MutArray<T, S>;
@@ -545,6 +641,22 @@ static_assert(std::convertible_to<MutArray<int64_t, SquareDims>,
                                   MutArray<int64_t, StridedDims>>);
 static_assert(std::convertible_to<MutArray<int64_t, DenseDims>,
                                   MutArray<int64_t, StridedDims>>);
+
+template <typename T>
+auto operator*(SliceIterator<T, false> it)
+  -> SliceIterator<T, false>::value_type {
+  return {it.data + it.rowStride * it.idx, it.len};
+}
+template <typename T>
+auto operator*(SliceIterator<T, true> it)
+  -> SliceIterator<T, true>::value_type {
+  return {it.data + it.idx, StridedRange{it.len, it.rowStride}};
+}
+
+static_assert(std::weakly_incrementable<SliceIterator<int64_t, false>>);
+static_assert(std::forward_iterator<SliceIterator<int64_t, false>>);
+static_assert(std::ranges::forward_range<SliceRange<int64_t, false>>);
+static_assert(std::ranges::range<SliceRange<int64_t, false>>);
 
 /// Non-owning view of a managed array, capable of resizing,
 /// but not of re-allocating in case the capacity is exceeded.
@@ -764,10 +876,10 @@ struct ArrayAlignmentAndSize : ResizeableView<T, S, U> {
   alignas(T) char memory[sizeof(T)];
 };
 
-static_assert(std::is_copy_assignable_v<Array<void*,unsigned>>);
-static_assert(!std::is_copy_assignable_v<MutArray<void*,unsigned>>);
-static_assert(std::is_trivially_copyable_v<MutArray<void*,unsigned>>);
-static_assert(std::is_trivially_move_assignable_v<MutArray<void*,unsigned>>);
+static_assert(std::is_copy_assignable_v<Array<void *, unsigned>>);
+static_assert(!std::is_copy_assignable_v<MutArray<void *, unsigned>>);
+static_assert(std::is_trivially_copyable_v<MutArray<void *, unsigned>>);
+static_assert(std::is_trivially_move_assignable_v<MutArray<void *, unsigned>>);
 
 /// Non-owning view of a managed array, capable of reallocating, etc.
 /// It does not own memory. Mostly, it serves to drop the inlined
