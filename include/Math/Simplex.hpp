@@ -322,7 +322,7 @@ public:
       PtrMatrix<int64_t> constraints = simplex->getConstraints();
       return Rational::create(constraints[j, 0], constraints[j, i + 1]);
     }
-    [[nodiscard]] constexpr auto operator[](RelativeOffset auto i) const
+    [[nodiscard]] constexpr auto operator[](ScalarRelativeIndex auto i) const
       -> Rational {
       return (*this)[calcOffset(size(), i)];
     }

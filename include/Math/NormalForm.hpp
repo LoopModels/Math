@@ -23,7 +23,7 @@ constexpr auto gcdxScale(int64_t a, int64_t b) -> std::array<int64_t, 4> {
 // zero out below diagonal
 constexpr void zeroSupDiagonal(MutPtrMatrix<int64_t> A,
                                MutSquarePtrMatrix<int64_t> K, ptrdiff_t i,
-                               Row M, Col N) {
+                               Row<> M, Col<> N) {
   ptrdiff_t minMN = std::min(ptrdiff_t(M), ptrdiff_t(N));
   for (ptrdiff_t j = i + 1; j < M; ++j) {
     int64_t Aii = A[i, i];
@@ -62,7 +62,7 @@ constexpr void zeroSupDiagonal(MutPtrMatrix<int64_t> A,
 // (Akk == 1) || (Akk == -1)
 constexpr void zeroSubDiagonal(MutPtrMatrix<int64_t> A,
                                MutSquarePtrMatrix<int64_t> K, ptrdiff_t k,
-                               Row M, Col N) {
+                               Row<> M, Col<> N) {
   int64_t Akk = A[k, k];
   if (Akk == -1) {
     for (ptrdiff_t m = 0; m < N; ++m) A[k, m] *= -1;

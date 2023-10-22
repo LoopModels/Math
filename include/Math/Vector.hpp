@@ -27,18 +27,18 @@ template <class T>
 concept SizeMultiple8 = (sizeof(T) % 8) == 0;
 
 template <class S> struct DefaultCapacityType {
-  using type = unsigned int;
+  using type = int;
 };
 template <SizeMultiple8 S> struct DefaultCapacityType<S> {
-  using type = std::size_t;
+  using type = std::ptrdiff_t;
 };
 template <class S>
 using default_capacity_type_t = typename DefaultCapacityType<S>::type;
 
 static_assert(!SizeMultiple8<uint32_t>);
 static_assert(SizeMultiple8<uint64_t>);
-static_assert(std::is_same_v<default_capacity_type_t<uint32_t>, uint32_t>);
-static_assert(std::is_same_v<default_capacity_type_t<uint64_t>, uint64_t>);
+static_assert(std::is_same_v<default_capacity_type_t<uint32_t>, int32_t>);
+static_assert(std::is_same_v<default_capacity_type_t<uint64_t>, int64_t>);
 
 template <class T> consteval auto PreAllocStorage() -> size_t {
   constexpr ptrdiff_t totalBytes = 128;
