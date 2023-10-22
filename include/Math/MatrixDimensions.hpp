@@ -25,7 +25,9 @@ struct StridedDims {
   unsigned int strideM{};
   constexpr StridedDims() = default;
   constexpr StridedDims(Row m, Col n) : M(m), N(n), strideM(n) {}
-  constexpr StridedDims(Row m, Col n, RowStride x) : M(m), N(n), strideM(x) {}
+  constexpr StridedDims(Row m, Col n, RowStride x) : M(m), N(n), strideM(x) {
+    invariant(N <= strideM);
+  }
   constexpr StridedDims(CartesianIndex<Row, Col> ind)
     : M(unsigned(ind.row)), N(unsigned(ind.col)), strideM(unsigned(ind.col)) {}
   constexpr explicit operator int32_t() const { return int32_t(M * strideM); }
@@ -39,17 +41,21 @@ struct StridedDims {
   constexpr explicit operator Col() const { return N; }
   constexpr explicit operator RowStride() const { return strideM; }
   [[nodiscard]] constexpr auto operator==(const StridedDims &D) const -> bool {
+    invariant(N <= strideM);
     return (M == D.M) && (N == D.N) && (strideM == D.strideM);
   }
   [[nodiscard]] constexpr auto truncate(Row r) const -> StridedDims {
+    invariant(N <= strideM);
     invariant(r <= Row{M});
     return {unsigned(r), N, strideM};
   }
   [[nodiscard]] constexpr auto truncate(Col c) const -> StridedDims {
-    invariant(c <= Col{M});
+    invariant(N <= strideM);
+    invariant(c <= Col{N});
     return {M, unsigned(c), strideM};
   }
   constexpr auto set(Row r) -> StridedDims & {
+    invariant(N <= strideM);
     M = unsigned(r);
     return *this;
   }
@@ -59,9 +65,12 @@ struct StridedDims {
     return *this;
   }
   [[nodiscard]] constexpr auto similar(Row r) const -> StridedDims {
+    invariant(N <= strideM);
     return {unsigned(r), N, strideM};
   }
   [[nodiscard]] constexpr auto similar(Col c) const -> StridedDims {
+    invariant(N <= strideM);
+    invariant(c <= Col{strideM});
     return {M, unsigned(c), strideM};
   }
   friend inline auto operator<<(std::ostream &os, StridedDims x)
@@ -69,10 +78,6 @@ struct StridedDims {
     return os << x.M << " x " << x.N << " (stride " << x.strideM << ")";
   }
 };
-/// Dimensions with a capacity
-// struct CapDims : StridedDims {
-//   unsigned int rowCapacity;
-// };
 struct DenseDims {
   unsigned int M{};
   unsigned int N{};
@@ -191,8 +196,8 @@ static_assert(MatrixDimension<StridedDims>);
 static_assert(!MatrixDimension<unsigned>);
 
 template <typename T, typename S>
-concept PromoteDimTo = (!std::same_as<T, S>) && std::convertible_to<T, S>;
+concept PromoteDimTo = (!std::same_as<T, S>)&&std::convertible_to<T, S>;
 template <typename T, typename S>
-concept PromoteDimFrom = (!std::same_as<T, S>) && std::convertible_to<S, T>;
+concept PromoteDimFrom = (!std::same_as<T, S>)&&std::convertible_to<S, T>;
 
 } // namespace poly::math
