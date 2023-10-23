@@ -13,7 +13,7 @@ TEST(SimplexTest, BasicAssertions) {
   // 10 >= 3x + 2y + z
   // 15 >= 2x + 5y + 3z
   IntMatrix<> A{"[10 3 2 1; 15 2 5 3]"_mat};
-  IntMatrix<> B{DenseDims{0, 4}};
+  IntMatrix<> B{DenseDims<>{{0}, {4}}};
   OwningArena<> alloc;
   Optional<Simplex *> optS0{Simplex::positiveVariables(&alloc, A)};
   EXPECT_TRUE(optS0.hasValue());
@@ -111,9 +111,10 @@ TEST(LexMinSmallTest, BasicAssertions) {
   EXPECT_EQ(sol[last - 4], 15);
 }
 
-auto simplexFromTableau(Arena<> *alloc, IntMatrix<> &tableau) -> Valid<Simplex> {
-  unsigned numCon = unsigned(tableau.numRow()) - 1;
-  unsigned numVar = unsigned(tableau.numCol()) - 1;
+auto simplexFromTableau(Arena<> *alloc, IntMatrix<> &tableau)
+  -> Valid<Simplex> {
+  ptrdiff_t numCon = ptrdiff_t(tableau.numRow()) - 1;
+  ptrdiff_t numVar = ptrdiff_t(tableau.numCol()) - 1;
   Simplex *simp{Simplex::create(alloc, numCon, numVar)};
   simp->getTableau() << tableau;
   return simp;
@@ -1344,7 +1345,7 @@ TEST(LexMinSimplexTest2, BasicAssertions) {
 }
 
 TEST(Infesaible, BasicAssertions) {
-  IntMatrix<> C{DenseDims{220, 383}, 0};
+  IntMatrix<> C{DenseDims<>{{220}, {383}}, 0};
   C[0, 0] = -1;
   C[0, 1] = 1;
   C[0, 2] = -1;

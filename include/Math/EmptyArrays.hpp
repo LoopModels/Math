@@ -10,18 +10,18 @@ template <typename T> struct EmptyMatrix {
   static constexpr auto begin() -> T * { return nullptr; }
   static constexpr auto end() -> T * { return nullptr; }
 
-  static constexpr auto numRow() -> Row { return Row{0}; }
-  static constexpr auto numCol() -> Col { return Col{0}; }
-  static constexpr auto rowStride() -> RowStride { return RowStride{0}; }
+  static constexpr auto numRow() -> Row<0> { return {}; }
+  static constexpr auto numCol() -> Col<0> { return {}; }
+  static constexpr auto rowStride() -> RowStride<0> { return {}; }
   static constexpr auto getConstCol() -> ptrdiff_t { return 0; }
 
   static constexpr auto data() -> T * { return nullptr; }
   static constexpr auto operator[](ptrdiff_t, ptrdiff_t) -> T { return 0; }
-  static constexpr auto size() -> CartesianIndex<Row, Col> {
-    return {Row{0}, Col{0}};
+  static constexpr auto size() -> CartesianIndex<ptrdiff_t, ptrdiff_t> {
+    return {0, 0};
   }
   static constexpr auto view() -> EmptyMatrix<T> { return EmptyMatrix<T>{}; }
-  static constexpr auto dim() -> SquareDims { return SquareDims{unsigned(0)}; }
+  static constexpr auto dim() -> SquareDims<0> { return {numRow()}; }
 };
 
 static_assert(AbstractMatrix<EmptyMatrix<ptrdiff_t>>);

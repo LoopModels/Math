@@ -1,10 +1,10 @@
 #pragma once
+#include "Alloc/Arena.hpp"
 #include "Math/Array.hpp"
 #include "Math/Dual.hpp"
 #include "Math/Exp.hpp"
 #include "Math/LinearAlgebra.hpp"
 #include "Math/Math.hpp"
-#include "Alloc/Arena.hpp"
 #include <cstddef>
 #include <cstdint>
 

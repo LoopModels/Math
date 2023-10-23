@@ -7,27 +7,32 @@
 #include <version>
 
 namespace poly::utils {
+
+[[gnu::noinline]] static void errorReport(std::source_location location) {
+  std::cout << "invariant violation\nfile: " << location.file_name() << ":"
+            << location.line() << ":" << location.column() << " `"
+            << location.function_name() << "`\n";
+  __builtin_trap();
+}
+template <typename T>
+[[gnu::noinline]] static void errorReport(const T &x, const T &y,
+                                          std::source_location location) {
+  std::cout << x << " != " << y << "\n";
+  errorReport(location);
+}
+
 [[gnu::artificial]] constexpr inline void
 invariant(bool condition,
           std::source_location location = std::source_location::current()) {
-  if (!condition) {
-    std::cout << "invariant violation\nfile: " << location.file_name() << ":"
-              << location.line() << ":" << location.column() << " `"
-              << location.function_name() << "`\n";
-    __builtin_trap();
-  }
+  if (!condition) [[unlikely]]
+    errorReport(location);
 }
 template <typename T>
 [[gnu::artificial]] constexpr inline void
 invariant(const T &x, const T &y,
           std::source_location location = std::source_location::current()) {
-  if (x != y) {
-    std::cout << "invariant violation: " << x << " != " << y
-              << "\nfile: " << location.file_name() << ":" << location.line()
-              << ":" << location.column() << " `" << location.function_name()
-              << "`\n";
-    __builtin_trap();
-  }
+  if (x != y) [[unlikely]]
+    errorReport(x, y, location);
 }
 // we want gdb-friendly builtin trap
 #define ASSERT(condition) ::poly::utils::invariant(condition)

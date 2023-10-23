@@ -25,7 +25,7 @@ constexpr auto cstoll(const char *s, ptrdiff_t &cur) -> int64_t {
 [[nodiscard]] constexpr auto operator"" _mat(const char *s, size_t)
   -> math::DenseMatrix<int64_t, 0> {
   invariant(s[0] == '[');
-  math::ManagedArray<int64_t, unsigned, 0> content;
+  math::ManagedArray<int64_t, ptrdiff_t, 0> content;
   ptrdiff_t cur = 1;
   ptrdiff_t numRows = 1;
   while (s[cur] != ']') {
@@ -39,7 +39,7 @@ constexpr auto cstoll(const char *s, ptrdiff_t &cur) -> int64_t {
   if (content.size() % numRows != 0) __builtin_trap();
   math::DenseMatrix<int64_t, 0> A(
     std::move(content),
-    math::DenseDims{math::Row{numRows}, math::Col{numCols}});
+    math::DenseDims{math::Row<>{numRows}, math::Col<>{numCols}});
   return A;
 }
 

@@ -99,19 +99,19 @@ struct StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
   }
 
   [[nodiscard]] constexpr auto diag() const noexcept {
-    StridedRange r{minRowCol(), unsigned(RowStride{S{}}) + 1};
+    StridedRange r{minRowCol(), unsigned(RowStride(S{})) + 1};
     auto ptr = data();
     invariant(ptr != nullptr);
     return Array<T, StridedRange>{ptr, r};
   }
   [[nodiscard]] constexpr auto antiDiag() const noexcept {
-    StridedRange r{minRowCol(), unsigned(RowStride{S{}}) - 1};
+    StridedRange r{minRowCol(), unsigned(RowStride(S{})) - 1};
     auto ptr = data();
     invariant(ptr != nullptr);
-    return Array<T, StridedRange>{ptr + ptrdiff_t(Col{S{}}) - 1, r};
+    return Array<T, StridedRange>{ptr + ptrdiff_t(Col(S{})) - 1, r};
   }
   [[nodiscard]] static constexpr auto isSquare() noexcept -> bool {
-    return Row{S{}} == Col{S{}};
+    return Row(S{}) == Col(S{});
   }
   [[nodiscard]] constexpr auto checkSquare() const -> Optional<ptrdiff_t> {
     ptrdiff_t N = ptrdiff_t(numRow());
@@ -119,19 +119,15 @@ struct StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
     return N;
   }
 
-  [[nodiscard]] constexpr auto numRow() const noexcept -> Row {
-    return Row{S{}};
-  }
-  [[nodiscard]] constexpr auto numCol() const noexcept -> Col {
-    return Col{S{}};
-  }
-  [[nodiscard]] constexpr auto rowStride() const noexcept -> RowStride {
-    return RowStride{S{}};
+  [[nodiscard]] constexpr auto numRow() const noexcept { return row(S{}); }
+  [[nodiscard]] constexpr auto numCol() const noexcept { return col(S{}); }
+  [[nodiscard]] constexpr auto rowStride() const noexcept {
+    return rowStride(S{});
   }
   [[nodiscard]] static constexpr auto empty() -> bool { return capacity == 0; }
   [[nodiscard]] static constexpr auto size() noexcept {
     if constexpr (StaticInt<S>) return S{};
-    else return CartesianIndex{Row{S{}}, Col{S{}}};
+    else return CartesianIndex{Row(S{}), Col(S{})};
   }
   [[nodiscard]] static constexpr auto dim() noexcept -> S { return S{}; }
   [[nodiscard]] constexpr auto transpose() const { return Transpose{*this}; }
@@ -144,8 +140,8 @@ struct StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
     }
   }
   [[nodiscard]] constexpr auto isDiagonal() const -> bool {
-    for (Row r = 0; r < numRow(); ++r)
-      for (Col c = 0; c < numCol(); ++c)
+    for (ptrdiff_t r = 0; r < numRow(); ++r)
+      for (ptrdiff_t c = 0; c < numCol(); ++c)
         if (r != c && (*this)(r, c) != 0) return false;
     return true;
   }
@@ -187,13 +183,13 @@ struct StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
     std::fill_n((T *)(data()), ptrdiff_t(this->dim()), value);
   }
   [[nodiscard]] constexpr auto diag() noexcept {
-    StridedRange r{unsigned(min(Row{S{}}, Col{S{}})),
-                   unsigned(RowStride{S{}}) + 1};
+    StridedRange r{unsigned(min(Row(S{}), Col(S{}))),
+                   unsigned(RowStride(S{})) + 1};
     return MutArray<T, StridedRange>{data(), r};
   }
   [[nodiscard]] constexpr auto antiDiag() noexcept {
-    Col c = Col{S{}};
-    StridedRange r{unsigned(min(Row{S{}}, c)), unsigned(RowStride{S{}}) - 1};
+    Col c = Col(S{});
+    StridedRange r{unsigned(min(Row(S{}), c)), unsigned(RowStride(S{})) - 1};
     return MutArray<T, StridedRange>{data() + ptrdiff_t(c) - 1, r};
   }
   constexpr auto operator==(const StaticArray &rhs) const noexcept -> bool {

@@ -25,7 +25,7 @@ TEST(OrthogonalizationTest, BasicAssertions) {
   ptrdiff_t luFailedCount = 0;
   ptrdiff_t invFailedCount = 0;
   ptrdiff_t numIters = 1000;
-  IntMatrix<> B(DenseDims{4, 8});
+  IntMatrix<> B(DenseDims<>{{4}, {8}});
   SquareMatrix<int64_t> I4 = SquareMatrix<int64_t>::identity(4);
   for (ptrdiff_t i = 0; i < numIters; ++i) {
     for (ptrdiff_t n = 0; n < 4; ++n)
@@ -124,7 +124,7 @@ TEST(OrthogonalizationTest, BasicAssertions) {
 auto isHNF(PtrMatrix<int64_t> A) -> bool {
   const auto [M, N] = A.size();
   // l is lead
-  Col l = 0;
+  Col<> l = {0};
   for (ptrdiff_t m = 0; m < M; ++m) {
     // all entries must be 0
     for (ptrdiff_t n = 0; n < l; ++n)
@@ -145,7 +145,7 @@ auto isHNF(PtrMatrix<int64_t> A) -> bool {
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(Hermite, BasicAssertions) {
   {
-    IntMatrix<> A43(DenseDims{4, 3});
+    IntMatrix<> A43(DenseDims<>{{4}, {3}});
     A43[0, 0] = 2;
     A43[1, 0] = 3;
     A43[2, 0] = 6;
@@ -222,7 +222,7 @@ TEST(Hermite, BasicAssertions) {
                   "0 0 0 -1 0 0 0 0 0 0 0 0 0 0 "
                   "1]"_mat};
     auto [H3, U3] = NormalForm::hermite(A);
-    std::cout << "\n\n\n====\n\nH=\n" << H3 << "\nU=\n" << U3 << "\n";
+    std::cout << "\n\n\n====\n\nH=" << H3 << "\nU=" << U3 << "\n";
     EXPECT_TRUE(isHNF(H3));
     EXPECT_TRUE(H3 == U3 * A);
   }
@@ -255,7 +255,7 @@ TEST(NullSpaceTests, BasicAssertions) {
   // ptrdiff_t numIters = 1000;
   ptrdiff_t numIters = 1;
   for (ptrdiff_t numCol = 2; numCol < 11; numCol += 2) {
-    IntMatrix<> B(DenseDims{8, numCol});
+    IntMatrix<> B(DenseDims<>{{8}, {numCol}});
     ptrdiff_t nullDim = 0;
     IntMatrix<> Z;
     DenseMatrix<int64_t> NS;
@@ -314,7 +314,7 @@ TEST(BareissTests, BasicAssertions) {
   IntMatrix<> B =
     "[-4 3 -2 2 -5; 0 11 -6 2 -5; 0 0 56 -37 32; 0 0 0 -278 136]"_mat;
   EXPECT_EQ(A, B);
-  Vector<ptrdiff_t> truePiv{0, 1, 2, 3};
+  Vector<ptrdiff_t> truePiv{std::array{0, 1, 2, 3}};
   EXPECT_EQ(piv, truePiv);
 
   IntMatrix<> C = "[-2 -2 -1 -2 -1; 1 1 2 2 -2; -2 2 2 -1 "
@@ -323,7 +323,7 @@ TEST(BareissTests, BasicAssertions) {
                   "20; 0 0 0 -28 52; 0 0 0 0 -142]"_mat;
   auto pivots = NormalForm::bareiss(C);
   EXPECT_EQ(C, D);
-  auto truePivots = Vector<ptrdiff_t, 16>{0, 2, 2, 3, 4};
+  auto truePivots = Vector<ptrdiff_t, 16>{std::array{0, 2, 2, 3, 4}};
   EXPECT_EQ(pivots, truePivots);
 }
 
@@ -334,7 +334,7 @@ TEST(InvTest, BasicAssertions) {
   std::uniform_int_distribution<> distrib(-10, 10);
   const ptrdiff_t numIters = 1000;
   for (ptrdiff_t dim = 1; dim < 5; ++dim) {
-    SquareMatrix<int64_t> B(SquareDims{unsigned(dim)});
+    SquareMatrix<int64_t> B(SquareDims<>{{dim}});
     SquareMatrix<int64_t> Db = SquareMatrix<int64_t>::identity(dim);
     for (ptrdiff_t i = 0; i < numIters; ++i) {
       while (true) {

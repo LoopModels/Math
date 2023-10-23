@@ -21,5 +21,4 @@ template <TriviallyCopyable T> struct InParameter<T> {
 /// }
 template <typename T> using inparam_t = typename InParameter<T>::type;
 
-
 #endif // Parameters_hpp_INCLUDED

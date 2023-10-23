@@ -29,304 +29,263 @@
 namespace poly::math {
 
 using utils::invariant;
-enum class AxisType {
-  Row,
-  Column,
-  RowStride,
+template <ptrdiff_t M = -1> struct Row {
+  static_assert(M >= 0);
+  explicit constexpr operator ptrdiff_t() const { return M; }
+  explicit constexpr operator bool() const { return M; }
+  constexpr operator Row<-1>() const;
 };
-inline auto operator<<(std::ostream &os, AxisType x) -> std::ostream & {
-  switch (x) {
-  case AxisType::Row: os << "Row"; break;
-  case AxisType::Column: os << "Column"; break;
-  case AxisType::RowStride: os << "RowStride"; break;
-  default: os << "invalid axis type"; __builtin_trap();
+template <> struct Row<-1> {
+  [[no_unique_address]] ptrdiff_t M;
+  explicit constexpr operator ptrdiff_t() const {
+    invariant(M >= 0);
+    return M;
   }
-  return os;
-}
-
-// strong typing
-template <AxisType T> struct AxisInt {
-  using V = ptrdiff_t;
-  [[no_unique_address]] V value{0};
-  // [[no_unique_address]] unsigned int value{0};
-  constexpr AxisInt() = default;
-  constexpr AxisInt(V v) : value(v) {}
-  explicit constexpr operator size_t() const {
-    invariant(value >= 0);
-    return value;
-  }
-  explicit constexpr operator ptrdiff_t() const { return value; }
-  explicit constexpr operator unsigned() const {
-    invariant(value >= 0);
-    invariant(value <= std::numeric_limits<unsigned>::max());
-    return value;
-  }
-  explicit constexpr operator uint8_t() const {
-    invariant(value >= 0);
-    invariant(value < 256);
-    return value;
-  }
-  explicit constexpr operator bool() const { return value; }
-
-  constexpr auto operator++() -> AxisInt<T> & {
-    ++value;
+  explicit constexpr operator bool() const { return M; }
+  constexpr auto operator++() -> Row & {
+    ++M;
     return *this;
   }
-  constexpr auto operator++(int) -> AxisInt<T> { return value++; }
-  constexpr auto operator--() -> AxisInt<T> & {
-    --value;
+  constexpr auto operator--() -> Row & {
+    --M;
     return *this;
   }
-  constexpr auto operator--(int) -> AxisInt<T> { return value--; }
-  constexpr auto operator+=(AxisInt<T> i) -> AxisInt<T> & {
-    value += V(i);
-    return *this;
+  constexpr auto operator++(int) -> Row {
+    Row tmp{*this};
+    ++M;
+    return tmp;
   }
-  constexpr auto operator+=(V i) -> AxisInt<T> & {
-    value += i;
-    return *this;
-  }
-  constexpr auto operator-=(AxisInt<T> i) -> AxisInt<T> & {
-    value -= V(i);
-    return *this;
-  }
-  constexpr auto operator-=(V i) -> AxisInt<T> & {
-    value -= i;
-    return *this;
-  }
-  constexpr auto operator*=(AxisInt<T> i) -> AxisInt<T> & {
-    value *= V(i);
-    return *this;
-  }
-  constexpr auto operator*=(V i) -> AxisInt<T> & {
-    value *= i;
-    return *this;
-  }
-  constexpr auto operator/=(AxisInt<T> i) -> AxisInt<T> & {
-    value /= V(i);
-    return *this;
-  }
-  constexpr auto operator/=(V i) -> AxisInt<T> & {
-    value /= i;
-    return *this;
-  }
-  constexpr auto operator%=(AxisInt<T> i) -> AxisInt<T> & {
-    value %= V(i);
-    return *this;
-  }
-  constexpr auto operator%=(V i) -> AxisInt<T> & {
-    value %= i;
-    return *this;
-  }
-  constexpr auto operator*() const -> V { return value; }
-  friend inline auto operator<<(std::ostream &os, AxisInt<T> x)
-    -> std::ostream & {
-    return os << T << "{" << *x << "}";
+  constexpr auto operator--(int) -> Row {
+    Row tmp{*this};
+    --M;
+    return tmp;
   }
 };
-template <AxisType T>
-constexpr auto operator+(AxisInt<T> x, ptrdiff_t i) -> AxisInt<T> {
-  return ptrdiff_t(x) + i;
+static_assert(sizeof(Row<>) == sizeof(ptrdiff_t));
+template <ptrdiff_t M> constexpr Row<M>::operator Row<-1>() const {
+  return {M};
 }
-template <AxisType T>
-constexpr auto operator-(AxisInt<T> x, ptrdiff_t i) -> AxisInt<T> {
-  return ptrdiff_t(x) - i;
-}
-template <AxisType T>
-constexpr auto operator*(AxisInt<T> x, ptrdiff_t i) -> AxisInt<T> {
-  return ptrdiff_t(x) * i;
-}
-template <AxisType T>
-constexpr auto operator/(AxisInt<T> x, ptrdiff_t i) -> AxisInt<T> {
-  return ptrdiff_t(x) / i;
-}
-template <AxisType T>
-constexpr auto operator%(AxisInt<T> x, ptrdiff_t i) -> AxisInt<T> {
-  return ptrdiff_t(x) % i;
-}
-template <AxisType T>
-constexpr auto operator==(AxisInt<T> x, ptrdiff_t i) -> bool {
-  return ptrdiff_t(x) == i;
-}
-template <AxisType T>
-constexpr auto operator!=(AxisInt<T> x, ptrdiff_t i) -> bool {
-  return ptrdiff_t(x) != i;
-}
-template <AxisType T>
-constexpr auto operator<(AxisInt<T> x, ptrdiff_t i) -> bool {
-  return ptrdiff_t(x) < i;
-}
-template <AxisType T>
-constexpr auto operator<=(AxisInt<T> x, ptrdiff_t i) -> bool {
-  return ptrdiff_t(x) <= i;
-}
-template <AxisType T>
-constexpr auto operator>(AxisInt<T> x, ptrdiff_t i) -> bool {
-  return ptrdiff_t(x) > i;
-}
-template <AxisType T>
-constexpr auto operator>=(AxisInt<T> x, ptrdiff_t i) -> bool {
-  return ptrdiff_t(x) >= i;
-}
-template <typename T, AxisType W>
-constexpr auto operator+(T *p, AxisInt<W> y) -> T * {
-  return p + *y;
-}
-template <typename T, AxisType W>
-constexpr auto operator-(T *p, AxisInt<W> y) -> T * {
-  return p - *y;
-}
-
-template <AxisType T>
-constexpr auto operator+(AxisInt<T> x, AxisInt<T> y) -> AxisInt<T> {
-  return (*x) + (*y);
-}
-template <AxisType T>
-constexpr auto operator-(AxisInt<T> x, AxisInt<T> y) -> AxisInt<T> {
-  return (*x) - (*y);
-}
-template <AxisType T>
-constexpr auto operator*(AxisInt<T> x, AxisInt<T> y) -> AxisInt<T> {
-  return (*x) * (*y);
-}
-template <AxisType T>
-constexpr auto operator/(AxisInt<T> x, AxisInt<T> y) -> AxisInt<T> {
-  return (*x) / (*y);
-}
-template <AxisType T>
-constexpr auto operator%(AxisInt<T> x, AxisInt<T> y) -> AxisInt<T> {
-  return (*x) % (*y);
-}
-template <AxisType S, AxisType T>
-constexpr auto operator==(AxisInt<S> x, AxisInt<T> y) -> bool {
-  return *x == *y;
-}
-template <AxisType S, AxisType T>
-constexpr auto operator!=(AxisInt<S> x, AxisInt<T> y) -> bool {
-  return *x != *y;
-}
-template <AxisType T>
-constexpr auto operator<(AxisInt<T> x, AxisInt<T> y) -> bool {
-  return *x < *y;
-}
-template <AxisType T>
-constexpr auto operator<=(AxisInt<T> x, AxisInt<T> y) -> bool {
-  return *x <= *y;
-}
-template <AxisType T>
-constexpr auto operator>(AxisInt<T> x, AxisInt<T> y) -> bool {
-  return *x > *y;
-}
-template <AxisType T>
-constexpr auto operator>=(AxisInt<T> x, AxisInt<T> y) -> bool {
-  return *x >= *y;
-}
-using Col = AxisInt<AxisType::Column>;
-using Row = AxisInt<AxisType::Row>;
-using RowStride = AxisInt<AxisType::RowStride>;
-using CarInd = std::pair<Row, Col>;
-
-constexpr auto operator*(RowStride x, Row y) -> ptrdiff_t {
-  return (*x) * (*y);
-}
-constexpr auto operator>=(RowStride x, Col u) -> bool { return (*x) >= (*u); }
-constexpr auto operator<(RowStride x, Col u) -> bool { return (*x) < (*u); }
-
-static_assert(std::is_trivially_copyable_v<Row>);
-static_assert(std::is_trivially_copyable_v<Col>);
-static_assert(std::is_trivially_copyable_v<RowStride>);
-static_assert(std::is_trivially_copyable_v<const Row>);
-static_assert(std::is_trivially_copyable_v<const Col>);
-static_assert(std::is_trivially_copyable_v<const RowStride>);
-static_assert(sizeof(Row) == sizeof(ptrdiff_t));
-static_assert(sizeof(Col) == sizeof(ptrdiff_t));
-static_assert(sizeof(RowStride) == sizeof(ptrdiff_t));
-constexpr auto operator*(Row r, Col c) -> Row::V { return *r * *c; }
-
-constexpr auto operator==(ptrdiff_t x, Row y) -> bool {
+template <ptrdiff_t M>
+constexpr auto operator==(ptrdiff_t x, Row<M> y) -> bool {
   return x == ptrdiff_t(y);
 }
-constexpr auto operator!=(ptrdiff_t x, Row y) -> bool {
-  return x != ptrdiff_t(y);
-}
-constexpr auto operator==(ptrdiff_t x, Col y) -> bool {
+template <ptrdiff_t M>
+constexpr auto operator==(Row<M> y, ptrdiff_t x) -> bool {
   return x == ptrdiff_t(y);
 }
-constexpr auto operator!=(ptrdiff_t x, Col y) -> bool {
-  return x != ptrdiff_t(y);
+template <ptrdiff_t M, ptrdiff_t N>
+constexpr auto operator==(Row<M> x, Row<N> y) -> bool {
+  return ptrdiff_t(x) == ptrdiff_t(y);
 }
-constexpr auto operator<(ptrdiff_t x, Row y) -> bool {
-  return x < ptrdiff_t(y);
+template <ptrdiff_t M>
+constexpr auto operator<=>(ptrdiff_t x, Row<M> y) -> std::strong_ordering {
+  return x <=> ptrdiff_t(y);
 }
-constexpr auto operator<(ptrdiff_t x, Col y) -> bool {
-  return x < ptrdiff_t(y);
+template <ptrdiff_t M>
+constexpr auto operator<=>(Row<M> x, ptrdiff_t y) -> std::strong_ordering {
+  return ptrdiff_t(x) <=> y;
 }
-constexpr auto operator>(ptrdiff_t x, Row y) -> bool {
-  return x > ptrdiff_t(y);
+template <ptrdiff_t M, ptrdiff_t N>
+constexpr auto operator<=>(Row<M> x, Row<N> y) -> std::strong_ordering {
+  return ptrdiff_t(x) <=> ptrdiff_t(y);
 }
-constexpr auto operator>(ptrdiff_t x, Col y) -> bool {
-  return x > ptrdiff_t(y);
+template <ptrdiff_t M>
+inline auto operator<<(std::ostream &os, Row<M> x) -> std::ostream & {
+  return os << "Rows{" << ptrdiff_t(x) << "}";
 }
-constexpr auto operator<=(ptrdiff_t x, Row y) -> bool {
-  return x <= ptrdiff_t(y);
+template <ptrdiff_t M = -1> struct Col {
+  static_assert(M >= 0);
+  explicit constexpr operator ptrdiff_t() const { return M; }
+  explicit constexpr operator bool() const { return M; }
+  constexpr operator Col<-1>() const;
+};
+template <> struct Col<-1> {
+  [[no_unique_address]] ptrdiff_t M;
+  explicit constexpr operator ptrdiff_t() const {
+    invariant(M >= 0);
+    return M;
+  }
+  explicit constexpr operator bool() const { return M; }
+  constexpr auto operator++() -> Col & {
+    ++M;
+    return *this;
+  }
+  constexpr auto operator--() -> Col & {
+    --M;
+    return *this;
+  }
+  constexpr auto operator++(int) -> Col {
+    Col tmp{*this};
+    ++M;
+    return tmp;
+  }
+  constexpr auto operator--(int) -> Col {
+    Col tmp{*this};
+    --M;
+    return tmp;
+  }
+};
+static_assert(sizeof(Col<>) == sizeof(ptrdiff_t));
+template <ptrdiff_t M> constexpr Col<M>::operator Col<-1>() const {
+  return {M};
 }
-constexpr auto operator<=(ptrdiff_t x, Col y) -> bool {
-  return x <= ptrdiff_t(y);
+template <ptrdiff_t M>
+constexpr auto operator==(ptrdiff_t x, Col<M> y) -> bool {
+  return x == ptrdiff_t(y);
 }
-constexpr auto operator>=(ptrdiff_t x, Row y) -> bool {
-  return x >= ptrdiff_t(y);
+template <ptrdiff_t M>
+constexpr auto operator==(Col<M> y, ptrdiff_t x) -> bool {
+  return x == ptrdiff_t(y);
 }
-constexpr auto operator>=(ptrdiff_t x, Col y) -> bool {
-  return x >= ptrdiff_t(y);
+template <ptrdiff_t M, ptrdiff_t N>
+constexpr auto operator==(Col<M> x, Col<N> y) -> bool {
+  return ptrdiff_t(x) == ptrdiff_t(y);
+}
+template <ptrdiff_t M>
+constexpr auto operator<=>(ptrdiff_t x, Col<M> y) -> std::strong_ordering {
+  return x <=> ptrdiff_t(y);
+}
+template <ptrdiff_t M>
+constexpr auto operator<=>(Col<M> x, ptrdiff_t y) -> std::strong_ordering {
+  return ptrdiff_t(x) <=> y;
+}
+template <ptrdiff_t M, ptrdiff_t N>
+constexpr auto operator<=>(Col<M> x, Col<N> y) -> std::strong_ordering {
+  return ptrdiff_t(x) <=> ptrdiff_t(y);
+}
+template <ptrdiff_t M>
+inline auto operator<<(std::ostream &os, Col<M> x) -> std::ostream & {
+  return os << "Rows{" << ptrdiff_t(x) << "}";
+}
+template <ptrdiff_t M = -1> struct RowStride {
+  static_assert(M >= 0);
+  explicit constexpr operator ptrdiff_t() const { return M; }
+  explicit constexpr operator bool() const { return M; }
+  constexpr operator RowStride<-1>() const;
+};
+template <> struct RowStride<-1> {
+  [[no_unique_address]] ptrdiff_t M;
+  explicit constexpr operator ptrdiff_t() const {
+    invariant(M >= 0);
+    return M;
+  }
+  explicit constexpr operator bool() const { return M; }
+};
+static_assert(sizeof(RowStride<>) == sizeof(ptrdiff_t));
+template <ptrdiff_t M> constexpr RowStride<M>::operator RowStride<-1>() const {
+  return {M};
+}
+template <ptrdiff_t M>
+constexpr auto operator==(ptrdiff_t x, RowStride<M> y) -> bool {
+  return x == ptrdiff_t(y);
+}
+template <ptrdiff_t M>
+constexpr auto operator==(RowStride<M> y, ptrdiff_t x) -> bool {
+  return x == ptrdiff_t(y);
+}
+template <ptrdiff_t M, ptrdiff_t N>
+constexpr auto operator==(RowStride<M> x, RowStride<N> y) -> bool {
+  return ptrdiff_t(x) == ptrdiff_t(y);
+}
+template <ptrdiff_t M>
+constexpr auto operator<=>(ptrdiff_t x, RowStride<M> y)
+  -> std::strong_ordering {
+  return x <=> ptrdiff_t(y);
+}
+template <ptrdiff_t M>
+constexpr auto operator<=>(RowStride<M> x, ptrdiff_t y)
+  -> std::strong_ordering {
+  return ptrdiff_t(x) <=> y;
+}
+template <ptrdiff_t M, ptrdiff_t N>
+constexpr auto operator<=>(RowStride<M> x, RowStride<N> y)
+  -> std::strong_ordering {
+  return ptrdiff_t(x) <=> ptrdiff_t(y);
+}
+template <ptrdiff_t M>
+inline auto operator<<(std::ostream &os, RowStride<M> x) -> std::ostream & {
+  return os << "RowStrides{" << ptrdiff_t(x) << "}";
 }
 
-constexpr auto operator+(ptrdiff_t x, Col y) -> Col {
-  return Col{x + ptrdiff_t(y)};
+// constexpr auto max(Row M, Col N) -> ptrdiff_t {
+//   return std::max(ptrdiff_t(M), ptrdiff_t(N));
+// }
+// constexpr auto max(Col N, RowStride X) -> RowStride {
+//   return RowStride{std::max(ptrdiff_t(N), ptrdiff_t(X))};
+// }
+// constexpr auto min(Col N, Col X) -> Col {
+//   return Col{std::max(Col::V(N), Col::V(X))};
+// }
+// constexpr auto min(Row N, Col X) -> ptrdiff_t {
+//   return std::min(ptrdiff_t(N), ptrdiff_t(X));
+// }
+
+template <ptrdiff_t M> constexpr auto standardizeRangeBound(Row<M> x) {
+  if constexpr (M == -1) return ptrdiff_t(x);
+  else return std::integral_constant<ptrdiff_t, M>{};
 }
-constexpr auto operator-(ptrdiff_t x, Col y) -> Col {
-  return Col{x - ptrdiff_t(y)};
-}
-constexpr auto operator*(ptrdiff_t x, Col y) -> Col {
-  return Col{x * ptrdiff_t(y)};
-}
-constexpr auto operator+(ptrdiff_t x, Row y) -> Row {
-  return Row{x + ptrdiff_t(y)};
-}
-constexpr auto operator-(ptrdiff_t x, Row y) -> Row {
-  return Row{x - ptrdiff_t(y)};
-}
-constexpr auto operator*(ptrdiff_t x, Row y) -> Row {
-  return Row{x * ptrdiff_t(y)};
-}
-constexpr auto operator+(ptrdiff_t x, RowStride y) -> RowStride {
-  return RowStride{x + ptrdiff_t(y)};
-}
-constexpr auto operator-(ptrdiff_t x, RowStride y) -> RowStride {
-  return RowStride{x - ptrdiff_t(y)};
-}
-constexpr auto operator*(ptrdiff_t x, RowStride y) -> RowStride {
-  return RowStride{x * ptrdiff_t(y)};
+template <ptrdiff_t M> constexpr auto standardizeRangeBound(Col<M> x) {
+  if constexpr (M == -1) return ptrdiff_t(x);
+  else return std::integral_constant<ptrdiff_t, M>{};
 }
 
-constexpr auto max(Row M, Col N) -> ptrdiff_t {
-  return std::max(ptrdiff_t(M), ptrdiff_t(N));
+template <ptrdiff_t M> constexpr auto unwrapRow(Row<M> x) -> ptrdiff_t {
+  return ptrdiff_t(x);
 }
-constexpr auto max(Col N, RowStride X) -> RowStride {
-  return RowStride{std::max(ptrdiff_t(N), ptrdiff_t(X))};
+template <ptrdiff_t M> constexpr auto unwrapCol(Col<M> x) -> ptrdiff_t {
+  return ptrdiff_t(x);
 }
-constexpr auto min(Col N, Col X) -> Col {
-  return Col{std::max(Col::V(N), Col::V(X))};
-}
-constexpr auto min(Row N, Col X) -> ptrdiff_t {
-  return std::min(ptrdiff_t(N), ptrdiff_t(X));
-}
-
-template <typename T>
-concept RowOrCol = std::same_as<T, Row> || std::same_as<T, Col>;
-
-constexpr auto unwrapRow(Row x) -> ptrdiff_t { return ptrdiff_t(x); }
-constexpr auto unwrapCol(Col x) -> ptrdiff_t { return ptrdiff_t(x); }
 constexpr auto unwrapRow(auto x) { return x; }
 constexpr auto unwrapCol(auto x) { return x; }
-constexpr auto standardizeRangeBound(RowOrCol auto x) { return ptrdiff_t(x); }
+
+template <ptrdiff_t C, ptrdiff_t X>
+constexpr auto operator==(Col<C> c, RowStride<X> x) -> bool {
+  return ptrdiff_t(c) == ptrdiff_t(x);
+}
+template <ptrdiff_t C, ptrdiff_t X>
+constexpr auto operator<=>(Col<C> c, RowStride<X> x) -> std::strong_ordering {
+  return ptrdiff_t(c) <=> ptrdiff_t(x);
+}
+
+constexpr auto row(ptrdiff_t x) -> Row<> {
+  invariant(x >= 0);
+  return Row<-1>{x};
+}
+constexpr auto col(ptrdiff_t x) -> Col<> {
+  invariant(x >= 0);
+  return Col<-1>{x};
+}
+constexpr auto rowStride(ptrdiff_t x) -> RowStride<> {
+  invariant(x >= 0);
+  return RowStride<-1>{x};
+}
+template <std::integral I, I x>
+constexpr auto row(std::integral_constant<I, x>) -> Row<ptrdiff_t(x)> {
+  static_assert(x >= 0);
+  return {};
+}
+template <std::integral I, I x>
+constexpr auto col(std::integral_constant<I, x>) -> Col<ptrdiff_t(x)> {
+  static_assert(x >= 0);
+  return {};
+}
+template <std::integral I, I x>
+constexpr auto rowStride(std::integral_constant<I, x>)
+  -> RowStride<ptrdiff_t(x)> {
+  static_assert(x >= 0);
+  return {};
+}
+constexpr auto operator+(Row<> a, Row<> b) -> Row<> {
+  return {ptrdiff_t(a) + ptrdiff_t(b)};
+}
+constexpr auto operator+(Col<> a, Col<> b) -> Col<> {
+  return {ptrdiff_t(a) + ptrdiff_t(b)};
+}
+constexpr auto operator-(Row<> a, Row<> b) -> Row<> {
+  return {ptrdiff_t(a) - ptrdiff_t(b)};
+}
+constexpr auto operator-(Col<> a, Col<> b) -> Col<> {
+  return {ptrdiff_t(a) - ptrdiff_t(b)};
+}
+
 } // namespace poly::math
