@@ -2,7 +2,8 @@
 #include <cstddef>
 
 namespace poly::containers {
-template <typename T, size_t N> struct Storage {
+template <typename T, ptrdiff_t N> struct Storage {
+  static_assert(N > 0);
   alignas(T) char mem[N * sizeof(T)]; // NOLINT (modernize-avoid-c-style-arrays)
   constexpr auto data() -> T * {
     void *p = mem;
