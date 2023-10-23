@@ -21,14 +21,14 @@ template <typename T>
   errorReport(location);
 }
 
-[[gnu::artificial]] constexpr inline void
+[[gnu::artificial, gnu::always_inline]] constexpr inline void
 invariant(bool condition,
           std::source_location location = std::source_location::current()) {
   if (!condition) [[unlikely]]
     errorReport(location);
 }
 template <typename T>
-[[gnu::artificial]] constexpr inline void
+[[gnu::artificial, gnu::always_inline]] constexpr inline void
 invariant(const T &x, const T &y,
           std::source_location location = std::source_location::current()) {
   if (x != y) [[unlikely]]
@@ -50,7 +50,7 @@ namespace poly::utils {
 #endif
 #endif
   if (!condition) {
-#if __cpp_lib_unreachable
+#ifdef __cpp_lib_unreachable
     std::unreachable();
 #else
 #ifdef __has_builtin
