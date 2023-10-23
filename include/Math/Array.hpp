@@ -186,12 +186,16 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   }
   [[nodiscard]] constexpr auto wrappedPtr() noexcept -> Valid<T> { return ptr; }
 
-  [[nodiscard]] constexpr auto begin() const noexcept {
+  [[nodiscard]] constexpr auto begin() const noexcept
+    -> StridedIterator<const T>
+  requires(std::is_same_v<S, StridedRange>)
+  {
     const T *p = ptr;
-    if constexpr (std::is_same_v<S, StridedRange>)
-      return StridedIterator{p, sz.stride};
-    else return p;
+    return StridedIterator{p, sz.stride};
   }
+  [[nodiscard]] constexpr auto begin() const noexcept
+    -> const T *requires(!std::is_same_v<S, StridedRange>) { return ptr; }
+
   [[nodiscard]] constexpr auto end() const noexcept {
     return begin() + ptrdiff_t(sz);
   }
@@ -476,12 +480,16 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
     return data();
   }
 
-  [[nodiscard]] constexpr auto begin() noexcept {
-    T *p = const_cast<T *>(this->ptr);
-    if constexpr (std::is_same_v<S, StridedRange>)
-      return StridedIterator{p, this->sz.stride};
-    else return p;
+  [[nodiscard]] constexpr auto begin() noexcept -> StridedIterator<T>
+  requires(std::is_same_v<S, StridedRange>)
+  {
+    return StridedIterator{const_cast<T *>(this->ptr), this->sz.stride};
   }
+  [[nodiscard]] constexpr auto begin() noexcept
+    -> T *requires(!std::is_same_v<S, StridedRange>) {
+      return const_cast<T *>(this->ptr);
+    }
+
   [[nodiscard]] constexpr auto end() noexcept {
     return begin() + ptrdiff_t(this->sz);
   }
