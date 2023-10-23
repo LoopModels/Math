@@ -54,7 +54,7 @@ target_include_directories(
 
 set(SEARCH_JE_MALLOC USE_JE_MALLOC)
 if(USE_MI_MALLOC)
-  find_package(mimalloc)# REQUIRED)
+  find_package(mimalloc) # REQUIRED)
   if(mimalloc_FOUND)
     target_link_libraries(${PROJECT_NAME} INTERFACE mimalloc) # mimalloc-static
     target_compile_definitions(${PROJECT_NAME} INTERFACE USING_MIMALLOC)
@@ -65,9 +65,11 @@ if(SEARCH_JE_MALLOC)
   find_package(PkgConfig)
   if(PKG_CONFIG_FOUND)
     pkg_check_modules(JEMALLOC jemalloc)
-    target_link_libraries(${PROJECT_NAME} INTERFACE ${JEMALLOC_LIBRARIES})
-    target_include_directories(${PROJECT_NAME} INTERFACE ${JEMALLOC_INCLUDE_DIRS})
-    target_compile_definitions(${PROJECT_NAME} INTERFACE USING_JEMALLOC)
+    if(jemalloc_FOUND)
+      target_link_libraries(${PROJECT_NAME} INTERFACE ${JEMALLOC_LIBRARIES})
+      target_include_directories(${PROJECT_NAME} INTERFACE ${JEMALLOC_INCLUDE_DIRS})
+      target_compile_definitions(${PROJECT_NAME} INTERFACE USING_JEMALLOC)
+    endif()
   endif()
 endif()
 # ---- Create an installable target ----
