@@ -213,7 +213,8 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   // static constexpr auto slice(Valid<T>, Index<S> auto i){
   //   auto
   // }
-  constexpr auto operator[](Index<S> auto i) const noexcept -> decltype(auto) {
+  [[gnu::flatten]] constexpr auto operator[](Index<S> auto i) const noexcept
+    -> decltype(auto) {
     auto offset = calcOffset(sz, i);
     auto newDim = calcNewDim(sz, i);
     invariant(ptr != nullptr);
@@ -223,7 +224,8 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   }
   // for vectors, we just drop the column, essentially broadcasting
   template <class R, class C>
-  constexpr auto operator[](R r, C c) const noexcept -> decltype(auto) {
+  [[gnu::flatten]] constexpr auto operator[](R r, C c) const noexcept
+    -> decltype(auto) {
     if constexpr (MatrixDimension<S>)
       return (*this)[CartesianIndex(unwrapRow(r), unwrapCol(c))];
     else return (*this)[ptrdiff_t(r)];
@@ -500,7 +502,8 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
   }
   constexpr auto front() noexcept -> T & { return *begin(); }
   constexpr auto back() noexcept -> T & { return *(end() - 1); }
-  constexpr auto operator[](Index<S> auto i) noexcept -> decltype(auto) {
+  [[gnu::flatten]] constexpr auto operator[](Index<S> auto i) noexcept
+    -> decltype(auto) {
     auto offset = calcOffset(this->sz, i);
     auto newDim = calcNewDim(this->sz, i);
     if constexpr (std::is_same_v<decltype(newDim), Empty>)
@@ -509,7 +512,8 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
   }
   // TODO: switch to operator[] when we enable c++23
   template <class R, class C>
-  constexpr auto operator[](R r, C c) noexcept -> decltype(auto) {
+  [[gnu::flatten]] constexpr auto operator[](R r, C c) noexcept
+    -> decltype(auto) {
     if constexpr (MatrixDimension<S>)
       return (*this)[CartesianIndex(unwrapRow(r), unwrapCol(c))];
     else return (*this)[ptrdiff_t(r)];
