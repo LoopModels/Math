@@ -54,7 +54,7 @@ target_include_directories(
 
 set(SEARCH_JE_MALLOC USE_JE_MALLOC)
 if(USE_MI_MALLOC)
-  find_package(mimalloc REQUIRED)
+  find_package(mimalloc)# REQUIRED)
   if(mimalloc_FOUND)
     target_link_libraries(${PROJECT_NAME} INTERFACE mimalloc) # mimalloc-static
     target_compile_definitions(${PROJECT_NAME} INTERFACE USING_MIMALLOC)
