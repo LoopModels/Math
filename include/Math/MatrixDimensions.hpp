@@ -87,7 +87,7 @@ template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t X> struct StridedDims {
   requires(C == -1)
   {
     N = c;
-    strideM = RowStride{std::max<ptrdiff_t>(strideM, N)};
+    strideM = RowStride<>{std::max(ptrdiff_t(strideM), ptrdiff_t(N))};
     return *this;
   }
   template <ptrdiff_t S>
