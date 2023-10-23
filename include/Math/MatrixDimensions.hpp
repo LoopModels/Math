@@ -5,18 +5,27 @@
 #include <cstdint>
 
 namespace poly::math {
+template <ptrdiff_t R = -1> struct SquareDims;
+template <ptrdiff_t R = -1, ptrdiff_t C = -1> struct DenseDims;
+template <ptrdiff_t R = -1, ptrdiff_t C = -1, ptrdiff_t X = -1>
+struct StridedDims;
+
 template <class R, class C> struct CartesianIndex {
   [[no_unique_address]] R row;
   [[no_unique_address]] C col;
   explicit constexpr operator Row<>() const { return {row}; }
   explicit constexpr operator Col<>() const { return {col}; }
   constexpr auto operator==(const CartesianIndex &) const -> bool = default;
+  constexpr operator SquareDims<>()
+  requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>);
+  constexpr operator DenseDims<>()
+  requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>);
+  constexpr operator StridedDims<>()
+  requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>);
 };
+template <class R, class C> CartesianIndex(R, C) -> CartesianIndex<R, C>;
 
-template <ptrdiff_t R = -1> struct SquareDims;
-template <ptrdiff_t R = -1, ptrdiff_t C = -1> struct DenseDims;
-template <ptrdiff_t R = -1, ptrdiff_t C = -1, ptrdiff_t X = -1>
-struct StridedDims {
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t X> struct StridedDims {
   [[no_unique_address]] Row<R> M{};
   [[no_unique_address]] Col<C> N{};
   [[no_unique_address]] RowStride<X> strideM{};
@@ -27,10 +36,18 @@ struct StridedDims {
   //   : M{m}, N{n}, strideM{x} {
   //   invariant(N <= strideM);
   // }
-  constexpr explicit operator int32_t() const { return int32_t(M * strideM); }
-  constexpr explicit operator int64_t() const { return int64_t(M) * strideM; }
-  constexpr explicit operator uint32_t() const { return uint32_t(M * strideM); }
-  constexpr explicit operator uint64_t() const { return uint64_t(M) * strideM; }
+  constexpr explicit operator int32_t() const {
+    return int32_t(ptrdiff_t(M) * ptrdiff_t(strideM));
+  }
+  constexpr explicit operator int64_t() const {
+    return int64_t(ptrdiff_t(M) * ptrdiff_t(strideM));
+  }
+  constexpr explicit operator uint32_t() const {
+    return uint32_t(ptrdiff_t(M) * ptrdiff_t(strideM));
+  }
+  constexpr explicit operator uint64_t() const {
+    return uint64_t(ptrdiff_t(M) * ptrdiff_t(strideM));
+  }
   constexpr auto operator=(DenseDims<R, C> D) -> StridedDims &requires(C == X);
   constexpr auto operator=(SquareDims<R> D)
     -> StridedDims &requires((R == C) && (C == X));
@@ -60,14 +77,14 @@ struct StridedDims {
     return similar(c);
   }
   constexpr auto set(Row<> r) -> StridedDims &
-  requires(R != -1)
+  requires(R == -1)
   {
     invariant(N <= strideM);
     M = r;
     return *this;
   }
   constexpr auto set(Col<> c) -> StridedDims &
-  requires(C != -1)
+  requires(C == -1)
   {
     N = c;
     strideM = RowStride{std::max<ptrdiff_t>(strideM, N)};
@@ -84,7 +101,7 @@ struct StridedDims {
     invariant(c <= Col{strideM});
     return {M, c, strideM};
   }
-  constexpr operator StridedDims<-1, -1, -1>()const
+  constexpr operator StridedDims<-1, -1, -1>() const
   requires((R != -1) || (C != -1) || (X != -1))
   {
     return {M, N, strideM};
@@ -98,10 +115,18 @@ static_assert(sizeof(StridedDims<-1, 8, 8>) == sizeof(ptrdiff_t));
 template <ptrdiff_t R, ptrdiff_t C> struct DenseDims {
   [[no_unique_address]] Row<R> M{};
   [[no_unique_address]] Col<C> N{};
-  constexpr explicit operator int32_t() const { return int32_t(M * N); }
-  constexpr explicit operator int64_t() const { return int64_t(M) * N; }
-  constexpr explicit operator uint32_t() const { return uint32_t(M * N); }
-  constexpr explicit operator uint64_t() const { return uint64_t(M) * N; }
+  constexpr explicit operator int32_t() const {
+    return int32_t(ptrdiff_t(M) * ptrdiff_t(N));
+  }
+  constexpr explicit operator int64_t() const {
+    return int64_t(ptrdiff_t(M) * ptrdiff_t(N));
+  }
+  constexpr explicit operator uint32_t() const {
+    return uint32_t(ptrdiff_t(M) * ptrdiff_t(N));
+  }
+  constexpr explicit operator uint64_t() const {
+    return uint64_t(ptrdiff_t(M) * ptrdiff_t(N));
+  }
   // constexpr DenseDims() = default;
   // constexpr DenseDims(Row<R> m, Col<C> n) : M(unsigned(m)), N(unsigned(n)) {}
   // template <ptrdiff_t X>
@@ -124,13 +149,13 @@ template <ptrdiff_t R, ptrdiff_t C> struct DenseDims {
     return {M, c, {ptrdiff_t(N)}};
   }
   constexpr auto set(Row<> r) -> DenseDims &
-  requires(R != -1)
+  requires(R == -1)
   {
     M = r;
     return *this;
   }
   constexpr auto set(Col<> c) -> DenseDims &
-  requires(C != -1)
+  requires(C == -1)
   {
     N = c;
     return *this;
@@ -161,10 +186,18 @@ template <ptrdiff_t R, ptrdiff_t C> struct DenseDims {
 };
 template <ptrdiff_t R> struct SquareDims {
   [[no_unique_address]] Row<R> M{};
-  constexpr explicit operator int32_t() const { return int32_t(M * M); }
-  constexpr explicit operator int64_t() const { return int64_t(M) * M; }
-  constexpr explicit operator uint32_t() const { return uint32_t(M * M); }
-  constexpr explicit operator uint64_t() const { return uint64_t(M) * M; }
+  constexpr explicit operator int32_t() const {
+    return int32_t(ptrdiff_t(M) * ptrdiff_t(M));
+  }
+  constexpr explicit operator int64_t() const {
+    return int64_t(ptrdiff_t(M) * ptrdiff_t(M));
+  }
+  constexpr explicit operator uint32_t() const {
+    return uint32_t(ptrdiff_t(M) * ptrdiff_t(M));
+  }
+  constexpr explicit operator uint64_t() const {
+    return uint64_t(ptrdiff_t(M) * ptrdiff_t(M));
+  }
   // constexpr SquareDims() = default;
   // constexpr SquareDims(ptrdiff_t d) : M{d} {}
   // constexpr SquareDims(Row<R> d) : M{d} {}
@@ -266,6 +299,26 @@ constexpr inline auto DenseDims<R, C>::operator=(SquareDims<R> D)
     return *this;
   };
 
+template <class R, class C>
+constexpr inline CartesianIndex<R, C>::operator SquareDims<>()
+requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>)
+{
+  invariant(row, col);
+  return SquareDims{Row<>{row}};
+}
+template <class R, class C>
+constexpr inline CartesianIndex<R, C>::operator DenseDims<>()
+requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>)
+{
+  return DenseDims{Row<>{row}, Col<>{col}};
+}
+template <class R, class C>
+constexpr inline CartesianIndex<R, C>::operator StridedDims<>()
+requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>)
+{
+  return StridedDims{Row<>{row}, Col<>{col}, RowStride<>{col}};
+}
+
 template <typename D>
 concept MatrixDimension = requires(D d) {
   { d } -> std::convertible_to<StridedDims<-1, -1, -1>>;
@@ -284,5 +337,9 @@ template <typename T, typename S>
 concept PromoteDimTo = (!std::same_as<T, S>)&&std::convertible_to<T, S>;
 template <typename T, typename S>
 concept PromoteDimFrom = (!std::same_as<T, S>)&&std::convertible_to<S, T>;
+
+constexpr auto row(MatrixDimension auto s) { return Row(s); }
+constexpr auto col(MatrixDimension auto s) { return Col(s); }
+constexpr auto rowStride(MatrixDimension auto s) { return RowStride(s); }
 
 } // namespace poly::math

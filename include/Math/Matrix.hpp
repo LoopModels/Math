@@ -78,7 +78,7 @@ template <typename A> struct Transpose {
   }
   [[nodiscard]] constexpr auto numCol() const {
     if constexpr (AbstractMatrix<A>) return transpose_dim(a.numRow());
-    else return Col{a.size()};
+    else return col(a.size());
   }
   [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
   [[nodiscard]] constexpr auto size() const -> CartesianIndex<ptrdiff_t, ptrdiff_t> {

@@ -15,7 +15,7 @@ template <typename T> class SmallSparseMatrix {
   // the remaining 24 bits are a mask indicating non-zeros within this row
   static constexpr ptrdiff_t maxElemPerRow = 24;
   [[no_unique_address]] Vector<uint32_t> rows;
-  [[no_unique_address]] Col col;
+  [[no_unique_address]] Col<> col;
 
 public:
   [[nodiscard]] constexpr auto getNonZeros() const -> PtrVector<T> {
@@ -25,25 +25,25 @@ public:
     return rows;
   }
 
-  [[nodiscard]] constexpr auto numRow() const -> Row {
-    return Row{rows.size()};
+  [[nodiscard]] constexpr auto numRow() const -> Row<> {
+    return Row<>{rows.size()};
   }
-  [[nodiscard]] constexpr auto numCol() const -> Col { return col; }
-  [[nodiscard]] constexpr auto size() const -> CartesianIndex<Row, Col> {
+  [[nodiscard]] constexpr auto numCol() const -> Col<> { return col; }
+  [[nodiscard]] constexpr auto size() const -> CartesianIndex<ptrdiff_t,ptrdiff_t> {
     return {numRow(), numCol()};
   }
-  [[nodiscard]] constexpr auto dim() const -> DenseDims {
+  [[nodiscard]] constexpr auto dim() const -> DenseDims<> {
     return {numRow(), numCol()};
   }
   // [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
-  constexpr SmallSparseMatrix(Row numRows, Col numCols)
-    : rows(unsigned(numRows), 0), col{numCols} {
+  constexpr SmallSparseMatrix(Row<> numRows, Col <>numCols)
+    : rows(ptrdiff_t(numRows), 0), col{numCols} {
     invariant(ptrdiff_t(col) <= maxElemPerRow);
   }
-  constexpr auto get(Row i, Col j) const -> T {
+  constexpr auto get(Row <>i, Col<> j) const -> T {
     invariant(j < col);
     uint32_t r(rows[ptrdiff_t(i)]);
-    uint32_t jshift = uint32_t(1) << uint32_t(j);
+    uint32_t jshift = uint32_t(1) << uint32_t(ptrdiff_t(j));
     if (!(r & jshift)) return T{};
     // offset from previous rows
     uint32_t prevRowOffset = r >> maxElemPerRow;
@@ -51,9 +51,9 @@ public:
     return nonZeros[rowOffset + prevRowOffset];
   }
   constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) const -> T {
-    return get(Row{i}, Col{j});
+    return get(Row<>{i}, Col<>{j});
   }
-  constexpr void insert(T x, Row i, Col j) {
+  constexpr void insert(T x, Row<> i, Col<> j) {
     invariant(j < col);
     uint32_t r{rows[ptrdiff_t(i)]};
     uint32_t jshift = uint32_t(1) << ptrdiff_t(j);
@@ -74,9 +74,9 @@ public:
   struct Reference {
     [[no_unique_address]] SmallSparseMatrix<T> *A;
     [[no_unique_address]] ptrdiff_t i, j;
-    constexpr operator T() const { return A->get(Row{i}, Col{j}); }
+    constexpr operator T() const { return A->get(Row<>{i}, Col<>{j}); }
     constexpr auto operator=(T x) -> Reference & {
-      A->insert(std::move(x), Row{i}, Col{j});
+      A->insert(std::move(x), Row<>{i}, Col<>{j});
       return *this;
     }
   };

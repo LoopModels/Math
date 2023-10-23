@@ -10,7 +10,7 @@ namespace poly::utils {
 [[gnu::artificial]] constexpr inline void
 invariant(bool condition,
           std::source_location location = std::source_location::current()) {
-  if (!condition) {
+  if (!condition) [[unlikely]] {
     std::cout << "invariant violation\nfile: " << location.file_name() << ":"
               << location.line() << ":" << location.column() << " `"
               << location.function_name() << "`\n";
@@ -21,7 +21,7 @@ template <typename T>
 [[gnu::artificial]] constexpr inline void
 invariant(const T &x, const T &y,
           std::source_location location = std::source_location::current()) {
-  if (x != y) {
+  if (x != y) [[unlikely]] {
     std::cout << "invariant violation: " << x << " != " << y
               << "\nfile: " << location.file_name() << ":" << location.line()
               << ":" << location.column() << " `" << location.function_name()

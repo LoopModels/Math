@@ -155,7 +155,6 @@ template <class R, class C>
 struct StridedRange {
   [[no_unique_address]] ptrdiff_t len;
   [[no_unique_address]] ptrdiff_t stride;
-  explicit constexpr operator unsigned() const { return len; }
   explicit constexpr operator ptrdiff_t() const { return len; }
   friend inline auto operator<<(std::ostream &os, StridedRange x)
     -> std::ostream & {
@@ -179,7 +178,7 @@ template <class T>
 concept DenseLayout =
   std::integral<T> || std::is_convertible_v<T, DenseDims<>> || StaticInt<T>;
 
-static_assert(StaticInt<std::integral_constant<unsigned int, 3>>);
+static_assert(StaticInt<std::integral_constant<ptrdiff_t, 3>>);
 static_assert(!StaticInt<int64_t>);
 
 template <class D>
@@ -204,36 +203,36 @@ constexpr auto calcNewDim(SquareDims<>, ptrdiff_t) -> Empty { return {}; }
 constexpr auto calcNewDim(DenseDims<>, ptrdiff_t) -> Empty { return {}; }
 
 constexpr auto calcNewDim(ptrdiff_t len, Range<ptrdiff_t, ptrdiff_t> r)
-  -> unsigned {
+  -> ptrdiff_t{
   invariant(r.e <= len);
   invariant(r.b <= r.e);
-  return unsigned(r.e - r.b);
+  return ptrdiff_t(r.e - r.b);
 }
 template <class B, class E>
-constexpr auto calcNewDim(ptrdiff_t len, Range<B, E> r) -> unsigned {
+constexpr auto calcNewDim(ptrdiff_t len, Range<B, E> r) -> ptrdiff_t{
   return calcNewDim(len, canonicalizeRange(r, len));
 }
 constexpr auto calcNewDim(StridedRange len, Range<ptrdiff_t, ptrdiff_t> r)
   -> StridedRange {
-  return StridedRange{unsigned(calcNewDim(len.len, r)), len.stride};
+  return StridedRange{ptrdiff_t(calcNewDim(len.len, r)), len.stride};
 }
 template <class B, class E>
 constexpr auto calcNewDim(StridedRange len, Range<B, E> r) -> StridedRange {
-  return StridedRange{unsigned(calcNewDim(len.len, r)), len.stride};
+  return StridedRange{ptrdiff_t(calcNewDim(len.len, r)), len.stride};
 }
 template <ScalarIndex R, ScalarIndex C>
 constexpr auto calcNewDim(StridedDims<>, CartesianIndex<R, C>) -> Empty {
   return {};
 }
-constexpr auto calcNewDim(std::integral auto len, Colon) -> unsigned {
-  return unsigned(len);
+constexpr auto calcNewDim(std::integral auto len, Colon) -> ptrdiff_t {
+  return ptrdiff_t(len);
 };
 constexpr auto calcNewDim(StaticInt auto len, Colon) { return len; };
 constexpr auto calcNewDim(StridedRange len, Colon) { return len; };
 
 template <AbstractSlice B, ScalarIndex C>
 constexpr auto calcNewDim(StridedDims<> d, CartesianIndex<B, C> i) {
-  unsigned rowDims = unsigned(calcNewDim(ptrdiff_t(Row(d)), i.row));
+  ptrdiff_t rowDims = ptrdiff_t(calcNewDim(ptrdiff_t(Row(d)), i.row));
   return StridedRange{rowDims, ptrdiff_t(RowStride(d))};
 }
 
@@ -246,17 +245,17 @@ template <AbstractSlice B, AbstractSlice C>
 constexpr auto calcNewDim(StridedDims<> d, CartesianIndex<B, C> i) {
   auto rowDims = calcNewDim(ptrdiff_t(Row(d)), i.row);
   auto colDims = calcNewDim(ptrdiff_t(Col(d)), i.col);
-  return StridedDims{Row{rowDims}, Col{colDims}, RowStride(d)};
+  return StridedDims(row(rowDims), col(colDims), RowStride(d));
 }
 template <AbstractSlice B>
 constexpr auto calcNewDim(DenseDims<> d, CartesianIndex<B, Colon> i) {
   auto rowDims = calcNewDim(ptrdiff_t(Row(d)), i.row);
-  return DenseDims{Row{rowDims}, Col(d)};
+  return DenseDims(row(rowDims), Col(d));
 }
 template <AbstractSlice B>
 constexpr auto calcNewDim(SquareDims<> d, CartesianIndex<B, Colon> i) {
   auto rowDims = calcNewDim(ptrdiff_t(Row(d)), i.row);
-  return DenseDims{Row{rowDims}, Col(d)};
+  return DenseDims(row(rowDims), Col(d));
 }
 
 } // namespace poly::math

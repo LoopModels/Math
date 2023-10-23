@@ -15,7 +15,7 @@ using namespace poly::math;
 using poly::utils::operator""_mat;
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(SparseIndexingTest, BasicAssertions) {
-  SmallSparseMatrix<int64_t> sparseA(Row{3}, Col{4});
+  SmallSparseMatrix<int64_t> sparseA(Row<>{3}, Col<>{4});
   std::cout << "&Asparse = " << &sparseA << "\n";
   sparseA[0, 1] = 5;
   sparseA[1, 3] = 3;
@@ -24,7 +24,7 @@ TEST(SparseIndexingTest, BasicAssertions) {
   sparseA[2, 2] = -2;
   IntMatrix<> A = sparseA;
   {
-    IntMatrix<> A2(DenseDims{3, 4});
+    IntMatrix<> A2(DenseDims<>{{3}, {4}});
     MutPtrMatrix<int64_t> MA2 = A2;
     MA2 << sparseA;
     EXPECT_EQ(A, A2);
@@ -36,7 +36,7 @@ TEST(SparseIndexingTest, BasicAssertions) {
     }
   }
   // EXPECT_EQ(A(i, j), Asparse(i, j));
-  ManagedArray B(std::type_identity<int64_t>{}, DenseDims{4, 5});
+  ManagedArray B(std::type_identity<int64_t>{}, DenseDims<>{{4}, {5}});
   EXPECT_FALSE(B.isSquare());
   B[0, 0] = 3;
   B[0, 1] = -1;
@@ -58,7 +58,7 @@ TEST(SparseIndexingTest, BasicAssertions) {
   B[3, 2] = 2;
   B[3, 3] = -3;
   B[3, 4] = 5;
-  IntMatrix<> C{DenseDims{3, 5}};
+  IntMatrix<> C{DenseDims<>{{3}, {5}}};
   C[0, 0] = -20;
   C[0, 1] = 25;
   C[0, 2] = -5;
@@ -93,13 +93,13 @@ TEST(SparseIndexingTest, BasicAssertions) {
   int64_t i = 0;
   IntMatrix<> D{C};
   std::cout << "C=" << C << "\n";
-  for (Row r : _(0, D.numRow())) D[r, _] += ptrdiff_t(r) + 1;
+  for (ptrdiff_t r : _(0, D.numRow())) D[r, _] += ptrdiff_t(r) + 1;
   for (auto r : C.eachRow()) {
-    EXPECT_EQ(r.size(), unsigned(C.numCol()));
+    EXPECT_EQ(r.size(), ptrdiff_t(C.numCol()));
     r += (++i);
   }
   EXPECT_EQ(C, D);
-  for (Col c : _(0, D.numCol()))
+  for (ptrdiff_t c : _(0, D.numCol()))
     D[_, c] += ptrdiff_t(c) + ptrdiff_t(D.numRow()) + 1;
   for (auto c : C.eachCol()) c += (++i);
   EXPECT_EQ(C, D);
@@ -154,9 +154,9 @@ TEST(ExpressionTemplateTest, BasicAssertions) {
   c.push_back(14);
   c.push_back(6);
   EXPECT_EQ(b, c);
-  IntMatrix<> dA1x1(DenseDims{1, 1}, 0);
+  IntMatrix<> dA1x1(DenseDims<>{{1}, {1}}, 0);
   EXPECT_TRUE(dA1x1.isSquare());
-  IntMatrix<> dA2x2(DenseDims{2, 2}, 0);
+  IntMatrix<> dA2x2(DenseDims<>{{2}, {2}}, 0);
   dA1x1.antiDiag() << 1;
   EXPECT_EQ((dA1x1[0, 0]), 1);
   dA2x2.antiDiag() << 1;
@@ -165,7 +165,7 @@ TEST(ExpressionTemplateTest, BasicAssertions) {
   EXPECT_EQ((dA2x2[1, 0]), 1);
   EXPECT_EQ((dA2x2[1, 1]), 0);
   for (ptrdiff_t i = 1; i < 20; ++i) {
-    IntMatrix<> F(DenseDims{i, i});
+    IntMatrix<> F(DenseDims<>{{i}, {i}});
     F << 0;
     F.antiDiag() << 1;
     for (ptrdiff_t j = 0; j < i; ++j)
@@ -199,25 +199,25 @@ TEST(ArrayPrint, BasicAssertions) {
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(OffsetEnd, BasicAssertions) {
   auto A{"[3 3 3 3; 2 2 2 2; 1 1 1 1; 0 0 0 0]"_mat};
-  auto B = IntMatrix<>{DenseDims{4, 4}};
+  auto B = IntMatrix<>{DenseDims<>{{4}, {4}}};
   for (ptrdiff_t i = 0; i < 4; ++i) B[last - i, _] << i;
   EXPECT_EQ(A, B);
 }
 TEST(SquareMatrixTest, BasicAssertions) {
-  SquareMatrix<int64_t> A{SquareDims{4}};
+  SquareMatrix<int64_t> A{SquareDims<>{{4}}};
   for (ptrdiff_t i = 0; i < 4; ++i)
     for (ptrdiff_t j = 0; j < 4; ++j) A[i, j] = 4 * i + j;
-  DenseMatrix<int64_t> B{DenseDims{4, 2}};
+  DenseMatrix<int64_t> B{DenseDims<>{{4}, {2}}};
   B << A[_(end - 2, end), _].transpose();
   for (ptrdiff_t j = 0; j < 4; ++j)
     for (ptrdiff_t i = 0; i < 2; ++i) EXPECT_EQ((B[j, i]), 4 * (i + 2) + j);
 }
 TEST(VectorTest, BasicAssertions) {
   poly::alloc::OwningArena<> alloc;
-  ResizeableView<int64_t, unsigned> x;
+  ResizeableView<int64_t, ptrdiff_t> x;
   for (size_t i = 0; i < 100; ++i) {
     if (x.getCapacity() <= x.size())
-      x.reserve(&alloc, std::max(unsigned(8), 2 * x.size()));
+      x.reserve(&alloc, std::max<ptrdiff_t>(8, 2 * x.size()));
     x.emplace_back(i);
   }
   EXPECT_EQ(x.size(), 100);
@@ -235,7 +235,7 @@ TEST(SVectorTest, BasicAssertions) {
   constexpr auto constCmp = [](auto const &a, auto const &b) {
     return std::make_pair(a == b, std::is_constant_evaluated());
   };
-  Vector<int64_t> v{1, 2, 3};
+  Vector<int64_t> v{std::array{1, 2, 3}};
   EXPECT_TRUE(constCmp(v.size(), unsigned(3)).first);
   EXPECT_FALSE(constCmp(v.size(), unsigned(3)).second);
   EXPECT_TRUE(constCmp(x.size(), unsigned(3)).first);

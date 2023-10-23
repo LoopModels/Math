@@ -87,8 +87,8 @@ constexpr void zeroSubDiagonal(MutPtrMatrix<int64_t> A,
   }
 }
 
-constexpr auto pivotRowsPair(std::array<MutPtrMatrix<int64_t>, 2> AK, Col i,
-                             Row M, Row piv) -> bool {
+constexpr auto pivotRowsPair(std::array<MutPtrMatrix<int64_t>, 2> AK, Col<> i,
+                             Row<> M, Row<> piv) -> bool {
   Row j = piv;
   while (AK[0][piv, i] == 0)
     if (++piv == M) return true;
@@ -99,11 +99,11 @@ constexpr auto pivotRowsPair(std::array<MutPtrMatrix<int64_t>, 2> AK, Col i,
   return false;
 }
 constexpr auto pivotRows(MutPtrMatrix<int64_t> A, MutSquarePtrMatrix<int64_t> K,
-                         ptrdiff_t i, Row M) -> bool {
+                         ptrdiff_t i, Row<> M) -> bool {
   MutPtrMatrix<int64_t> B = K;
-  return pivotRowsPair({A, B}, Col{i}, M, Row{i});
+  return pivotRowsPair({A, B}, Col<>{i}, M, Row<>{i});
 }
-constexpr auto pivotRows(MutPtrMatrix<int64_t> A, Col i, Row M, Row piv)
+constexpr auto pivotRows(MutPtrMatrix<int64_t> A, Col<> i, Row<> M, Row<> piv)
   -> bool {
   Row j = piv;
   while (A[piv, i] == 0)
@@ -111,11 +111,12 @@ constexpr auto pivotRows(MutPtrMatrix<int64_t> A, Col i, Row M, Row piv)
   if (j != piv) swap(A, j, piv);
   return false;
 }
-constexpr auto pivotRows(MutPtrMatrix<int64_t> A, ptrdiff_t i, Row N) -> bool {
-  return pivotRows(A, Col{i}, N, Row{i});
+constexpr auto pivotRows(MutPtrMatrix<int64_t> A, ptrdiff_t i, Row<> N)
+  -> bool {
+  return pivotRows(A, Col<>{i}, N, Row<>{i});
 }
 
-constexpr void dropCol(MutPtrMatrix<int64_t> A, ptrdiff_t i, Row M, Col N) {
+constexpr void dropCol(MutPtrMatrix<int64_t> A, ptrdiff_t i, Row<> M, Col<> N) {
   // if any rows are left, we shift them up to replace it
   if (N <= i) return;
   for (ptrdiff_t m = 0; m < M; ++m)
@@ -132,20 +133,20 @@ constexpr auto orthogonalizeBang(MutDensePtrMatrix<int64_t> &A)
   included.reserve(std::min(ptrdiff_t(M), ptrdiff_t(N)));
   for (ptrdiff_t i = 0, j = 0; i < std::min(ptrdiff_t(M), ptrdiff_t(N)); ++j) {
     // zero ith row
-    if (pivotRows(A, K, i, M)) {
+    if (pivotRows(A, K, i, Row<>{M})) {
       // cannot pivot, this is a linear combination of previous
       // therefore, we drop the row
-      dropCol(A, i, M, --N);
+      dropCol(A, i, Row<>{M}, Col<>{--N});
     } else {
-      zeroSupDiagonal(A, K, i, M, N);
+      zeroSupDiagonal(A, K, i, Row<>{M}, Col<>{N});
       int64_t Aii = A[i, i];
       if (constexpr_abs(Aii) != 1) {
         // including this row renders the matrix not unimodular!
         // therefore, we drop the row.
-        dropCol(A, i, M, --N);
+        dropCol(A, i, Row<>{M}, Col<>{--N});
       } else {
         // we zero the sub diagonal
-        zeroSubDiagonal(A, K, i++, M, N);
+        zeroSubDiagonal(A, K, i++, Row<>{M}, Col<>{N});
         included.push_back(j);
       }
     }
@@ -158,13 +159,13 @@ constexpr auto orthogonalize(IntMatrix<> A)
   return orthogonalizeBang(A);
 }
 
-constexpr void zeroSupDiagonal(MutPtrMatrix<int64_t> A, Col c, Row r) {
+constexpr void zeroSupDiagonal(MutPtrMatrix<int64_t> A, Col<> c, Row<> r) {
   auto [M, N] = A.size();
-  for (Row j = r + 1; j < M; ++j) {
+  for (ptrdiff_t j = ptrdiff_t(r) + 1; j < M; ++j) {
     int64_t Aii = A[r, c];
     if (int64_t Aij = A[j, c]) {
       const auto [p, q, Aiir, Aijr] = gcdxScale(Aii, Aij);
-      for (Col k = 0; k < N; ++k) {
+      for (ptrdiff_t k = 0; k < N; ++k) {
         int64_t Aki = A[r, k], Akj = A[j, k];
         A[r, k] = p * Aki + q * Akj;
         A[j, k] = Aiir * Akj - Aijr * Aki;
@@ -172,23 +173,23 @@ constexpr void zeroSupDiagonal(MutPtrMatrix<int64_t> A, Col c, Row r) {
     }
   }
 }
-constexpr void zeroSupDiagonal(std::array<MutPtrMatrix<int64_t>, 2> AB, Col c,
-                               Row r) {
+constexpr void zeroSupDiagonal(std::array<MutPtrMatrix<int64_t>, 2> AB, Col<> c,
+                               Row<> r) {
   auto [A, B] = AB;
   auto [M, N] = A.size();
   const Col K = B.numCol();
-  invariant(M, B.numRow());
-  for (Row j = r + 1; j < M; ++j) {
+  invariant(M, ptrdiff_t(B.numRow()));
+  for (ptrdiff_t j = ptrdiff_t(r) + 1; j < M; ++j) {
     int64_t Aii = A[r, c];
     if (int64_t Aij = A[j, c]) {
       const auto [p, q, Aiir, Aijr] = gcdxScale(Aii, Aij);
-      for (Col k = 0; k < N; ++k) {
+      for (ptrdiff_t k = 0; k < N; ++k) {
         int64_t Ack = A[r, k];
         int64_t Ajk = A[j, k];
         A[r, k] = p * Ack + q * Ajk;
         A[j, k] = Aiir * Ajk - Aijr * Ack;
       }
-      for (Col k = 0; k < K; ++k) {
+      for (ptrdiff_t k = 0; k < K; ++k) {
         int64_t Bck = B[r, k], Bjk = B[j, k];
         B[r, k] = p * Bck + q * Bjk;
         B[j, k] = Aiir * Bjk - Aijr * Bck;
@@ -196,7 +197,7 @@ constexpr void zeroSupDiagonal(std::array<MutPtrMatrix<int64_t>, 2> AB, Col c,
     }
   }
 }
-constexpr void reduceSubDiagonal(MutPtrMatrix<int64_t> A, Col c, Row r) {
+constexpr void reduceSubDiagonal(MutPtrMatrix<int64_t> A, Col<> c, Row<> r) {
   int64_t Akk = A[r, c];
   if (Akk < 0) {
     Akk = -Akk;
@@ -251,8 +252,8 @@ constexpr void reduceSubDiagonalStack(MutPtrMatrix<int64_t> A,
     }
   }
 }
-constexpr void reduceSubDiagonal(std::array<MutPtrMatrix<int64_t>, 2> AB, Col c,
-                                 Row r) {
+constexpr void reduceSubDiagonal(std::array<MutPtrMatrix<int64_t>, 2> AB,
+                                 Col<> c, Row<> r) {
   auto [A, B] = AB;
   int64_t Akk = A[r, c];
   if (Akk < 0) {
@@ -288,7 +289,7 @@ constexpr void reduceSubDiagonal(std::array<MutPtrMatrix<int64_t>, 2> AB, Col c,
   }
 }
 
-constexpr void reduceColumn(MutPtrMatrix<int64_t> A, Col c, Row r) {
+constexpr void reduceColumn(MutPtrMatrix<int64_t> A, Col<> c, Row<> r) {
   zeroSupDiagonal(A, c, r);
   reduceSubDiagonal(A, c, r);
 }
@@ -296,16 +297,16 @@ constexpr void reduceColumn(MutPtrMatrix<int64_t> A, Col c, Row r) {
 constexpr void reduceColumnStack(MutPtrMatrix<int64_t> A,
                                  MutPtrMatrix<int64_t> B, ptrdiff_t c,
                                  ptrdiff_t r) {
-  zeroSupDiagonal(B, c, r);
+  zeroSupDiagonal(B, Col<>{c}, Row<>{r});
   reduceSubDiagonalStack(B, A, c, r);
 }
 
 /// numNonZeroRows(PtrMatrix<int64_t> A) -> Row
 /// Assumes some number of the trailing rows have been
 /// zeroed out.  Returns the number of rows that are remaining.
-constexpr auto numNonZeroRows(PtrMatrix<int64_t> A) -> Row {
+constexpr auto numNonZeroRows(PtrMatrix<int64_t> A) -> Row<> {
   Row newM = A.numRow();
-  while (newM && allZero(A[newM - 1, _])) --newM;
+  while (newM && allZero(A[ptrdiff_t(newM) - 1, _])) --newM;
   return newM;
 }
 // NormalForm version assumes zero rows are sorted to end due to pivoting
@@ -315,10 +316,11 @@ constexpr void removeZeroRows(MutDensePtrMatrix<int64_t> &A) {
 
 // pass by value, returns number of rows to truncate
 constexpr auto simplifySystemImpl(MutPtrMatrix<int64_t> A,
-                                  ptrdiff_t colInit = 0) -> Row {
+                                  ptrdiff_t colInit = 0) -> Row<> {
   auto [M, N] = A.size();
   for (ptrdiff_t r = 0, c = colInit; c < N && r < M; ++c)
-    if (!pivotRows(A, Col{c}, M, Row{r})) reduceColumn(A, Col{c}, Row{r++});
+    if (!pivotRows(A, Col<>{c}, Row<>{M}, Row<>{r}))
+      reduceColumn(A, Col<>{c}, Row<>{r++});
   return numNonZeroRows(A);
 }
 constexpr void simplifySystem(EmptyMatrix<int64_t>, ptrdiff_t = 0) {}
@@ -334,20 +336,20 @@ constexpr void simplifySystem(MutPtrMatrix<int64_t> &E, ptrdiff_t colInit = 0) {
 constexpr auto rank(IntMatrix<> A) -> ptrdiff_t {
   return ptrdiff_t(simplifySystemImpl(A, 0));
 }
-constexpr void reduceColumn(std::array<MutPtrMatrix<int64_t>, 2> AB, Col c,
-                            Row r) {
+constexpr void reduceColumn(std::array<MutPtrMatrix<int64_t>, 2> AB, Col<> c,
+                            Row<> r) {
   zeroSupDiagonal(AB, c, r);
   reduceSubDiagonal(AB, c, r);
 }
 constexpr void simplifySystemsImpl(std::array<MutPtrMatrix<int64_t>, 2> AB) {
   auto [M, N] = AB[0].size();
   for (ptrdiff_t r = 0, c = 0; c < N && r < M; ++c)
-    if (!pivotRowsPair(AB, Col{c}, M, Row{r}))
-      reduceColumn(AB, Col{c}, Row{r++});
+    if (!pivotRowsPair(AB, Col<>{c}, Row<>{M}, Row<>{r}))
+      reduceColumn(AB, Col<>{c}, Row<>{r++});
 }
 template <MatrixDimension S0, MatrixDimension S1>
-constexpr void simplifySystem(MutArray<int64_t,S0> &A,
-                              MutArray<int64_t,S1> &B) {
+constexpr void simplifySystem(MutArray<int64_t, S0> &A,
+                              MutArray<int64_t, S1> &B) {
   simplifySystemsImpl({A, B});
   if (Row newM = numNonZeroRows(A); newM < A.numRow()) {
     A.truncate(newM);
@@ -363,7 +365,7 @@ constexpr void simplifySystem(MutArray<int64_t,S0> &A,
 }
 
 /// use A(j,k) to zero A(i,k)
-constexpr auto zeroWithRowOp(MutPtrMatrix<int64_t> A, Row i, Row j, Col k,
+constexpr auto zeroWithRowOp(MutPtrMatrix<int64_t> A, Row<> i, Row<> j, Col<> k,
                              int64_t f) -> int64_t {
   int64_t Aik = A[i, k];
   if (!Aik) return f;
@@ -388,8 +390,8 @@ constexpr auto zeroWithRowOp(MutPtrMatrix<int64_t> A, Row i, Row j, Col k,
   }
   return ret;
 }
-constexpr void zeroWithRowOperation(MutPtrMatrix<int64_t> A, Row i, Row j,
-                                    Col k, Range<ptrdiff_t, ptrdiff_t> skip) {
+constexpr void zeroWithRowOperation(MutPtrMatrix<int64_t> A, Row<> i, Row<> j,
+                                    Col<> k, Range<ptrdiff_t, ptrdiff_t> skip) {
   if (int64_t Aik = A[i, k]) {
     int64_t Ajk = A[j, k];
     int64_t g = gcd(Aik, Ajk);
@@ -416,8 +418,8 @@ constexpr void zeroWithRowOperation(MutPtrMatrix<int64_t> A, Row i, Row j,
 }
 
 // use row `r` to zero the remaining rows of column `c`
-constexpr void zeroColumnPair(std::array<MutPtrMatrix<int64_t>, 2> AB, Col c,
-                              Row r) {
+constexpr void zeroColumnPair(std::array<MutPtrMatrix<int64_t>, 2> AB, Col<> c,
+                              Row<> r) {
   auto [A, B] = AB;
   const Col N = A.numCol();
   const Col K = B.numCol();
@@ -435,7 +437,7 @@ constexpr void zeroColumnPair(std::array<MutPtrMatrix<int64_t>, 2> AB, Col c,
   }
   // greater rows in previous columns have been zeroed out
   // therefore it is safe to use them for row operations with this row
-  for (Row j = r + 1; j < M; ++j) {
+  for (ptrdiff_t j = ptrdiff_t(r) + 1; j < M; ++j) {
     int64_t Arc = A[r, c];
     if (int64_t Ajc = A[j, c]) {
       const auto [p, q, Arcr, Ajcr] = gcdxScale(Arc, Ajc);
@@ -453,7 +455,7 @@ constexpr void zeroColumnPair(std::array<MutPtrMatrix<int64_t>, 2> AB, Col c,
   }
 }
 // use row `r` to zero the remaining rows of column `c`
-constexpr void zeroColumn(MutPtrMatrix<int64_t> A, Col c, Row r) {
+constexpr void zeroColumn(MutPtrMatrix<int64_t> A, Col<> c, Row<> r) {
   const Col N = A.numCol();
   const Row M = A.numRow();
   for (ptrdiff_t j = 0; j < r; ++j) {
@@ -465,7 +467,7 @@ constexpr void zeroColumn(MutPtrMatrix<int64_t> A, Col c, Row r) {
   }
   // greater rows in previous columns have been zeroed out
   // therefore it is safe to use them for row operations with this row
-  for (Row j = r + 1; j < M; ++j) {
+  for (ptrdiff_t j = ptrdiff_t(r) + 1; j < M; ++j) {
     int64_t Arc = A[r, c];
     if (int64_t Ajc = A[j, c]) {
       const auto [p, q, Arcr, Ajcr] = gcdxScale(Arc, Ajc);
@@ -478,8 +480,8 @@ constexpr void zeroColumn(MutPtrMatrix<int64_t> A, Col c, Row r) {
   }
 }
 
-constexpr auto pivotRowsBareiss(MutPtrMatrix<int64_t> A, ptrdiff_t i, Row M,
-                                Row piv) -> Optional<ptrdiff_t> {
+constexpr auto pivotRowsBareiss(MutPtrMatrix<int64_t> A, ptrdiff_t i, Row<> M,
+                                Row<> piv) -> Optional<ptrdiff_t> {
   Row j = piv;
   while (A[piv, i] == 0)
     if (++piv == M) return {};
@@ -489,10 +491,10 @@ constexpr auto pivotRowsBareiss(MutPtrMatrix<int64_t> A, ptrdiff_t i, Row M,
 constexpr void bareiss(MutPtrMatrix<int64_t> A,
                        MutPtrVector<ptrdiff_t> pivots) {
   const auto [M, N] = A.size();
-  invariant(ptrdiff_t(pivots.size()), min(M, N));
+  invariant(ptrdiff_t(pivots.size()), std::min(M, N));
   int64_t prev = 1, pivInd = 0;
   for (ptrdiff_t r = 0, c = 0; c < N && r < M; ++c) {
-    if (auto piv = pivotRowsBareiss(A, c, M, r)) {
+    if (auto piv = pivotRowsBareiss(A, c, Row<>{M}, Row<>{r})) {
       pivots[pivInd++] = *piv;
       for (ptrdiff_t k = r + 1; k < M; ++k) {
         for (ptrdiff_t j = c + 1; j < N; ++j) {
@@ -570,19 +572,22 @@ constexpr auto updateForNewRow(MutPtrMatrix<int64_t> A) -> ptrdiff_t {
 constexpr void solveSystem(MutPtrMatrix<int64_t> A, MutPtrMatrix<int64_t> B) {
   const auto [M, N] = A.size();
   for (ptrdiff_t r = 0, c = 0; c < N && r < M; ++c)
-    if (!pivotRowsPair({A, B}, c, M, r)) zeroColumnPair({A, B}, c, r++);
+    if (!pivotRowsPair({A, B}, Col<>{c}, Row<>{M}, Row<>{r}))
+      zeroColumnPair({A, B}, Col<>{c}, Row<>{r++});
 }
 // diagonalizes A(0:K,0:K)
 constexpr void solveSystem(MutPtrMatrix<int64_t> A, ptrdiff_t K) {
   Row M = A.numRow();
   for (ptrdiff_t r = 0, c = 0; c < K && r < M; ++c)
-    if (!pivotRows(A, c, M, r)) zeroColumn(A, c, r++);
+    if (!pivotRows(A, Col<>{c}, Row<>{M}, Row<>{r}))
+      zeroColumn(A, Col<>{c}, Row<>{r++});
 }
 // diagonalizes A(0:K,1:K+1)
 constexpr void solveSystemSkip(MutPtrMatrix<int64_t> A) {
   const auto [M, N] = A.size();
   for (ptrdiff_t r = 0, c = 1; c < N && r < M; ++c)
-    if (!pivotRows(A, c, M, r)) zeroColumn(A, c, r++);
+    if (!pivotRows(A, Col<>{c}, Row<>{M}, Row<>{r}))
+      zeroColumn(A, Col<>{c}, Row<>{r++});
 }
 
 // returns `true` if the solve failed, `false` otherwise
@@ -630,7 +635,7 @@ constexpr void nullSpace11(DenseMatrix<int64_t> &B, DenseMatrix<int64_t> &A) {
   // slice B[_(R,end), :]
   if (!R) return;
   // we keep last D columns
-  Row D = M - R;
+  Row D = Row<>{ptrdiff_t(M) - ptrdiff_t(R)};
   // we keep `D` columns
   // TODO: shift pointer instead?
   // This seems like a bad idea given ManagedArrays that must
@@ -639,7 +644,8 @@ constexpr void nullSpace11(DenseMatrix<int64_t> &B, DenseMatrix<int64_t> &A) {
   // However, this may be reasonable given an implementation
   // that takes a `Arena<>` as input to allocate `B`, as
   // then we don't need to track the pointer.
-  std::copy_n(B.data() + ptrdiff_t(R * M), ptrdiff_t(D * M), B.data());
+  std::copy_n(B.data() + ptrdiff_t(R) * ptrdiff_t(M),
+              ptrdiff_t(D) * ptrdiff_t(M), B.data());
   B.truncate(D);
 }
 [[nodiscard]] constexpr auto nullSpace(DenseMatrix<int64_t> A)

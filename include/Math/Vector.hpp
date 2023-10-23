@@ -40,10 +40,10 @@ static_assert(SizeMultiple8<uint64_t>);
 static_assert(std::is_same_v<default_capacity_type_t<uint32_t>, int32_t>);
 static_assert(std::is_same_v<default_capacity_type_t<uint64_t>, int64_t>);
 
-template <class T> consteval auto PreAllocStorage() -> size_t {
+template <class T, class S> consteval auto PreAllocStorage() -> ptrdiff_t {
   constexpr ptrdiff_t totalBytes = 128;
   constexpr ptrdiff_t remainingBytes =
-    totalBytes - sizeof(T *) - 2 * sizeof(unsigned);
+    totalBytes - sizeof(T *) - sizeof(S) - sizeof(default_capacity_type_t<S>);
   constexpr ptrdiff_t N = remainingBytes / sizeof(T);
   return std::max<ptrdiff_t>(1, N);
 }
@@ -61,15 +61,16 @@ consteval auto bisectFindSquare(uint64_t l, uint64_t h, uint64_t N)
   if (m * m >= N) return bisectFindSquare(l, m, N);
   return bisectFindSquare(m + 1, h, N);
 }
-template <class T> consteval auto PreAllocSquareStorage() -> size_t {
+template <class T, class S>
+consteval auto PreAllocSquareStorage() -> ptrdiff_t {
   // 2* because we want to allow more space for matrices
   // also removes need for other checks; log2Floor(2)==1
-  constexpr uint64_t N = 2 * PreAllocStorage<T>();
+  constexpr uint64_t N = 2 * PreAllocStorage<T, S>();
   // a fairly naive algorirthm for computing the next square `N`
   // sqrt(x) = x^(1/2) = exp2(log2(x)/2)
   constexpr uint64_t L = 1 << (log2Floor(N) / 2);
   constexpr uint64_t H = 1 << ((log2Ceil(N) + 1) / 2);
-  return bisectFindSquare(L, H, N);
+  return ptrdiff_t(bisectFindSquare(L, H, N));
 }
 
 constexpr auto selfDot(const auto &a) {

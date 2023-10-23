@@ -62,7 +62,7 @@ constexpr void evalpoly(MutSquarePtrMatrix<T> B, SquarePtrMatrix<T> C,
   invariant(ptrdiff_t(C.numRow()), ptrdiff_t(C.numCol()));
   invariant(ptrdiff_t(B.numRow()), ptrdiff_t(B.numCol()));
   invariant(ptrdiff_t(B.numRow()), ptrdiff_t(C.numRow()));
-  S Atm{SquareDims{N == 2 ? Row{0} : B.numRow()}};
+  S Atm{SquareDims{N == 2 ? Row<>{0} : B.numRow()}};
   MutSquarePtrMatrix<T> A{Atm};
   if (N & 1) std::swap(A, B);
   B << p[0] * C + p[1] * I;
@@ -97,9 +97,9 @@ constexpr auto log2ceil(double x) -> unsigned {
 template <typename T>
 constexpr void expm(MutSquarePtrMatrix<T> V, SquarePtrMatrix<T> A) {
   invariant(ptrdiff_t(V.numRow()), ptrdiff_t(A.numRow()));
-  unsigned n = unsigned(A.numRow());
+  ptrdiff_t n = ptrdiff_t(A.numRow());
   auto nA = opnorm1(A);
-  SquareMatrix<T, L> prodA{A * A}, Utm{SquareDims{n}};
+  SquareMatrix<T, L> prodA{A * A}, Utm{SquareDims<>{{n}}};
   MutSquarePtrMatrix<T> A2{prodA}, U{Utm};
   unsigned int s = 0;
   if (nA <= 2.1) {

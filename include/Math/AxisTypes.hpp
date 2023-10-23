@@ -42,6 +42,24 @@ template <> struct Row<-1> {
     return M;
   }
   explicit constexpr operator bool() const { return M; }
+  constexpr auto operator++() -> Row & {
+    ++M;
+    return *this;
+  }
+  constexpr auto operator--() -> Row & {
+    --M;
+    return *this;
+  }
+  constexpr auto operator++(int) -> Row {
+    Row tmp{*this};
+    ++M;
+    return tmp;
+  }
+  constexpr auto operator--(int) -> Row {
+    Row tmp{*this};
+    --M;
+    return tmp;
+  }
 };
 static_assert(sizeof(Row<>) == sizeof(ptrdiff_t));
 template <ptrdiff_t M> constexpr Row<M>::operator Row<-1>() const {
@@ -64,8 +82,8 @@ constexpr auto operator<=>(ptrdiff_t x, Row<M> y) -> std::strong_ordering {
   return x <=> ptrdiff_t(y);
 }
 template <ptrdiff_t M>
-constexpr auto operator<=>(Row<M> y, ptrdiff_t x) -> std::strong_ordering {
-  return x <=> ptrdiff_t(y);
+constexpr auto operator<=>(Row<M> x, ptrdiff_t y) -> std::strong_ordering {
+  return ptrdiff_t(x) <=> y;
 }
 template <ptrdiff_t M, ptrdiff_t N>
 constexpr auto operator<=>(Row<M> x, Row<N> y) -> std::strong_ordering {
@@ -88,6 +106,24 @@ template <> struct Col<-1> {
     return M;
   }
   explicit constexpr operator bool() const { return M; }
+  constexpr auto operator++() -> Col & {
+    ++M;
+    return *this;
+  }
+  constexpr auto operator--() -> Col & {
+    --M;
+    return *this;
+  }
+  constexpr auto operator++(int) -> Col {
+    Col tmp{*this};
+    ++M;
+    return tmp;
+  }
+  constexpr auto operator--(int) -> Col {
+    Col tmp{*this};
+    --M;
+    return tmp;
+  }
 };
 static_assert(sizeof(Col<>) == sizeof(ptrdiff_t));
 template <ptrdiff_t M> constexpr Col<M>::operator Col<-1>() const {
@@ -110,8 +146,8 @@ constexpr auto operator<=>(ptrdiff_t x, Col<M> y) -> std::strong_ordering {
   return x <=> ptrdiff_t(y);
 }
 template <ptrdiff_t M>
-constexpr auto operator<=>(Col<M> y, ptrdiff_t x) -> std::strong_ordering {
-  return x <=> ptrdiff_t(y);
+constexpr auto operator<=>(Col<M> x, ptrdiff_t y) -> std::strong_ordering {
+  return ptrdiff_t(x) <=> y;
 }
 template <ptrdiff_t M, ptrdiff_t N>
 constexpr auto operator<=>(Col<M> x, Col<N> y) -> std::strong_ordering {
@@ -157,9 +193,9 @@ constexpr auto operator<=>(ptrdiff_t x, RowStride<M> y)
   return x <=> ptrdiff_t(y);
 }
 template <ptrdiff_t M>
-constexpr auto operator<=>(RowStride<M> y, ptrdiff_t x)
+constexpr auto operator<=>(RowStride<M> x, ptrdiff_t y)
   -> std::strong_ordering {
-  return x <=> ptrdiff_t(y);
+  return ptrdiff_t(x) <=> y;
 }
 template <ptrdiff_t M, ptrdiff_t N>
 constexpr auto operator<=>(RowStride<M> x, RowStride<N> y)
@@ -209,6 +245,47 @@ constexpr auto operator==(Col<C> c, RowStride<X> x) -> bool {
 template <ptrdiff_t C, ptrdiff_t X>
 constexpr auto operator<=>(Col<C> c, RowStride<X> x) -> std::strong_ordering {
   return ptrdiff_t(c) <=> ptrdiff_t(x);
+}
+
+constexpr auto row(ptrdiff_t x) -> Row<> {
+  invariant(x >= 0);
+  return Row<-1>{x};
+}
+constexpr auto col(ptrdiff_t x) -> Col<> {
+  invariant(x >= 0);
+  return Col<-1>{x};
+}
+constexpr auto rowStride(ptrdiff_t x) -> RowStride<> {
+  invariant(x >= 0);
+  return RowStride<-1>{x};
+}
+template <std::integral I, I x>
+constexpr auto row(std::integral_constant<I, x>) -> Row<ptrdiff_t(x)> {
+  static_assert(x >= 0);
+  return {};
+}
+template <std::integral I, I x>
+constexpr auto col(std::integral_constant<I, x>) -> Col<ptrdiff_t(x)> {
+  static_assert(x >= 0);
+  return {};
+}
+template <std::integral I, I x>
+constexpr auto rowStride(std::integral_constant<I, x>)
+  -> RowStride<ptrdiff_t(x)> {
+  static_assert(x >= 0);
+  return {};
+}
+constexpr auto operator+(Row<> a, Row<> b) -> Row<> {
+  return {ptrdiff_t(a) + ptrdiff_t(b)};
+}
+constexpr auto operator+(Col<> a, Col<> b) -> Col<> {
+  return {ptrdiff_t(a) + ptrdiff_t(b)};
+}
+constexpr auto operator-(Row<> a, Row<> b) -> Row<> {
+  return {ptrdiff_t(a) - ptrdiff_t(b)};
+}
+constexpr auto operator-(Col<> a, Col<> b) -> Col<> {
+  return {ptrdiff_t(a) - ptrdiff_t(b)};
 }
 
 } // namespace poly::math

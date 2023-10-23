@@ -6,8 +6,8 @@
 #include "Math/AxisTypes.hpp"
 #include "Math/Indexing.hpp"
 #include "Math/Matrix.hpp"
-#include "Utilities/Parameters.hpp"
 #include "Math/MatrixDimensions.hpp"
+#include "Utilities/Parameters.hpp"
 #include "Utilities/TypePromotion.hpp"
 #include <algorithm>
 #include <cstddef>
@@ -93,12 +93,12 @@ template <typename Op, typename A> struct Elementwise {
 
   [[nodiscard]] constexpr auto size() const { return a.size(); }
   [[nodiscard]] constexpr auto dim() const { return a.dim(); }
-  [[nodiscard]] constexpr auto numRow() const -> Row
+  [[nodiscard]] constexpr auto numRow() const -> Row<>
   requires(AbstractMatrix<A>)
   {
     return a.numRow();
   }
-  [[nodiscard]] constexpr auto numCol() const -> Col
+  [[nodiscard]] constexpr auto numCol() const -> Col<>
   requires(AbstractMatrix<A>)
   {
     return a.numCol();
@@ -179,7 +179,7 @@ struct ElementwiseBinaryOp {
     return op(get<elta>(a, i, j), get<eltb>(b, i, j));
   }
 
-  [[nodiscard]] constexpr auto numRow() const -> Row
+  [[nodiscard]] constexpr auto numRow() const -> Row<>
   requires(ismatrix)
   {
     if constexpr (AbstractMatrix<A> && AbstractMatrix<B>) {
@@ -190,11 +190,11 @@ struct ElementwiseBinaryOp {
           return N;
         } else return a.numRow();
       else if constexpr (HasConcreteSize<B>) return b.numRow();
-      else return 0;
+      else return Row<>{0};
     } else if constexpr (AbstractMatrix<A>) return a.numRow();
     else if constexpr (AbstractMatrix<B>) return b.numRow();
   }
-  [[nodiscard]] constexpr auto numCol() const -> Col
+  [[nodiscard]] constexpr auto numCol() const -> Col<>
   requires(ismatrix)
   {
     if constexpr (AbstractMatrix<A> && AbstractMatrix<B>) {
@@ -205,7 +205,7 @@ struct ElementwiseBinaryOp {
           return N;
         } else return a.numCol();
       else if constexpr (HasConcreteSize<B>) return b.numCol();
-      else return 0;
+      else return Col<>{0};
     } else if constexpr (AbstractMatrix<A>) return a.numCol();
     else if constexpr (AbstractMatrix<B>) return b.numCol();
   }
@@ -221,7 +221,9 @@ struct ElementwiseBinaryOp {
       return N;
     } else if constexpr (AbstractVector<A>) return ptrdiff_t(a.size());
     else if constexpr (AbstractVector<B>) return ptrdiff_t(b.size());
-    else return CartesianIndex<Row, Col>{numRow(), numCol()};
+    else
+      return CartesianIndex<ptrdiff_t, ptrdiff_t>{ptrdiff_t(numRow()),
+                                                  ptrdiff_t(numCol())};
   }
   [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
 };
@@ -234,7 +236,7 @@ template <TrivialVecOrMat C, Trivial A, Trivial B> struct AbstractSelect {
   [[no_unique_address]] A a;
   [[no_unique_address]] B b;
 
-  [[nodiscard]] constexpr auto numRow() const -> Row
+  [[nodiscard]] constexpr auto numRow() const -> Row<>
   requires(ismatrix)
   {
     Row m = c.numRow();
@@ -242,7 +244,7 @@ template <TrivialVecOrMat C, Trivial A, Trivial B> struct AbstractSelect {
     if constexpr (AbstractMatrix<B>) invariant(m, b.numRow());
     return m;
   }
-  [[nodiscard]] constexpr auto numCol() const -> Col
+  [[nodiscard]] constexpr auto numCol() const -> Col<>
   requires(ismatrix)
   {
     Col n = c.numCol();
@@ -250,13 +252,14 @@ template <TrivialVecOrMat C, Trivial A, Trivial B> struct AbstractSelect {
     if constexpr (AbstractMatrix<B>) invariant(n, b.numCol());
     return n;
   }
-  [[nodiscard]] constexpr auto dim() const -> DenseDims
+  [[nodiscard]] constexpr auto dim() const -> DenseDims<>
   requires(ismatrix)
   {
     return {numRow(), numCol()};
   }
   [[nodiscard]] constexpr auto size() const {
-    if constexpr (ismatrix) return CartesianIndex<Row, Col>{numRow(), numCol()};
+    if constexpr (ismatrix)
+      return CartesianIndex<Row<>, Col<>>{numRow(), numCol()};
     else {
       ptrdiff_t N = c.size();
       if constexpr (AbstractVector<A>) invariant(ptrdiff_t(a.size()), N);
@@ -346,13 +349,14 @@ template <AbstractMatrix A, AbstractMatrix B> struct MatMatMul {
       s += a[i, k] * b[k, j];
     return s;
   }
-  [[nodiscard]] constexpr auto numRow() const -> Row { return a.numRow(); }
-  [[nodiscard]] constexpr auto numCol() const -> Col { return b.numCol(); }
-  [[nodiscard]] constexpr auto size() const -> CartesianIndex<Row, Col> {
+  [[nodiscard]] constexpr auto numRow() const -> Row<> { return a.numRow(); }
+  [[nodiscard]] constexpr auto numCol() const -> Col<> { return b.numCol(); }
+  [[nodiscard]] constexpr auto size() const
+    -> CartesianIndex<ptrdiff_t, ptrdiff_t> {
     invariant(ptrdiff_t(a.numCol()) == ptrdiff_t(b.numRow()));
-    return {numRow(), numCol()};
+    return {ptrdiff_t(numRow()), ptrdiff_t(numCol())};
   }
-  [[nodiscard]] constexpr auto dim() const -> DenseDims {
+  [[nodiscard]] constexpr auto dim() const -> DenseDims<> {
     invariant(ptrdiff_t(a.numCol()) == ptrdiff_t(b.numRow()));
     return {numRow(), numCol()};
   }
@@ -387,17 +391,19 @@ static_assert(std::is_trivially_copyable_v<
               Elementwise<std::negate<>, StridedVector<int64_t>>>);
 static_assert(Trivial<Elementwise<std::negate<>, StridedVector<int64_t>>>);
 
-constexpr void swap(MutPtrMatrix<int64_t> A, Row i, Row j) {
+constexpr void swap(MutPtrMatrix<int64_t> A, Row<> i, Row<> j) {
   if (i == j) return;
   Col N = A.numCol();
   invariant((i < A.numRow()) && (j < A.numRow()));
-  for (Col n = 0; n < N; ++n) std::swap(A[i, n], A[j, n]);
+  for (ptrdiff_t n = 0; n < N; ++n)
+    std::swap(A[ptrdiff_t(i), n], A[ptrdiff_t(j), n]);
 }
-constexpr void swap(MutPtrMatrix<int64_t> A, Col i, Col j) {
+constexpr void swap(MutPtrMatrix<int64_t> A, Col<> i, Col<> j) {
   if (i == j) return;
   Row M = A.numRow();
   invariant((i < A.numCol()) && (j < A.numCol()));
-  for (Row m = 0; m < M; ++m) std::swap(A[m, i], A[m, j]);
+  for (ptrdiff_t m = 0; m < M; ++m)
+    std::swap(A[m, ptrdiff_t(i)], A[m, ptrdiff_t(j)]);
 }
 
 template <int Bits, class T>
@@ -543,8 +549,8 @@ constexpr auto operator~(const AbstractMatrix auto &a) {
                                                    .a = AA};
 }
 static_assert(AbstractMatrix<Elementwise<std::negate<>, PtrMatrix<int64_t>>>);
-static_assert(AbstractMatrix<Array<int64_t, SquareDims>>);
-static_assert(AbstractMatrix<ManagedArray<int64_t, SquareDims>>);
+static_assert(AbstractMatrix<Array<int64_t, SquareDims<>>>);
+static_assert(AbstractMatrix<ManagedArray<int64_t, SquareDims<>>>);
 
 constexpr auto operator*(const VecOrMat auto &a, const VecOrMat auto &b) {
   auto AA{a.view()};
@@ -672,9 +678,9 @@ static_assert(!AbstractMatrix<Array<int64_t, StridedRange>>);
 static_assert(!AbstractMatrix<
               Elementwise<std::negate<void>, Array<int64_t, StridedRange>>>);
 
-static_assert(std::copyable<ManagedArray<int64_t, StridedDims>>);
-static_assert(std::copyable<ManagedArray<int64_t, DenseDims>>);
-static_assert(std::copyable<ManagedArray<int64_t, SquareDims>>);
+static_assert(std::copyable<ManagedArray<int64_t, StridedDims<>>>);
+static_assert(std::copyable<ManagedArray<int64_t, DenseDims<>>>);
+static_assert(std::copyable<ManagedArray<int64_t, SquareDims<>>>);
 
 template <typename T, typename I> struct SliceView {
   using value_type = T;

@@ -18,6 +18,8 @@ TEST(BoxOptTest, BasicAssertions) {
   // opt2 = BoxOptNewton.minimize(fsoft, (2, 2), (1, 1), (3, 32))
   // @test SVector(opt2) ≈ SVector(3.0, 9.132451832031007) rtol = 1e-6
   poly::math::BoxTransform box(2, 1, 32);
+  EXPECT_EQ(box.getLowerBounds().size(), 2);
+  EXPECT_EQ(box.getUpperBounds().size(), 2);
   poly::math::MutPtrVector<double> x0{box.getRaw()};
   x0 << -3.4; // approx 2 after transform
   constexpr auto fsoft = [](auto x) {
@@ -41,7 +43,7 @@ TEST(BoxOptTest, BasicAssertions) {
   EXPECT_EQ(u01, 3.0);
   EXPECT_LT(std::abs(9.10293 - u11), 1e-3);
 
-  poly::math::Vector<int32_t> r{0, 0};
+  poly::math::Vector<int32_t> r{std::array{0, 0}};
   double opti = poly::math::minimizeIntSol(&arena, r, 1, 32, fsoft);
   EXPECT_GT(opti, opt1);
   EXPECT_EQ(r[0], 3);

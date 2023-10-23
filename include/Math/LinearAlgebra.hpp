@@ -135,7 +135,7 @@ constexpr void rdiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
       for (ptrdiff_t i = 0; i < M; ++i) std::swap(rhs[i, jp], rhs[i, j]);
 }
 
-template <class T, size_t L> class Fact {
+template <class T, ptrdiff_t L> class Fact {
   SquareMatrix<T, L> F;
   Vector<unsigned> ipiv;
 
@@ -178,13 +178,13 @@ public:
     return os << "LU fact:\n" << lu.F << "\nperm = \n" << lu.ipiv << '\n';
   }
 };
-template <size_t L>
+template <ptrdiff_t L>
 [[nodiscard]] constexpr auto fact(const SquareMatrix<int64_t, L> &B)
   -> std::optional<Fact<Rational, L>> {
   Row M = B.numRow();
   SquareMatrix<Rational, L> A{B};
   // auto ipiv = Vector<unsigned>{.s = unsigned(M)};
-  auto ipiv{vector(alloc::Mallocator<unsigned>{}, unsigned(M))};
+  auto ipiv{vector(alloc::Mallocator<unsigned>{}, ptrdiff_t(M))};
   // Vector<unsigned> ipiv{.s = unsigned(M)};
   invariant(ptrdiff_t(ipiv.size()), ptrdiff_t(M));
   for (ptrdiff_t i = 0; i < M; ++i) ipiv[i] = i;
@@ -217,7 +217,7 @@ template <size_t L>
 }
 template <typename S> constexpr auto factImpl(MutSquarePtrMatrix<S> A) {
   Row M = A.numRow();
-  auto ipiv{vector(alloc::Mallocator<unsigned>{}, unsigned(M))};
+  auto ipiv{vector(alloc::Mallocator<unsigned>{}, ptrdiff_t(M))};
   invariant(ptrdiff_t(ipiv.size()), ptrdiff_t(M));
   for (ptrdiff_t i = 0; i < M; ++i) ipiv[i] = i;
   for (ptrdiff_t k = 0; k < M; ++k) {
@@ -236,7 +236,7 @@ template <typename S> constexpr auto factImpl(MutSquarePtrMatrix<S> A) {
   }
   return ipiv;
 }
-template <class S, size_t L>
+template <class S, ptrdiff_t L>
 [[nodiscard]] constexpr auto fact(SquareMatrix<S, L> A) -> Fact<S, L> {
   auto &&ipiv{factImpl(A)};
   return Fact<S, L>{std::move(A), std::move(ipiv)};
@@ -333,7 +333,7 @@ public:
 template <bool ForcePD = false, typename T>
 constexpr auto factorize(MutSquarePtrMatrix<T> A) -> Fact<T> {
   Row M = A.numRow();
-  invariant(M == A.numCol());
+  invariant(ptrdiff_t(M), ptrdiff_t(A.numCol()));
   for (ptrdiff_t k = 0; k < M; ++k) {
     T Akk = A[k, k];
     if constexpr (ForcePD) Akk = std::max(Akk, T(0.001));

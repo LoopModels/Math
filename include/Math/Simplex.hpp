@@ -1,4 +1,5 @@
 #pragma once
+#include "Alloc/Arena.hpp"
 #include "Math/Array.hpp"
 #include "Math/Comparisons.hpp"
 #include "Math/Constraints.hpp"
@@ -7,7 +8,6 @@
 #include "Math/MatrixDimensions.hpp"
 #include "Math/NormalForm.hpp"
 #include "Math/Rational.hpp"
-#include "Alloc/Arena.hpp"
 #include "Utilities/Invariant.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -32,7 +32,7 @@ class Simplex {
   using index_type = int;
   using value_type = int64_t;
 
-  static constexpr auto tableauOffset(unsigned conCap, unsigned varCap)
+  static constexpr auto tableauOffset(ptrdiff_t conCap, ptrdiff_t varCap)
     -> size_t {
     ptrdiff_t numIndex = conCap + varCap;
     if constexpr (sizeof(value_type) > sizeof(index_type))
@@ -59,10 +59,10 @@ class Simplex {
     -> index_type * {
     return basicConsPointer() + reservedBasicConstraints();
   }
-  unsigned numConstraints{0};
-  unsigned numVars{0};
-  unsigned constraintCapacity;
-  unsigned varCapacity;
+  ptrdiff_t numConstraints{0};
+  ptrdiff_t numVars{0};
+  ptrdiff_t constraintCapacity;
+  ptrdiff_t varCapacity;
 #ifndef NDEBUG
   bool inCanonicalForm{false};
 #endif
@@ -83,8 +83,8 @@ class Simplex {
 public:
   // tableau is constraint * var matrix w/ extra col for LHS
   // and extra row for objective function
-  [[nodiscard]] static constexpr auto reservedTableau(unsigned conCap,
-                                                      unsigned varCap)
+  [[nodiscard]] static constexpr auto reservedTableau(ptrdiff_t conCap,
+                                                      ptrdiff_t varCap)
     -> ptrdiff_t {
     return (ptrdiff_t(conCap) + 1) * (ptrdiff_t(varCap) + 1);
   }
@@ -107,33 +107,33 @@ public:
   /// [ LHS   | tableau            ]
   [[nodiscard]] constexpr auto getTableau() const -> PtrMatrix<value_type> {
     //
-    return {tableauPointer(), StridedDims{
-                                numConstraints + 1,
-                                numVars + 1,
-                                varCapacity + 1,
+    return {tableauPointer(), StridedDims<>{
+                                {numConstraints + 1},
+                                {numVars + 1},
+                                {varCapacity + 1},
                               }};
   }
   // NOLINTNEXTLINE(readability-make-member-function-const)
   [[nodiscard]] constexpr auto getTableau() -> MutPtrMatrix<value_type> {
-    return {tableauPointer(), StridedDims{
-                                numConstraints + 1,
-                                numVars + 1,
-                                varCapacity + 1,
+    return {tableauPointer(), StridedDims<>{
+                                {numConstraints + 1},
+                                {numVars + 1},
+                                {varCapacity + 1},
                               }};
   }
   [[nodiscard]] constexpr auto getConstraints() const -> PtrMatrix<value_type> {
-    return {tableauPointer() + varCapacity + 1, StridedDims{
-                                                  numConstraints,
-                                                  numVars + 1,
-                                                  varCapacity + 1,
+    return {tableauPointer() + varCapacity + 1, StridedDims<>{
+                                                  {numConstraints},
+                                                  {numVars + 1},
+                                                  {varCapacity + 1},
                                                 }};
   }
   // NOLINTNEXTLINE(readability-make-member-function-const)
   [[nodiscard]] constexpr auto getConstraints() -> MutPtrMatrix<value_type> {
-    return {tableauPointer() + varCapacity + 1, StridedDims{
-                                                  numConstraints,
-                                                  numVars + 1,
-                                                  varCapacity + 1,
+    return {tableauPointer() + varCapacity + 1, StridedDims<>{
+                                                  {numConstraints},
+                                                  {numVars + 1},
+                                                  {varCapacity + 1},
                                                 }};
   }
   [[nodiscard]] constexpr auto getBasicConstraints() const
@@ -158,15 +158,15 @@ public:
   [[nodiscard]] constexpr auto getCost() -> MutPtrVector<value_type> {
     return {tableauPointer(), numVars + 1};
   }
-  [[nodiscard]] constexpr auto getBasicConstraint(unsigned i) const
+  [[nodiscard]] constexpr auto getBasicConstraint(ptrdiff_t i) const
     -> index_type {
     return getBasicConstraints()[i];
   }
-  [[nodiscard]] constexpr auto getBasicVariable(unsigned i) const
+  [[nodiscard]] constexpr auto getBasicVariable(ptrdiff_t i) const
     -> index_type {
     return getBasicVariables()[i];
   }
-  [[nodiscard]] constexpr auto getObjectiveCoefficient(unsigned i) const
+  [[nodiscard]] constexpr auto getObjectiveCoefficient(ptrdiff_t i) const
     -> value_type {
     return getCost()[++i];
   }
@@ -176,7 +176,7 @@ public:
   [[nodiscard]] constexpr auto getObjectiveValue() const -> value_type {
     return getCost()[0];
   }
-  constexpr void truncateConstraints(unsigned i) {
+  constexpr void truncateConstraints(ptrdiff_t i) {
     ASSERT(i <= numConstraints);
     numConstraints = i;
   }
@@ -186,7 +186,7 @@ public:
 #endif
     auto C{getConstraints()};
     NormalForm::solveSystemSkip(C);
-    truncateConstraints(unsigned(NormalForm::numNonZeroRows(C)));
+    truncateConstraints(ptrdiff_t(NormalForm::numNonZeroRows(C)));
   }
 #ifndef NDEBUG
   constexpr void assertCanonical() const {
@@ -216,31 +216,31 @@ public:
   [[nodiscard]] constexpr auto getConstants() const -> StridedVector<int64_t> {
     return getTableau()[_(1, end), 0];
   }
-  constexpr void setNumCons(unsigned i) {
+  constexpr void setNumCons(ptrdiff_t i) {
     invariant(i <= constraintCapacity);
     numConstraints = i;
   }
-  constexpr void setNumVars(unsigned i) {
+  constexpr void setNumVars(ptrdiff_t i) {
     invariant(i <= varCapacity);
     numVars = i;
   }
-  constexpr void truncateVars(unsigned i) {
+  constexpr void truncateVars(ptrdiff_t i) {
     invariant(i <= numVars);
     numVars = i;
   }
-  [[nodiscard]] constexpr auto getNumCons() const -> unsigned {
+  [[nodiscard]] constexpr auto getNumCons() const -> ptrdiff_t {
     return numConstraints;
   }
-  [[nodiscard]] constexpr auto getNumVars() const -> unsigned {
+  [[nodiscard]] constexpr auto getNumVars() const -> ptrdiff_t {
     return numVars;
   }
-  [[nodiscard]] constexpr auto getConCap() const -> unsigned {
+  [[nodiscard]] constexpr auto getConCap() const -> ptrdiff_t {
     return constraintCapacity;
   }
-  [[nodiscard]] constexpr auto getVarCap() const -> unsigned {
+  [[nodiscard]] constexpr auto getVarCap() const -> ptrdiff_t {
     return varCapacity;
   }
-  constexpr void deleteConstraint(unsigned c) {
+  constexpr void deleteConstraint(ptrdiff_t c) {
     auto basicCons = getBasicConstraints();
     auto basicVars = getBasicVariables();
     auto constraints = getConstraints();
@@ -398,13 +398,13 @@ public:
 #endif
     Vector<unsigned> augVars{};
     // upper bound number of augmentVars is constraintCapacity
-    for (unsigned i = 0; i < basicVars.size(); ++i)
+    for (ptrdiff_t i = 0; i < basicVars.size(); ++i)
       if (basicVars[i] == -1) augVars.push_back(i);
     return (!augVars.empty() && removeAugmentVars(augVars));
   }
   constexpr auto removeAugmentVars(PtrVector<unsigned> augmentVars) -> bool {
     // TODO: try to avoid reallocating, via reserving enough ahead of time
-    unsigned numAugment = augmentVars.size(), oldNumVar = numVars;
+    ptrdiff_t numAugment = augmentVars.size(), oldNumVar = numVars;
     invariant(numAugment + numVars <= varCapacity);
     numVars += numAugment;
     MutPtrMatrix<value_type> C{getConstraints()};
@@ -441,7 +441,8 @@ public:
           if (Ccv == 0 || (basicCons[v] >= 0)) continue;
           if (Ccv < 0) C[c, _] *= -1;
           for (ptrdiff_t i = 0; i < C.numRow(); ++i)
-            if (i != ptrdiff_t(c)) NormalForm::zeroWithRowOp(C, i, c, v + 1, 0);
+            if (i != ptrdiff_t(c))
+              NormalForm::zeroWithRowOp(C, Row<>{i}, Row<>{c}, ++Col<>{v}, 0);
           basicVars[c] = index_type(v);
           basicCons[v] = index_type(c);
           break;
@@ -491,11 +492,11 @@ public:
     -> int64_t {
     Optional<unsigned int> leaveOpt = getLeavingVariable(C, enteringVar);
     if (!leaveOpt) return 0; // unbounded
-    unsigned int leavingVar = *leaveOpt;
+    ptrdiff_t leavingVar = ptrdiff_t(*leaveOpt);
     for (ptrdiff_t i = 0; i < C.numRow(); ++i) {
       if (i == leavingVar + 1) continue;
-      int64_t m = NormalForm::zeroWithRowOp(C, i, leavingVar + 1,
-                                            enteringVar + 1, i == 0 ? f : 0);
+      int64_t m = NormalForm::zeroWithRowOp(
+        C, Row<>{i}, ++Row<>{leavingVar}, ++Col<>{enteringVar}, i == 0 ? f : 0);
       if (i == 0) f = m;
     }
     // update baisc vars and constraints
@@ -538,13 +539,13 @@ public:
     for (ptrdiff_t c = 0; c < basicVars.size();) {
       int64_t v = basicVars[c++];
       if ((ptrdiff_t(++v) < C.numCol()) && C[0, v])
-        f = NormalForm::zeroWithRowOp(C, 0, c, v, f);
+        f = NormalForm::zeroWithRowOp(C, Row<>{0}, Row<>{c}, Col<>{v}, f);
     }
     return runCore(f);
   }
 
   // don't touch variables lex > v
-  constexpr void rLexCore(unsigned int v) {
+  constexpr void rLexCore(ptrdiff_t v) {
     MutPtrMatrix<value_type> C{getTableau()};
     MutPtrVector<index_type> basicVars{getBasicVariables()};
     MutPtrVector<index_type> basicConstraints{getBasicConstraints()};
@@ -556,11 +557,11 @@ public:
       auto ev = *enteringVariable;
       auto leaveOpt = getLeavingVariable(C, ev);
       if (!leaveOpt) break;
-      unsigned int lVar = *leaveOpt;
-      unsigned int leavingVariable = lVar++;
+      ptrdiff_t lVar = ptrdiff_t(*leaveOpt);
+      ptrdiff_t leavingVariable = lVar++;
       for (ptrdiff_t i = 0; i < C.numRow(); ++i)
         if (i != ptrdiff_t(lVar))
-          NormalForm::zeroWithRowOp(C, i, lVar, ev + 1, 0);
+          NormalForm::zeroWithRowOp(C, Row<>{i}, Row<>{lVar}, ++Col<>{ev}, 0);
       // update baisc vars and constraints
       int64_t oldBasicVar = basicVars[leavingVariable];
       basicVars[leavingVariable] = ev;
@@ -590,10 +591,10 @@ public:
     rLexCore(v);
     return makeZeroBasic(v);
   }
-  /// makeZeroBasic(unsigned int v) -> bool
+  /// makeZeroBasic(ptrdiff_t v) -> bool
   /// Tries to make `v` non-basic if `v` is zero.
   /// Returns `false` if `v` is zero, `true` otherwise
-  constexpr auto makeZeroBasic(unsigned int v) -> bool {
+  constexpr auto makeZeroBasic(ptrdiff_t v) -> bool {
     MutPtrMatrix<value_type> C{getTableau()};
     MutPtrVector<index_type> basicVars{getBasicVariables()};
     MutPtrVector<index_type> basicConstraints{getBasicConstraints()};
@@ -614,7 +615,8 @@ public:
       if ((basicConstraints[evm1] >= 0) || (C[c, ev] == 0)) continue;
       if (C[c, ev] < 0) C[c, _] *= -1;
       for (ptrdiff_t i = 1; i < C.numRow(); ++i)
-        if (i != ptrdiff_t(c)) NormalForm::zeroWithRowOp(C, i, c, ev, 0);
+        if (i != ptrdiff_t(c))
+          NormalForm::zeroWithRowOp(C, Row<>{i}, Row<>{c}, Col<>{ev}, 0);
       int64_t oldBasicVar = basicVars[cc];
       invariant(oldBasicVar == int64_t(v));
       basicVars[cc] = index_type(evm1);
@@ -662,12 +664,13 @@ public:
                                           PtrMatrix<int64_t> B)
     -> Optional<Simplex *> {
     invariant(A.numCol() == B.numCol());
-    unsigned numVar = unsigned(A.numCol()) - 1, numSlack = unsigned(A.numRow()),
-             numStrict = unsigned(B.numRow()), numCon = numSlack + numStrict,
-             varCap = numVar + numSlack;
+    ptrdiff_t numVar = ptrdiff_t(A.numCol()) - 1,
+              numSlack = ptrdiff_t(A.numRow()),
+              numStrict = ptrdiff_t(B.numRow()), numCon = numSlack + numStrict,
+              varCap = numVar + numSlack;
     // see how many slack vars are infeasible as solution
     // each of these will require an augment variable
-    for (unsigned i = 0; i < numSlack; ++i) varCap += A[i, 0] < 0;
+    for (ptrdiff_t i = 0; i < numSlack; ++i) varCap += A[i, 0] < 0;
     // try to avoid reallocating
     auto checkpoint{alloc->checkpoint()};
     Simplex *simplex{
@@ -689,11 +692,12 @@ public:
   }
   static constexpr auto positiveVariables(Arena<> *alloc, PtrMatrix<int64_t> A)
     -> Optional<Simplex *> {
-    unsigned numVar = unsigned(A.numCol()) - 1, numSlack = unsigned(A.numRow()),
-             numCon = numSlack, varCap = numVar + numSlack;
+    ptrdiff_t numVar = ptrdiff_t(A.numCol()) - 1,
+              numSlack = ptrdiff_t(A.numRow()), numCon = numSlack,
+              varCap = numVar + numSlack;
     // see how many slack vars are infeasible as solution
     // each of these will require an augment variable
-    for (unsigned i = 0; i < numSlack; ++i) varCap += A[i, 0] < 0;
+    for (ptrdiff_t i = 0; i < numSlack; ++i) varCap += A[i, 0] < 0;
     // try to avoid reallocating
     auto checkpoint{alloc->checkpoint()};
     Simplex *simplex{
@@ -716,7 +720,7 @@ public:
     Simplex *simplex{Simplex::create(alloc, numConstraints, numVars,
                                      constraintCapacity, varCapacity)};
     // Simplex simplex{getNumCons(), getNumVars(), getNumSlack(), 0};
-    for (unsigned c = 0; c < getNumCons(); ++c) {
+    for (ptrdiff_t c = 0; c < getNumCons(); ++c) {
       *simplex << *this;
       MutPtrMatrix<int64_t> constraints = simplex->getConstraints();
       int64_t bumpedBound = ++constraints[c, 0];
@@ -735,8 +739,8 @@ public:
     // ensure sure `i` is basic
     if (basicConstraints[i] < 0) makeBasic(C, 0, index_type(i));
     ptrdiff_t ind = basicConstraints[i];
-    ptrdiff_t lastRow = ptrdiff_t(C.numRow() - 1);
-    if (lastRow != ind) swap(C, Row{ind}, Row{lastRow});
+    ptrdiff_t lastRow = ptrdiff_t(C.numRow()) - 1;
+    if (lastRow != ind) swap(C, Row<>{ind}, Row<>{lastRow});
     truncateConstraints(lastRow);
   }
   constexpr void removeExtraVariables(ptrdiff_t i) {
@@ -852,13 +856,13 @@ public:
       }
     }
   }
-  static constexpr auto create(Arena<> *alloc, unsigned numCon, unsigned numVar)
-    -> Valid<Simplex> {
+  static constexpr auto create(Arena<> *alloc, ptrdiff_t numCon,
+                               ptrdiff_t numVar) -> Valid<Simplex> {
     return create(alloc, numCon, numVar, numCon, numVar + numCon);
   }
-  static constexpr auto create(Arena<> *alloc, unsigned numCon, unsigned numVar,
-                               unsigned conCap, unsigned varCap)
-    -> Valid<Simplex> {
+  static constexpr auto create(Arena<> *alloc, ptrdiff_t numCon,
+                               ptrdiff_t numVar, ptrdiff_t conCap,
+                               ptrdiff_t varCap) -> Valid<Simplex> {
 
     size_t memNeeded = tableauOffset(conCap, varCap) +
                        sizeof(value_type) * reservedTableau(conCap, varCap);
@@ -870,7 +874,7 @@ public:
     return mem;
   }
 
-  static auto operator new(size_t count, unsigned conCap, unsigned varCap)
+  static auto operator new(size_t count, ptrdiff_t conCap, ptrdiff_t varCap)
     -> void * {
     size_t memNeeded = tableauOffset(conCap, varCap) +
                        sizeof(value_type) * reservedTableau(conCap, varCap);
@@ -882,12 +886,12 @@ public:
     ::operator delete(ptr, std::align_val_t(alignof(Simplex)));
   }
 
-  static auto create(unsigned numCon, unsigned numVar)
+  static auto create(ptrdiff_t numCon, ptrdiff_t numVar)
     -> std::unique_ptr<Simplex> {
     return create(numCon, numVar, numCon, numVar + numCon);
   }
-  static auto create(unsigned numCon, unsigned numVar, unsigned conCap,
-                     unsigned varCap) -> std::unique_ptr<Simplex> {
+  static auto create(ptrdiff_t numCon, ptrdiff_t numVar, ptrdiff_t conCap,
+                     ptrdiff_t varCap) -> std::unique_ptr<Simplex> {
     auto *ret = new (conCap, varCap) Simplex;
     ret->numConstraints = numCon;
     ret->numVars = numVar;
@@ -897,10 +901,10 @@ public:
   }
 
   static constexpr auto
-  create(Arena<> *alloc, unsigned numCon,
-         unsigned numVar, // NOLINT(bugprone-easily-swappable-parameters)
-         unsigned numSlack) -> Valid<Simplex> {
-    unsigned conCap = numCon, varCap = numVar + numSlack + numCon;
+  create(Arena<> *alloc, ptrdiff_t numCon,
+         ptrdiff_t numVar, // NOLINT(bugprone-easily-swappable-parameters)
+         ptrdiff_t numSlack) -> Valid<Simplex> {
+    ptrdiff_t conCap = numCon, varCap = numVar + numSlack + numCon;
     return create(alloc, numCon, numVar, conCap, varCap);
   }
   constexpr auto copy(Arena<> *alloc) const -> Valid<Simplex> {

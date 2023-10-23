@@ -188,7 +188,7 @@ public:
     return {ptr, dim};
   }
   [[nodiscard]] constexpr auto hessian() const -> MutSquarePtrMatrix<double> {
-    return {ptr + dim, dim};
+    return {ptr + dim, SquareDims<>{{dim}}};
   }
   constexpr HessianResultCore(alloc::Arena<> *alloc, unsigned d)
     : ptr{alloc->allocate<double>(size_t(d) * (d + 1))}, dim{d} {}
@@ -309,7 +309,7 @@ constexpr auto hessian(alloc::Arena<> *arena, PtrVector<double> x,
   hr.value() = hessian(hr, x, f);
   return hr;
 }
-static_assert(MatrixDimension<SquareDims>);
+static_assert(MatrixDimension<SquareDims<>>);
 
 } // namespace poly::math
 namespace std {
