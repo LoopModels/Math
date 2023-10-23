@@ -314,9 +314,10 @@ constexpr auto fourierMotzkin(Alloc<int64_t> auto &alloc,
 
   auto znp = indsZeroNegPos(A[_, v]);
   auto &[zero, neg, pos] = znp;
-  ptrdiff_t r = ptrdiff_t(A.numRow()) - pos.size() + ptrdiff_t(neg.size()) * pos.size();
+  ptrdiff_t r =
+    ptrdiff_t(A.numRow()) - pos.size() + ptrdiff_t(neg.size()) * pos.size();
   if constexpr (!NonNegative) r -= neg.size();
-  auto B = matrix(alloc, Row<>{r}, --auto{A.numCol()} );
+  auto B = matrix(alloc, Row<>{r}, --auto{A.numCol()});
   B.truncate(fourierMotzkinCore<NonNegative>(B, A, v, znp));
   return B;
 }
@@ -329,7 +330,8 @@ constexpr void fourierMotzkinCore(DenseMatrix<int64_t> &A, ptrdiff_t v,
   // both of them. Thus, we use a little extra memory here,
   // and then truncate.
   const Row numRowsOld = A.numRow();
-  const Row<> numRowsNew = {ptrdiff_t(numRowsOld) - numNeg - numPos + numNeg * numPos + 1};
+  const Row<> numRowsNew = {ptrdiff_t(numRowsOld) - numNeg - numPos +
+                            numNeg * numPos + 1};
   A.resize(numRowsNew);
   // plan is to replace
   for (ptrdiff_t i = 0, numRows = ptrdiff_t(numRowsOld), posCount = numPos;
@@ -389,7 +391,7 @@ constexpr void removeZeroRows(MutDensePtrMatrix<int64_t> &A) {
 
 /// checks whether `r` is a copy of any preceding rows
 /// NOTE: does not compare to any following rows
-constexpr auto uniqueConstraint(DensePtrMatrix<int64_t> A, Row <>r) -> bool {
+constexpr auto uniqueConstraint(DensePtrMatrix<int64_t> A, Row<> r) -> bool {
   for (Row i = r; i != 0;)
     if (A[--i, _] == A[r, _]) return false;
   return !allZero(A[r, _]);

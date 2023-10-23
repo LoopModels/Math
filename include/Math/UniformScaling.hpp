@@ -11,8 +11,10 @@ template <class T> struct UniformScaling {
   }
   static constexpr auto numRow() -> Row<0> { return {}; }
   static constexpr auto numCol() -> Col<0> { return {}; }
-  static constexpr auto size() -> CartesianIndex<ptrdiff_t, ptrdiff_t> { return {0, 0}; }
-  static constexpr auto dim() -> DenseDims<0,0> { return {{}, {}}; }
+  static constexpr auto size() -> CartesianIndex<ptrdiff_t, ptrdiff_t> {
+    return {0, 0};
+  }
+  static constexpr auto dim() -> DenseDims<0, 0> { return {{}, {}}; }
   [[nodiscard]] constexpr auto view() const -> auto { return *this; };
   template <class U> constexpr auto operator*(const U &x) const {
     if constexpr (std::is_same_v<std::remove_cvref_t<T>, std::true_type>)

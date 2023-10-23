@@ -402,8 +402,8 @@ constexpr auto exp2(unsigned x) -> double {
   if (x > 1023) return std::numeric_limits<double>::infinity();
   return std::bit_cast<double>((uint64_t(x) + 1023) << 52);
 }
-constexpr auto log(double x) -> double { return std::log(x);}
-constexpr auto log2(double x) -> double { return std::log2(x);}
+constexpr auto log(double x) -> double { return std::log(x); }
+constexpr auto log2(double x) -> double { return std::log2(x); }
 constexpr auto log1p(double x) -> double { return std::log1p(x); }
 constexpr auto sigmoid(double x) -> double { return 1.0 / (1.0 + exp(-x)); }
 constexpr auto softplus(double x) -> double { return log1p(exp(x)); }

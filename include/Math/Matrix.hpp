@@ -46,15 +46,13 @@ concept AbstractRowMajorMatrix = AbstractMatrix<T> && requires(T t) {
   { t.rowStride() } -> std::convertible_to<RowStride<>>;
 };
 
-template <ptrdiff_t M>
-constexpr auto transpose_dim(Col<M> c){
-    if constexpr (M==-1) return Row<>{ptrdiff_t(c)};
-    else return Row<M>{};
+template <ptrdiff_t M> constexpr auto transpose_dim(Col<M> c) {
+  if constexpr (M == -1) return Row<>{ptrdiff_t(c)};
+  else return Row<M>{};
 }
-template <ptrdiff_t M>
-constexpr auto transpose_dim(Row<M> r){
-    if constexpr (M==-1) return Col<>{ptrdiff_t(r)};
-    else return Col<M>{};
+template <ptrdiff_t M> constexpr auto transpose_dim(Row<M> r) {
+  if constexpr (M == -1) return Col<>{ptrdiff_t(r)};
+  else return Col<M>{};
 }
 
 template <typename A> struct Transpose {
@@ -81,7 +79,8 @@ template <typename A> struct Transpose {
     else return col(a.size());
   }
   [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
-  [[nodiscard]] constexpr auto size() const -> CartesianIndex<ptrdiff_t, ptrdiff_t> {
+  [[nodiscard]] constexpr auto size() const
+    -> CartesianIndex<ptrdiff_t, ptrdiff_t> {
     return {ptrdiff_t(numRow()), ptrdiff_t(numCol())};
   }
   [[nodiscard]] constexpr auto dim() const {

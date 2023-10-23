@@ -29,18 +29,19 @@ public:
     return Row<>{rows.size()};
   }
   [[nodiscard]] constexpr auto numCol() const -> Col<> { return col; }
-  [[nodiscard]] constexpr auto size() const -> CartesianIndex<ptrdiff_t,ptrdiff_t> {
+  [[nodiscard]] constexpr auto size() const
+    -> CartesianIndex<ptrdiff_t, ptrdiff_t> {
     return {numRow(), numCol()};
   }
   [[nodiscard]] constexpr auto dim() const -> DenseDims<> {
     return {numRow(), numCol()};
   }
   // [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
-  constexpr SmallSparseMatrix(Row<> numRows, Col <>numCols)
+  constexpr SmallSparseMatrix(Row<> numRows, Col<> numCols)
     : rows(ptrdiff_t(numRows), 0), col{numCols} {
     invariant(ptrdiff_t(col) <= maxElemPerRow);
   }
-  constexpr auto get(Row <>i, Col<> j) const -> T {
+  constexpr auto get(Row<> i, Col<> j) const -> T {
     invariant(j < col);
     uint32_t r(rows[ptrdiff_t(i)]);
     uint32_t jshift = uint32_t(1) << uint32_t(ptrdiff_t(j));

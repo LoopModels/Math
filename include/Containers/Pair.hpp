@@ -7,11 +7,12 @@ namespace poly::containers {
 
 template <typename To, typename From>
 concept ConvertibleFrom = std::is_convertible_v<From, To>;
-    
+
 template <class F, class S> struct Pair {
   [[no_unique_address]] F first;
   [[no_unique_address]] S second;
-  template <ConvertibleFrom<F> A, ConvertibleFrom<S> B> constexpr operator Pair<A, B>() {
+  template <ConvertibleFrom<F> A, ConvertibleFrom<S> B>
+  constexpr operator Pair<A, B>() {
     return {A{first}, B{second}};
   }
 };

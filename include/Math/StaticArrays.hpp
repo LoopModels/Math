@@ -119,12 +119,8 @@ struct StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
     return N;
   }
 
-  [[nodiscard]] constexpr auto numRow() const noexcept  {
-    return row(S{});
-  }
-  [[nodiscard]] constexpr auto numCol() const noexcept  {
-    return col(S{});
-  }
+  [[nodiscard]] constexpr auto numRow() const noexcept { return row(S{}); }
+  [[nodiscard]] constexpr auto numCol() const noexcept { return col(S{}); }
   [[nodiscard]] constexpr auto rowStride() const noexcept {
     return rowStride(S{});
   }

@@ -203,13 +203,13 @@ constexpr auto calcNewDim(SquareDims<>, ptrdiff_t) -> Empty { return {}; }
 constexpr auto calcNewDim(DenseDims<>, ptrdiff_t) -> Empty { return {}; }
 
 constexpr auto calcNewDim(ptrdiff_t len, Range<ptrdiff_t, ptrdiff_t> r)
-  -> ptrdiff_t{
+  -> ptrdiff_t {
   invariant(r.e <= len);
   invariant(r.b <= r.e);
   return ptrdiff_t(r.e - r.b);
 }
 template <class B, class E>
-constexpr auto calcNewDim(ptrdiff_t len, Range<B, E> r) -> ptrdiff_t{
+constexpr auto calcNewDim(ptrdiff_t len, Range<B, E> r) -> ptrdiff_t {
   return calcNewDim(len, canonicalizeRange(r, len));
 }
 constexpr auto calcNewDim(StridedRange len, Range<ptrdiff_t, ptrdiff_t> r)
