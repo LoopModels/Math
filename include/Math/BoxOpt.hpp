@@ -278,7 +278,7 @@ constexpr auto minimize(alloc::Arena<> *alloc, MutPtrVector<double> x,
   auto scope = alloc->scope();
   auto *data = alloc->allocate<double>(2 * L);
   MutPtrVector<double> xnew{data, L}, dir{data + L, L}, xcur{x};
-  HessianResultCore hr{alloc, unsigned(L)};
+  HessianResultCore hr{alloc, L};
   for (ptrdiff_t n = 0; n < 1000; ++n) {
     fx = hessian(hr, xcur, f);
     if (hr.gradient().norm2() < tol2) break;

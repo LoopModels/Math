@@ -181,7 +181,7 @@ public:
 };
 class HessianResultCore {
   double *ptr;
-  unsigned dim;
+  ptrdiff_t dim;
 
 public:
   [[nodiscard]] constexpr auto gradient() const -> MutPtrVector<double> {
@@ -190,7 +190,7 @@ public:
   [[nodiscard]] constexpr auto hessian() const -> MutSquarePtrMatrix<double> {
     return {ptr + dim, SquareDims<>{{dim}}};
   }
-  constexpr HessianResultCore(alloc::Arena<> *alloc, unsigned d)
+  constexpr HessianResultCore(alloc::Arena<> *alloc, ptrdiff_t d)
     : ptr{alloc->allocate<double>(size_t(d) * (d + 1))}, dim{d} {}
 };
 class HessianResult : public HessianResultCore {
