@@ -1,5 +1,15 @@
 cmake_minimum_required(VERSION 3.14)
 
+# # ---- Static Analyzers ----
+# find_program(CLANGTIDY clang-tidy)
+# if(NOT CLANGTIDY MATCHES CLANGTIDY-NOTFOUND)
+#   set(CMAKE_CXX_CLANG_TIDY ${CLANGTIDY})
+# endif()
+# find_program(CPPCHECK cppcheck)
+# if(NOT CPPCHECK MATCHES CPPCHECK-NOTFOUND)
+#   set(CMAKE_CXX_CPPCHECK "${CPPCHECK} --language=c++ --enable=warning,style,performance,information")
+# endif()
+
 project(MathTests LANGUAGES CXX)
 
 # ---- Options ----

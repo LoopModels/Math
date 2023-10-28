@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
-#include <limits>
 
 /// LinAlg
 ///
@@ -65,32 +64,25 @@ static_assert(sizeof(Row<>) == sizeof(ptrdiff_t));
 template <ptrdiff_t M> constexpr Row<M>::operator Row<-1>() const {
   return {M};
 }
-template <ptrdiff_t M>
-constexpr auto operator==(ptrdiff_t x, Row<M> y) -> bool {
+constexpr auto operator==(ptrdiff_t x, Row<> y) -> bool {
   return x == ptrdiff_t(y);
 }
-template <ptrdiff_t M>
-constexpr auto operator==(Row<M> y, ptrdiff_t x) -> bool {
+constexpr auto operator==(Row<> y, ptrdiff_t x) -> bool {
   return x == ptrdiff_t(y);
 }
-template <ptrdiff_t M, ptrdiff_t N>
-constexpr auto operator==(Row<M> x, Row<N> y) -> bool {
+constexpr auto operator==(Row<> x, Row<> y) -> bool {
   return ptrdiff_t(x) == ptrdiff_t(y);
 }
-template <ptrdiff_t M>
-constexpr auto operator<=>(ptrdiff_t x, Row<M> y) -> std::strong_ordering {
+constexpr auto operator<=>(ptrdiff_t x, Row<> y) -> std::strong_ordering {
   return x <=> ptrdiff_t(y);
 }
-template <ptrdiff_t M>
-constexpr auto operator<=>(Row<M> x, ptrdiff_t y) -> std::strong_ordering {
+constexpr auto operator<=>(Row<> x, ptrdiff_t y) -> std::strong_ordering {
   return ptrdiff_t(x) <=> y;
 }
-template <ptrdiff_t M, ptrdiff_t N>
-constexpr auto operator<=>(Row<M> x, Row<N> y) -> std::strong_ordering {
+constexpr auto operator<=>(Row<> x, Row<> y) -> std::strong_ordering {
   return ptrdiff_t(x) <=> ptrdiff_t(y);
 }
-template <ptrdiff_t M>
-inline auto operator<<(std::ostream &os, Row<M> x) -> std::ostream & {
+inline auto operator<<(std::ostream &os, Row<> x) -> std::ostream & {
   return os << "Rows{" << ptrdiff_t(x) << "}";
 }
 template <ptrdiff_t M = -1> struct Col {
@@ -129,32 +121,28 @@ static_assert(sizeof(Col<>) == sizeof(ptrdiff_t));
 template <ptrdiff_t M> constexpr Col<M>::operator Col<-1>() const {
   return {M};
 }
-template <ptrdiff_t M>
-constexpr auto operator==(ptrdiff_t x, Col<M> y) -> bool {
+constexpr auto operator==(ptrdiff_t x, Col<> y) -> bool {
   return x == ptrdiff_t(y);
 }
-template <ptrdiff_t M>
-constexpr auto operator==(Col<M> y, ptrdiff_t x) -> bool {
+constexpr auto operator==(Col<> y, ptrdiff_t x) -> bool {
   return x == ptrdiff_t(y);
 }
-template <ptrdiff_t M, ptrdiff_t N>
-constexpr auto operator==(Col<M> x, Col<N> y) -> bool {
+constexpr auto operator==(Col<> x, Col<> y) -> bool {
   return ptrdiff_t(x) == ptrdiff_t(y);
 }
-template <ptrdiff_t M>
-constexpr auto operator<=>(ptrdiff_t x, Col<M> y) -> std::strong_ordering {
+constexpr auto operator<=>(ptrdiff_t x, Col<> y) -> std::strong_ordering {
   return x <=> ptrdiff_t(y);
 }
-template <ptrdiff_t M>
-constexpr auto operator<=>(Col<M> x, ptrdiff_t y) -> std::strong_ordering {
+constexpr auto operator<=>(Col<> x, ptrdiff_t y) -> std::strong_ordering {
   return ptrdiff_t(x) <=> y;
 }
-template <ptrdiff_t M, ptrdiff_t N>
-constexpr auto operator<=>(Col<M> x, Col<N> y) -> std::strong_ordering {
+constexpr auto operator<=>(Col<> x, Col<> y) -> std::strong_ordering {
   return ptrdiff_t(x) <=> ptrdiff_t(y);
 }
-template <ptrdiff_t M>
-inline auto operator<<(std::ostream &os, Col<M> x) -> std::ostream & {
+constexpr auto operator*(Row<> r, Col<> c) -> ptrdiff_t {
+  return ptrdiff_t(r) * ptrdiff_t(c);
+}
+inline auto operator<<(std::ostream &os, Col<> x) -> std::ostream & {
   return os << "Rows{" << ptrdiff_t(x) << "}";
 }
 template <ptrdiff_t M = -1> struct RowStride {
@@ -175,35 +163,28 @@ static_assert(sizeof(RowStride<>) == sizeof(ptrdiff_t));
 template <ptrdiff_t M> constexpr RowStride<M>::operator RowStride<-1>() const {
   return {M};
 }
-template <ptrdiff_t M>
-constexpr auto operator==(ptrdiff_t x, RowStride<M> y) -> bool {
+constexpr auto operator==(ptrdiff_t x, RowStride<> y) -> bool {
   return x == ptrdiff_t(y);
 }
-template <ptrdiff_t M>
-constexpr auto operator==(RowStride<M> y, ptrdiff_t x) -> bool {
+constexpr auto operator==(RowStride<> y, ptrdiff_t x) -> bool {
   return x == ptrdiff_t(y);
 }
-template <ptrdiff_t M, ptrdiff_t N>
-constexpr auto operator==(RowStride<M> x, RowStride<N> y) -> bool {
+constexpr auto operator==(RowStride<> x, RowStride<> y) -> bool {
   return ptrdiff_t(x) == ptrdiff_t(y);
 }
-template <ptrdiff_t M>
-constexpr auto operator<=>(ptrdiff_t x, RowStride<M> y)
+constexpr auto operator<=>(ptrdiff_t x, RowStride<> y)
   -> std::strong_ordering {
   return x <=> ptrdiff_t(y);
 }
-template <ptrdiff_t M>
-constexpr auto operator<=>(RowStride<M> x, ptrdiff_t y)
+constexpr auto operator<=>(RowStride<> x, ptrdiff_t y)
   -> std::strong_ordering {
   return ptrdiff_t(x) <=> y;
 }
-template <ptrdiff_t M, ptrdiff_t N>
-constexpr auto operator<=>(RowStride<M> x, RowStride<N> y)
+constexpr auto operator<=>(RowStride<> x, RowStride<> y)
   -> std::strong_ordering {
   return ptrdiff_t(x) <=> ptrdiff_t(y);
 }
-template <ptrdiff_t M>
-inline auto operator<<(std::ostream &os, RowStride<M> x) -> std::ostream & {
+inline auto operator<<(std::ostream &os, RowStride<> x) -> std::ostream & {
   return os << "RowStrides{" << ptrdiff_t(x) << "}";
 }
 
