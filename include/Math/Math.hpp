@@ -49,7 +49,7 @@ template <typename T>
 concept Trivial =
   std::is_trivially_destructible_v<T> && std::is_trivially_copyable_v<T>;
 template <typename T, typename C>
-concept TrivialCompatibile = Trivial<T> && Compatible<T, C>;
+concept TrivialCompatible = Trivial<T> && Compatible<T, C>;
 template <typename T>
 concept TrivialVecOrMat = Trivial<T> && VecOrMat<T>;
 template <typename T>
@@ -151,7 +151,7 @@ using is_concrete_t =
   std::conditional_t<HasConcreteSize<T> || HasConcreteSize<U>, std::true_type,
                      std::false_type>;
 
-template <Trivial A, TrivialCompatibile<A> B, BinaryFuncOfElts<A, B> Op>
+template <Trivial A, TrivialCompatible<A> B, BinaryFuncOfElts<A, B> Op>
 struct ElementwiseBinaryOp {
   using elta = indextype_t<A, B>;
   using eltb = indextype_t<B, A>;

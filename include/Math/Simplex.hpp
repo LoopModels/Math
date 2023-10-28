@@ -499,7 +499,7 @@ public:
         C, Row<>{i}, ++Row<>{leavingVar}, ++Col<>{enteringVar}, i == 0 ? f : 0);
       if (i == 0) f = m;
     }
-    // update baisc vars and constraints
+    // update basic vars and constraints
     MutPtrVector<index_type> basicVars{getBasicVariables()};
     int64_t oldBasicVar = basicVars[leavingVar];
     basicVars[leavingVar] = enteringVar;
@@ -562,7 +562,7 @@ public:
       for (ptrdiff_t i = 0; i < C.numRow(); ++i)
         if (i != ptrdiff_t(lVar))
           NormalForm::zeroWithRowOp(C, Row<>{i}, Row<>{lVar}, ++Col<>{ev}, 0);
-      // update baisc vars and constraints
+      // update basic vars and constraints
       int64_t oldBasicVar = basicVars[leavingVariable];
       basicVars[leavingVariable] = ev;
       if (ptrdiff_t(oldBasicVar) < basicConstraints.size())

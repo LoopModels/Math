@@ -44,7 +44,7 @@ inline auto printConstraint(std::ostream &os, PtrVector<int64_t> a,
 /// prints in current permutation order.
 /// TODO: decide if we want to make AffineLoopNest a `SymbolicPolyhedra`
 /// in which case, we have to remove `currentToOriginalPerm`,
-/// which menas either change printing, or move prints `<<` into
+/// which means either change printing, or move prints `<<` into
 /// the derived classes.
 inline auto printConstraints(std::ostream &os, DensePtrMatrix<int64_t> A,
                              bool inequality = true) -> std::ostream & {
@@ -107,7 +107,7 @@ constexpr auto substituteEqualityImpl(MutDensePtrMatrix<int64_t> E,
   if (rowMinNonZero == numConstraints) return {rowMinNonZero};
   auto Es = E[rowMinNonZero, _];
   int64_t Eis = Es[i];
-  // we now subsitute the equality expression with the minimum number
+  // we now substitute the equality expression with the minimum number
   // of terms.
   if (constexpr_abs(Eis) == 1) {
     for (ptrdiff_t j = 0; j < numConstraints; ++j) {
@@ -153,7 +153,7 @@ substituteEqualityPairImpl(std::array<MutDensePtrMatrix<int64_t>, 2> AE,
   if (rowMinNonZero == numConstraints) return {rowMinNonZero};
   auto Es = E[rowMinNonZero, _];
   int64_t Eis = Es[i], s = 2 * (Eis > 0) - 1;
-  // we now subsitute the equality expression with the minimum number
+  // we now substitute the equality expression with the minimum number
   // of terms.
   if (constexpr_abs(Eis) == 1) {
     for (ptrdiff_t j = 0; j < A.numRow(); ++j)

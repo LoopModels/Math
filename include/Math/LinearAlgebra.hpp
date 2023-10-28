@@ -268,7 +268,7 @@ constexpr void rdiv(MutSquarePtrMatrix<T> A, MutPtrMatrix<T> B) {
 
 } // namespace LU
 
-/// factorizes symmetric full-rank (but not necessarilly positive-definite)
+/// factorizes symmetric full-rank (but not necessarily positive-definite)
 /// matrix A into LD^-1L', where L is lower-triangular with 1s on the
 /// diagonal
 /// Only uses the lower triangle of A, overwriting it.
