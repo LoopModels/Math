@@ -1,5 +1,6 @@
 #pragma once
 #include "Alloc/Arena.hpp"
+#include "Alloc/Mallocator.hpp"
 #include "Math/Array.hpp"
 #include "Math/Dual.hpp"
 #include "Math/Exp.hpp"
@@ -14,11 +15,10 @@ constexpr double EXTREME = 8.0;
 
 class BoxTransformView {
 public:
-  constexpr BoxTransformView(double *f, int32_t *i, unsigned ntotal)
-    : f64{f}, i32{i}, Ntotal{ntotal}, Nraw{ntotal} {}
-  constexpr BoxTransformView(double *f, int32_t *i, unsigned ntotal,
-                             unsigned nraw)
-    : f64{f}, i32{i}, Ntotal{ntotal}, Nraw{nraw} {}
+  constexpr BoxTransformView(char *d, unsigned ntotal)
+    : data{d}, Ntotal{ntotal}, Nraw{ntotal} {}
+  constexpr BoxTransformView(char *d, unsigned ntotal, unsigned nraw)
+    : data{d}, Ntotal{ntotal}, Nraw{nraw} {}
   [[nodiscard]] constexpr auto size() const -> unsigned { return Ntotal; }
   constexpr auto operator()(const AbstractVector auto &x, ptrdiff_t i) const
     -> utils::eltype_t<decltype(x)> {
@@ -32,10 +32,10 @@ public:
     return *this;
   }
   [[nodiscard]] constexpr auto getLowerBounds() -> MutPtrVector<int32_t> {
-    return {i32 + Ntotal, Ntotal};
+    return {i32() + Ntotal, Ntotal};
   }
   [[nodiscard]] constexpr auto getUpperBounds() -> MutPtrVector<int32_t> {
-    return {i32 + ptrdiff_t(2) * Ntotal, Ntotal};
+    return {i32() + ptrdiff_t(2) * Ntotal, Ntotal};
   }
   // gives max fractional ind on the transformed scale
   template <bool Relative = true>
@@ -58,46 +58,80 @@ public:
     return {k, static_cast<int32_t>(lb)};
   }
   [[nodiscard]] constexpr auto getRaw() -> MutPtrVector<double> {
-    return {f64 + ptrdiff_t(2) * Ntotal, Nraw};
+    return {f64() + ptrdiff_t(2) * Ntotal, Nraw};
   }
   [[nodiscard]] constexpr auto getRaw() const -> PtrVector<double> {
-    return {f64 + ptrdiff_t(2) * Ntotal, Nraw};
+    return {f64() + ptrdiff_t(2) * Ntotal, Nraw};
   }
 
 protected:
+  static constexpr ptrdiff_t NDV = 3;
+  static constexpr ptrdiff_t NIV = 3;
+
+  char *data;
+  /// f64 data:
   /// Ntotal offsets
   /// Ntotal scales
-  double *f64;
+  /// i32 data:
   /// Ntotal indices
   /// Ntotal lower bounds
   /// Ntotal upper bounds
-  int32_t *i32;
   unsigned Ntotal;
   unsigned Nraw;
 
+  [[nodiscard]] auto f64() -> double * {
+    return reinterpret_cast<double *>(data);
+  }
+  [[nodiscard]] auto f64() const -> const double * {
+    return reinterpret_cast<const double *>(data);
+  }
+  [[nodiscard]] static constexpr auto f64Bytes(size_t Ntotal) -> size_t {
+    return (NDV * sizeof(double)) * Ntotal;
+  }
+  [[nodiscard]] static constexpr auto i32Bytes(size_t Ntotal) -> size_t {
+    return (NIV * sizeof(int32_t)) * Ntotal;
+  }
+  [[nodiscard]] static constexpr auto dataBytes(size_t Ntotal) -> size_t {
+    return f64Bytes(Ntotal) + i32Bytes(Ntotal);
+  }
+  [[nodiscard]] constexpr auto f64Bytes() const -> size_t {
+    return f64Bytes(Ntotal);
+  }
+  [[nodiscard]] constexpr auto i32Bytes() const -> size_t {
+    return i32Bytes(Ntotal);
+  }
+  [[nodiscard]] constexpr auto dataBytes() const -> size_t {
+    return dataBytes(Ntotal);
+  }
+  [[nodiscard]] auto i32() -> int32_t * {
+    return reinterpret_cast<int32_t *>(data + f64Bytes());
+  }
+  [[nodiscard]] auto i32() const -> const int32_t * {
+    return reinterpret_cast<const int32_t *>(data + f64Bytes());
+  }
   [[nodiscard]] constexpr auto getInds() const -> PtrVector<int32_t> {
-    return {i32, Ntotal};
+    return {i32(), Ntotal};
   }
   [[nodiscard]] constexpr auto getLowerBounds() const -> PtrVector<int32_t> {
-    return {i32 + Ntotal, Ntotal};
+    return {i32() + Ntotal, Ntotal};
   }
   [[nodiscard]] constexpr auto getUpperBounds() const -> PtrVector<int32_t> {
-    return {i32 + ptrdiff_t(2) * Ntotal, Ntotal};
+    return {i32() + ptrdiff_t(2) * Ntotal, Ntotal};
   }
   [[nodiscard]] constexpr auto offs() const -> PtrVector<double> {
-    return {f64, Ntotal};
+    return {f64(), Ntotal};
   }
   [[nodiscard]] constexpr auto scales() const -> PtrVector<double> {
-    return {f64 + Ntotal, Ntotal};
+    return {f64() + Ntotal, Ntotal};
   }
   [[nodiscard]] constexpr auto getInds() -> MutPtrVector<int32_t> {
-    return {i32, Ntotal};
+    return {i32(), Ntotal};
   }
   [[nodiscard]] constexpr auto offs() -> MutPtrVector<double> {
-    return {f64, Ntotal};
+    return {f64(), Ntotal};
   }
   [[nodiscard]] constexpr auto scales() -> MutPtrVector<double> {
-    return {f64 + Ntotal, Ntotal};
+    return {f64() + Ntotal, Ntotal};
   }
   static constexpr auto scaleOff(int32_t lb, int32_t ub)
     -> std::pair<double, double> {
@@ -134,13 +168,19 @@ template <AbstractVector V>
 BoxTransformVector(V, BoxTransformView) -> BoxTransformVector<V>;
 
 class BoxTransform : public BoxTransformView {
-  static constexpr ptrdiff_t NDV = 3;
-  static constexpr ptrdiff_t NIV = 3;
+  [[nodiscard]] static auto allocate(size_t ntotal) -> char * {
+    return alloc::Mallocator<char>::allocate(dataBytes(ntotal),
+                                             std::align_val_t{alignof(double)});
+  }
+  static void deallocate(char *data, size_t ntotal) {
+    if (data)
+      alloc::Mallocator<char>::deallocate(data, dataBytes(ntotal),
+                                          std::align_val_t{alignof(double)});
+  }
 
 public:
   constexpr BoxTransform(unsigned ntotal, int32_t lb, int32_t ub)
-    : BoxTransformView{new double[NDV * ntotal], new int32_t[NIV * ntotal],
-                       ntotal} {
+    : BoxTransformView{allocate(ntotal), ntotal} {
     invariant(lb < ub);
     auto [s, o] = scaleOff(lb, ub);
     for (int32_t i = 0; i < int32_t(ntotal); ++i) {
@@ -197,39 +237,21 @@ public:
     scales()[idx] = newScale;
     offs()[idx] = newOff;
   }
-  constexpr ~BoxTransform() {
-    if (f64 == nullptr) {
-      invariant(i32 == nullptr);
-      return;
-    }
-    delete[] f64;
-    delete[] i32;
-  }
+  constexpr ~BoxTransform() { deallocate(data, Ntotal); }
   constexpr BoxTransform(BoxTransform &&other) noexcept
-    : BoxTransformView{other.f64, other.i32, other.Ntotal, other.Nraw} {
-    other.f64 = nullptr;
-    other.i32 = nullptr;
+    : BoxTransformView{other.data, other.Ntotal, other.Nraw} {
+    other.data = nullptr;
   }
   constexpr BoxTransform(const BoxTransform &other)
-    : BoxTransformView{new double[NDV * other.Ntotal],
-                       new int32_t[NIV * other.Ntotal], other.Ntotal,
-                       other.Nraw} {
-    std::copy_n(other.f64, 2 * Ntotal + Nraw, f64);
-    std::copy_n(other.i32, 3 * Ntotal, i32);
+    : BoxTransformView{allocate(other.Ntotal), other.Ntotal, other.Nraw} {
+    std::memcpy(data, other.data, dataBytes());
   }
   constexpr auto operator=(BoxTransform &&other) noexcept -> BoxTransform & {
     if (this == &other) return *this;
-    if (f64 != nullptr) {
-      invariant(i32 != nullptr);
-      delete[] f64;
-      delete[] i32;
-    }
-    f64 = other.f64;
-    i32 = other.i32;
+    deallocate(data, Ntotal);
+    data = std::exchange(other.data, nullptr);
     Ntotal = other.Ntotal;
     Nraw = other.Nraw;
-    other.f64 = nullptr;
-    other.i32 = nullptr;
     return *this;
   }
   // returns a copy of `this` with the `i`th upper bound decreased to `nlb`
