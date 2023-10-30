@@ -31,7 +31,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if(((USE_SANITIZER MATCHES "([Aa]ddress)") OR (USE_SANITIZER MATCHES "([Aa]ddress);([Uu]ndefined)"))
    AND (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 )
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lunwind -Wno-unused-command-line-argument")
+  find_library(LUNWIND_LIB lunwind)
+  if(LUNWIND_LIB)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lunwind -Wno-unused-command-line-argument")
+  endif()
 endif()
 
 CPMAddPackage(
