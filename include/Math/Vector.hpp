@@ -45,7 +45,7 @@ template <class T, class S> consteval auto PreAllocStorage() -> ptrdiff_t {
   constexpr ptrdiff_t remainingBytes =
     totalBytes - sizeof(T *) - sizeof(S) - sizeof(default_capacity_type_t<S>);
   constexpr ptrdiff_t N = remainingBytes / sizeof(T);
-  return std::max<ptrdiff_t>(1, N);
+  return std::max<ptrdiff_t>(0, N);
 }
 constexpr auto log2Floor(uint64_t x) -> uint64_t {
   return 63 - std::countl_zero(x);
@@ -66,6 +66,7 @@ consteval auto PreAllocSquareStorage() -> ptrdiff_t {
   // 2* because we want to allow more space for matrices
   // also removes need for other checks; log2Floor(2)==1
   constexpr uint64_t N = 2 * PreAllocStorage<T, S>();
+  if (!N) return 0;
   // a fairly naive algorirthm for computing the next square `N`
   // sqrt(x) = x^(1/2) = exp2(log2(x)/2)
   constexpr uint64_t L = 1 << (log2Floor(N) / 2);
