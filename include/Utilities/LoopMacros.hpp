@@ -6,12 +6,16 @@
 #define POLYMATHVECTORIZE _Pragma("GCC ivdep")
 #define POLYMATHIVDEP _Pragma("GCC ivdep")
 #define POLYMATHNOUNROLL _Pragma("GCC unroll 0")
+#if __GNUC__ >= 14
 #define POLYMATHNOVECTORIZE _Pragma("GCC novector")
+#else
+#define POLYMATHNOVECTORIZE
+#endif
 // #define POLYMATHVECTORIZE _Pragma("GCC unroll 2") _Pragma("GCC ivdep")
 #elif defined (__clang__)
 #define POLYMATHVECTORIZE _Pragma("omp simd")\
  _Pragma("clang loop vectorize(enable) interleave_count(2) vectorize_predicate(enable)")
-#define POLYMATHIVDEP
+#define POLYMATHIVDEP _Pragma("clang loop vectorize(disable)")
 #define POLYMATHNOUNROLL _Pragma("nounroll")
 #define POLYMATHNOVECTORIZE _Pragma("clang loop vectorize(disable)")
 #else

@@ -355,7 +355,7 @@ template <AbstractMatrix A, AbstractMatrix B> struct MatMatMul {
   auto operator[](ptrdiff_t i, ptrdiff_t j) const -> value_type {
     static_assert(AbstractMatrix<B>, "B should be an AbstractMatrix");
     value_type s{};
-    POLYMATHNOUNROLL
+    POLYMATHNOVECTORIZE
     for (ptrdiff_t k = 0; k < ptrdiff_t(a.numCol()); ++k)
       s += a[i, k] * b[k, j];
     return s;
@@ -383,7 +383,7 @@ template <AbstractMatrix A, AbstractVector B> struct MatVecMul {
   auto operator[](ptrdiff_t i) const -> value_type {
     invariant(a.numCol() == b.size());
     value_type s = 0;
-    POLYMATHNOUNROLL
+    POLYMATHNOVECTORIZE
     for (ptrdiff_t k = 0; k < a.numCol(); ++k) s += a[i, k] * b[k];
     return s;
   }
