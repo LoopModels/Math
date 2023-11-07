@@ -79,5 +79,4 @@ constexpr auto selfDot(const auto &a) {
   for (auto x : a) sum += x * x;
   return sum;
 }
-
 } // namespace poly::math

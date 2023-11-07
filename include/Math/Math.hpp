@@ -7,6 +7,7 @@
 #include "Math/Indexing.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/MatrixDimensions.hpp"
+#include "Utilities/LoopMacros.hpp"
 #include "Utilities/Parameters.hpp"
 #include "Utilities/TypePromotion.hpp"
 #include <algorithm>
@@ -82,6 +83,7 @@ concept BinaryFuncOfElts =
 template <typename Op, typename A> struct Elementwise {
   using value_type =
     decltype(std::declval<Op>()(std::declval<utils::eltype_t<A>>()));
+  static constexpr bool has_reduction_loop = HasInnerReduction<A>;
   [[no_unique_address]] Op op;
   [[no_unique_address]] A a;
   constexpr auto operator[](ptrdiff_t i) const { return op(a[i]); }
@@ -155,6 +157,9 @@ template <Trivial A, TrivialCompatible<A> B, BinaryFuncOfElts<A, B> Op>
 struct ElementwiseBinaryOp {
   using elta = indextype_t<A, B>;
   using eltb = indextype_t<B, A>;
+
+  static constexpr bool has_reduction_loop =
+    HasInnerReduction<A> || HasInnerReduction<B>;
 
   using value_type =
     decltype(std::declval<Op>()(std::declval<elta>(), std::declval<eltb>()));
@@ -283,6 +288,8 @@ template <typename T> constexpr auto transpose(const Transpose<T> &a) -> T {
 template <TrivialVecOrMat C, Trivial A, Trivial B>
 struct Select : public AbstractSelect<C, A, B> {
   using value_type = AbstractSelect<C, A, B>::value_type;
+  static constexpr bool has_reduction_loop =
+    HasInnerReduction<A> || HasInnerReduction<B>;
   constexpr auto operator[](ptrdiff_t i) const -> value_type
   requires LinearlyIndexableOrConvertible<C, bool> &&
            LinearlyIndexableOrConvertible<A, value_type> &&
@@ -309,6 +316,8 @@ constexpr auto select(const VecOrMat auto &c, const auto &a, const auto &b) {
 template <TrivialVecOrMat C, Trivial A, Trivial B, BinaryFuncOfElts<A, B> Op>
 struct Conditional : public AbstractSelect<C, A, B> {
   using value_type = AbstractSelect<C, A, B>::value_type;
+  static constexpr bool has_reduction_loop =
+    HasInnerReduction<A> || HasInnerReduction<B>;
   [[no_unique_address]] Op op;
 
   constexpr auto operator[](ptrdiff_t i) const -> value_type
@@ -340,11 +349,13 @@ constexpr auto conditional(auto op, const VecOrMat auto &c, const auto &a,
 template <AbstractMatrix A, AbstractMatrix B> struct MatMatMul {
   using value_type = utils::promote_eltype_t<A, B>;
   using concrete = is_concrete_t<A, B>;
+  static constexpr bool has_reduction_loop = true;
   [[no_unique_address]] A a;
   [[no_unique_address]] B b;
-  constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) const -> value_type {
+  auto operator[](ptrdiff_t i, ptrdiff_t j) const -> value_type {
     static_assert(AbstractMatrix<B>, "B should be an AbstractMatrix");
     value_type s{};
+    POLYMATHNOUNROLL
     for (ptrdiff_t k = 0; k < ptrdiff_t(a.numCol()); ++k)
       s += a[i, k] * b[k, j];
     return s;
@@ -366,11 +377,13 @@ template <AbstractMatrix A, AbstractMatrix B> struct MatMatMul {
 template <AbstractMatrix A, AbstractVector B> struct MatVecMul {
   using value_type = utils::promote_eltype_t<A, B>;
   using concrete = is_concrete_t<A, B>;
+  static constexpr bool has_reduction_loop = true;
   [[no_unique_address]] A a;
   [[no_unique_address]] B b;
-  constexpr auto operator[](ptrdiff_t i) const -> value_type {
+  auto operator[](ptrdiff_t i) const -> value_type {
     invariant(a.numCol() == b.size());
     value_type s = 0;
+    POLYMATHNOUNROLL
     for (ptrdiff_t k = 0; k < a.numCol(); ++k) s += a[i, k] * b[k];
     return s;
   }

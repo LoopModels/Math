@@ -1249,32 +1249,7 @@ struct POLY_MATH_GSL_OWNER ManagedArray : ReallocView<T, S, A> {
     : BaseT{memory.data(), S(b.dim()), U(N), b.get_allocator()} {
     U len = U(this->sz);
     this->growUndef(len);
-    if constexpr (DenseLayout<D> && DenseLayout<S>) {
-      std::copy_n(b.data(), len, this->data());
-    } else if constexpr (MatrixDimension<D> && MatrixDimension<S>) {
-      invariant(b.numRow() == this->numRow());
-      invariant(b.numCol() == this->numCol());
-      for (ptrdiff_t m = 0; m < this->numRow(); ++m) {
-        POLYMATHVECTORIZE
-        for (ptrdiff_t n = 0; n < this->numCol(); ++n) (*this)(m, n) = b(m, n);
-      }
-    } else if constexpr (MatrixDimension<D>) {
-      ptrdiff_t j = 0;
-      for (ptrdiff_t m = 0; m < b.numRow(); ++m) {
-        POLYMATHVECTORIZE
-        for (ptrdiff_t n = 0; n < b.numCol(); ++n) (*this)(j++) = b(m, n);
-      }
-    } else if constexpr (MatrixDimension<S>) {
-      ptrdiff_t j = 0;
-      for (ptrdiff_t m = 0; m < this->numRow(); ++m) {
-        POLYMATHVECTORIZE
-        for (ptrdiff_t n = 0; n < this->numCol(); ++n) (*this)(m, n) = b(j++);
-      }
-    } else {
-      T *p = this->data();
-      POLYMATHVECTORIZE
-      for (ptrdiff_t i = 0; i < len; ++i) p[i] = b[i];
-    }
+    (*this) << b;
   }
   template <std::convertible_to<T> Y, size_t M>
   constexpr ManagedArray(std::array<Y, M> il) noexcept

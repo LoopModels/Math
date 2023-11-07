@@ -258,4 +258,8 @@ constexpr auto calcNewDim(SquareDims<> d, CartesianIndex<B, Colon> i) {
   return DenseDims(row(rowDims), Col(d));
 }
 
+
+template <typename T>
+concept HasInnerReduction = bool(T::has_reduction_loop);
+
 } // namespace poly::math
