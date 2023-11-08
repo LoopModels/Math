@@ -342,4 +342,8 @@ constexpr auto row(MatrixDimension auto s) { return Row(s); }
 constexpr auto col(MatrixDimension auto s) { return Col(s); }
 constexpr auto rowStride(MatrixDimension auto s) { return RowStride(s); }
 
+template <typename T>
+concept HasInnerReduction = bool(T::has_reduction_loop);
+
+
 } // namespace poly::math

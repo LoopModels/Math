@@ -32,6 +32,7 @@ if(((USE_SANITIZER MATCHES "([Aa]ddress)") OR (USE_SANITIZER MATCHES "([Aa]ddres
    AND (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 )
   find_library(LUNWIND_LIB lunwind)
+message(STATUS "Found unwindlib ${LUNWIND_LIB}")
   if(LUNWIND_LIB)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lunwind -Wno-unused-command-line-argument")
   endif()

@@ -33,75 +33,88 @@ public:
   [[nodiscard]] constexpr auto gradient(ptrdiff_t i) const -> const T & {
     return partials[i];
   }
-  constexpr auto operator-() const & -> Dual { return {-val, -partials}; }
-  constexpr auto operator+(const Dual &other) const & -> Dual {
+  [[gnu::always_inline]] constexpr auto operator-() const & -> Dual {
+    return {-val, -partials};
+  }
+  [[gnu::always_inline]] constexpr auto
+  operator+(const Dual &other) const & -> Dual {
     return {val + other.val, partials + other.partials};
   }
-  constexpr auto operator-(const Dual &other) const -> Dual {
+  [[gnu::always_inline]] constexpr auto operator-(const Dual &other) const
+    -> Dual {
     return {val - other.val, partials - other.partials};
   }
-  constexpr auto operator*(const Dual &other) const -> Dual {
+  [[gnu::always_inline]] constexpr auto operator*(const Dual &other) const
+    -> Dual {
     return {val * other.val, val * other.partials + other.val * partials};
   }
-  constexpr auto operator/(const Dual &other) const -> Dual {
+  [[gnu::always_inline]] constexpr auto operator/(const Dual &other) const
+    -> Dual {
     return {val / other.val, (other.val * partials - val * other.partials) /
                                (other.val * other.val)};
   }
-  constexpr auto operator+=(const Dual &other) -> Dual & {
+  [[gnu::always_inline]] constexpr auto operator+=(const Dual &other)
+    -> Dual & {
     val += other.val;
     partials += other.partials;
     return *this;
   }
-  constexpr auto operator-=(const Dual &other) -> Dual & {
+  [[gnu::always_inline]] constexpr auto operator-=(const Dual &other)
+    -> Dual & {
     val -= other.val;
     partials -= other.partials;
     return *this;
   }
-  constexpr auto operator*=(const Dual &other) -> Dual & {
+  [[gnu::always_inline]] constexpr auto operator*=(const Dual &other)
+    -> Dual & {
     val *= other.val;
     partials << val * other.partials + other.val * partials;
     return *this;
   }
-  constexpr auto operator/=(const Dual &other) -> Dual & {
+  [[gnu::always_inline]] constexpr auto operator/=(const Dual &other)
+    -> Dual & {
     val /= other.val;
     partials << (other.val * partials - val * other.partials) /
                   (other.val * other.val);
     return *this;
   }
-  constexpr auto operator+(double other) const & -> Dual {
+  [[gnu::always_inline]] constexpr auto
+  operator+(double other) const & -> Dual {
     return {val + other, partials};
   }
-  constexpr auto operator-(double other) const -> Dual {
+  [[gnu::always_inline]] constexpr auto operator-(double other) const -> Dual {
     return {val - other, partials};
   }
-  constexpr auto operator*(double other) const -> Dual {
+  [[gnu::always_inline]] constexpr auto operator*(double other) const -> Dual {
     return {val * other, other * partials};
   }
-  constexpr auto operator/(double other) const -> Dual {
+  [[gnu::always_inline]] constexpr auto operator/(double other) const -> Dual {
     return {val / other, partials / other};
   }
-  constexpr auto operator+=(double other) -> Dual & {
+  [[gnu::always_inline]] constexpr auto operator+=(double other) -> Dual & {
     val += other;
     return *this;
   }
-  constexpr auto operator-=(double other) -> Dual & {
+  [[gnu::always_inline]] constexpr auto operator-=(double other) -> Dual & {
     val -= other;
     return *this;
   }
-  constexpr auto operator*=(double other) -> Dual & {
+  [[gnu::always_inline]] constexpr auto operator*=(double other) -> Dual & {
     val *= other;
     partials *= other;
     return *this;
   }
-  constexpr auto operator/=(double other) -> Dual & {
+  [[gnu::always_inline]] constexpr auto operator/=(double other) -> Dual & {
     val /= other;
     partials /= other;
     return *this;
   }
-  constexpr auto operator==(const Dual &other) const -> bool {
+  [[gnu::always_inline]] constexpr auto operator==(const Dual &other) const
+    -> bool {
     return val == other.val; // && grad == other.grad;
   }
-  constexpr auto operator!=(const Dual &other) const -> bool {
+  [[gnu::always_inline]] constexpr auto operator!=(const Dual &other) const
+    -> bool {
     return val != other.val; // || grad != other.grad;
   }
   constexpr auto operator==(double other) const -> bool { return val == other; }
@@ -126,19 +139,23 @@ public:
 template <class T, ptrdiff_t N> Dual(T, SVector<T, N>) -> Dual<T, N>;
 
 template <class T, ptrdiff_t N>
-constexpr auto operator+(double other, Dual<T, N> x) -> Dual<T, N> {
+[[gnu::always_inline]] constexpr auto operator+(double other, Dual<T, N> x)
+  -> Dual<T, N> {
   return {x.value() + other, x.gradient()};
 }
 template <class T, ptrdiff_t N>
-constexpr auto operator-(double other, Dual<T, N> x) -> Dual<T, N> {
+[[gnu::always_inline]] constexpr auto operator-(double other, Dual<T, N> x)
+  -> Dual<T, N> {
   return {x.value() - other, -x.gradient()};
 }
 template <class T, ptrdiff_t N>
-constexpr auto operator*(double other, Dual<T, N> x) -> Dual<T, N> {
+[[gnu::always_inline]] constexpr auto operator*(double other, Dual<T, N> x)
+  -> Dual<T, N> {
   return {x.value() * other, other * x.gradient()};
 }
 template <class T, ptrdiff_t N>
-constexpr auto operator/(double other, Dual<T, N> x) -> Dual<T, N> {
+[[gnu::always_inline]] constexpr auto operator/(double other, Dual<T, N> x)
+  -> Dual<T, N> {
   return {other / x.value(), -other * x.gradient() / (x.value() * x.value())};
 }
 template <class T, ptrdiff_t N> constexpr auto exp(Dual<T, N> x) -> Dual<T, N> {

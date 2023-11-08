@@ -43,6 +43,7 @@ template <class T, class S, class P> class ArrayOps {
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
       invariant(M, B.size());
+      POLYMATHNOVECTORIZE
       for (ptrdiff_t i = 0; i < M; ++i) {
         T Bi = B[i];
         POLYMATHVECTORIZE
@@ -68,6 +69,7 @@ template <class T, class S, class P> class ArrayOps {
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
       invariant(M, B.size());
+      POLYMATHNOVECTORIZE
       for (ptrdiff_t i = 0; i < M; ++i) {
         T Bi = B[i];
         POLYMATHIVDEP
@@ -101,6 +103,7 @@ template <class T, class S, class P> class ArrayOps {
         std::copy_n(B.data(), M * N, data_());
       else std::memcpy(data_(), M * N * sizeof(T), B.data());
     } else {
+      POLYMATHNOVECTORIZE
       for (ptrdiff_t i = 0; i < M; ++i) {
         if constexpr (std::is_copy_assignable_v<T>) {
           POLYMATHVECTORIZE
@@ -125,6 +128,7 @@ template <class T, class S, class P> class ArrayOps {
         std::copy_n(B.data(), M * N, data_());
       else std::memcpy(data_(), M * N * sizeof(T), B.data());
     } else {
+      POLYMATHNOVECTORIZE
       for (ptrdiff_t i = 0; i < M; ++i) {
         if constexpr (std::is_copy_assignable_v<T>) {
           POLYMATHIVDEP
@@ -148,6 +152,7 @@ template <class T, class S, class P> class ArrayOps {
     } else {
       ptrdiff_t M = nr(), N = nc(), X = rs();
       T *p = data_();
+      POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r, p += X) std::fill_n(p, N, T(b));
     }
   }
@@ -161,6 +166,7 @@ template <class T, class S, class P> class ArrayOps {
     } else {
       ptrdiff_t M = nr(), N = nc(), X = rs();
       T *p = data_();
+      POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r, p += X) std::fill_n(p, N, T(b));
     }
   }
@@ -171,6 +177,7 @@ template <class T, class S, class P> class ArrayOps {
     invariant(M, ptrdiff_t(B.numRow()));
     invariant(N, ptrdiff_t(B.numCol()));
     P &self{Self()};
+    POLYMATHNOVECTORIZE
     for (ptrdiff_t r = 0; r < M; ++r) {
       POLYMATHVECTORIZE
       for (ptrdiff_t c = 0; c < N; ++c) self[r, c] += B[r, c];
@@ -182,6 +189,7 @@ template <class T, class S, class P> class ArrayOps {
     invariant(M, ptrdiff_t(B.numRow()));
     invariant(N, ptrdiff_t(B.numCol()));
     P &self{Self()};
+    POLYMATHNOVECTORIZE
     for (ptrdiff_t r = 0; r < M; ++r) {
       POLYMATHIVDEP
       for (ptrdiff_t c = 0; c < N; ++c) self[r, c] += B[r, c];
@@ -194,6 +202,7 @@ template <class T, class S, class P> class ArrayOps {
     invariant(M, ptrdiff_t(B.numRow()));
     invariant(N, ptrdiff_t(B.numCol()));
     P &self{Self()};
+    POLYMATHNOVECTORIZE
     for (ptrdiff_t r = 0; r < M; ++r) {
       POLYMATHVECTORIZE
       for (ptrdiff_t c = 0; c < N; ++c) self[r, c] -= B[r, c];
@@ -205,6 +214,7 @@ template <class T, class S, class P> class ArrayOps {
     invariant(M, ptrdiff_t(B.numRow()));
     invariant(N, ptrdiff_t(B.numCol()));
     P &self{Self()};
+    POLYMATHNOVECTORIZE
     for (ptrdiff_t r = 0; r < M; ++r) {
       POLYMATHIVDEP
       for (ptrdiff_t c = 0; c < N; ++c) self[r, c] -= B[r, c];
@@ -215,6 +225,7 @@ template <class T, class S, class P> class ArrayOps {
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
       invariant(M, B.size());
+      POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         auto Br = B[r];
         POLYMATHVECTORIZE
@@ -232,6 +243,7 @@ template <class T, class S, class P> class ArrayOps {
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
       invariant(M, B.size());
+      POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         auto Br = B[r];
         POLYMATHIVDEP
@@ -248,6 +260,7 @@ template <class T, class S, class P> class ArrayOps {
     P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
+      POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHVECTORIZE
         for (ptrdiff_t c = 0; c < N; ++c) self[r, c] += b;
@@ -261,6 +274,7 @@ template <class T, class S, class P> class ArrayOps {
     P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
+      POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHIVDEP
         for (ptrdiff_t c = 0; c < N; ++c) self[r, c] += b;
@@ -275,6 +289,7 @@ template <class T, class S, class P> class ArrayOps {
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
       invariant(M == B.size());
+      POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         auto Br = B[r];
         POLYMATHVECTORIZE
@@ -292,6 +307,7 @@ template <class T, class S, class P> class ArrayOps {
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
       invariant(M == B.size());
+      POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         auto Br = B[r];
         POLYMATHIVDEP
@@ -308,6 +324,7 @@ template <class T, class S, class P> class ArrayOps {
     P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
+      POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHVECTORIZE
         for (ptrdiff_t c = 0; c < N; ++c) self[r, c] *= b;
@@ -322,6 +339,7 @@ template <class T, class S, class P> class ArrayOps {
     P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
+      POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHIVDEP
         for (ptrdiff_t c = 0; c < N; ++c) self[r, c] *= b;
@@ -335,6 +353,7 @@ template <class T, class S, class P> class ArrayOps {
     P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
+      POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHVECTORIZE
         for (ptrdiff_t c = 0; c < N; ++c) self[r, c] /= b;
@@ -349,6 +368,7 @@ template <class T, class S, class P> class ArrayOps {
     P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
+      POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHIVDEP
         for (ptrdiff_t c = 0; c < N; ++c) self[r, c] /= b;

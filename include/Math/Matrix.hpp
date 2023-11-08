@@ -62,6 +62,7 @@ template <typename A> struct Transpose {
                 "Argument to transpose is not trivially copyable.");
 
   using value_type = utils::eltype_t<A>;
+  static constexpr bool has_reduction_loop = HasInnerReduction<A>;
   [[no_unique_address]] A a;
   constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) const -> value_type {
     if constexpr (AbstractMatrix<A>) return a[j, i];
