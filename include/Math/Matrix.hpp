@@ -33,6 +33,12 @@ concept AbstractMatrix = AbstractMatrixCore<T> && requires(T t, ptrdiff_t i) {
   { t.view() } -> AbstractMatrixCore;
 };
 template <typename T>
+concept RowVector = AbstractMatrix<T> &&
+                    std::same_as<decltype(std::declval<T>().numRow()), Row<1>>;
+template <class A>
+concept VecOrMat = AbstractVector<A> || AbstractMatrix<A>;
+
+template <typename T>
 concept HasDataPtr = requires(T t) {
   { t.data() } -> std::same_as<utils::eltype_t<T> *>;
 };
@@ -65,11 +71,10 @@ template <typename A> struct Transpose {
   static constexpr bool has_reduction_loop = HasInnerReduction<A>;
   [[no_unique_address]] A a;
   constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) const -> value_type {
-    if constexpr (AbstractMatrix<A>) return a[j, i];
-    else {
+    if constexpr (!AbstractMatrix<A>) {
       invariant(i == 0);
       return a[j];
-    }
+    } else return a[j, i];
   }
   [[nodiscard]] constexpr auto numRow() const {
     if constexpr (AbstractMatrix<A>) return transpose_dim(a.numCol());
@@ -88,8 +93,36 @@ template <typename A> struct Transpose {
     return DenseDims(numRow(), numCol());
   }
   constexpr Transpose(A b) : a(b) {}
-  constexpr auto transpose() const -> A { return a; }
+  constexpr auto t() const -> A { return a; }
+  constexpr auto operator<<(const auto &b) -> Transpose<A> & {
+    a << transpose(b);
+    return *this;
+  }
+  constexpr auto operator+=(const auto &b) -> Transpose<A> & {
+    a += transpose(b);
+    return *this;
+  }
+  constexpr auto operator-=(const auto &b) -> Transpose<A> & {
+    a -= transpose(b);
+    return *this;
+  }
+  constexpr auto operator*=(const auto &b) -> Transpose<A> & {
+    a *= transpose(b);
+    return *this;
+  }
+  constexpr auto operator/=(const auto &b) -> Transpose<A> & {
+    a /= transpose(b);
+    return *this;
+  }
 };
 template <typename A> Transpose(A) -> Transpose<A>;
+
+template <typename T> constexpr auto transpose(const T &a) {
+  if constexpr (requires(T t) {
+                  { t.t() } -> VecOrMat;
+                })
+    return a.t();
+  else return Transpose{view(a)};
+}
 
 } // namespace poly::math

@@ -80,15 +80,15 @@ TEST(SparseIndexingTest, BasicAssertions) {
   IntMatrix<> C2{A * B};
   std::cout << "C=" << C << "\nC2=" << C2 << "\n";
   EXPECT_TRUE(C == C2);
-  IntMatrix<> At{A.transpose()}, Bt{B.transpose()};
-  // At << A.transpose();
-  // Bt << B.transpose();
-  C2 += At.transpose() * Bt.transpose();
+  IntMatrix<> At{A.t()}, Bt{B.t()};
+  // At << A.t();
+  // Bt << B.t();
+  C2 += At.t() * Bt.t();
   EXPECT_TRUE(C * 2 == C2);
-  EXPECT_TRUE(C == At.transpose() * B);
-  EXPECT_TRUE(C == A * Bt.transpose());
-  EXPECT_TRUE(C == At.transpose() * Bt.transpose());
-  C2 -= A * Bt.transpose();
+  EXPECT_TRUE(C == At.t() * B);
+  EXPECT_TRUE(C == A * Bt.t());
+  EXPECT_TRUE(C == At.t() * Bt.t());
+  C2 -= A * Bt.t();
   EXPECT_TRUE(C == C2);
   int64_t i = 0;
   IntMatrix<> D{C};
@@ -208,7 +208,7 @@ TEST(SquareMatrixTest, BasicAssertions) {
   for (ptrdiff_t i = 0; i < 4; ++i)
     for (ptrdiff_t j = 0; j < 4; ++j) A[i, j] = 4 * i + j;
   DenseMatrix<int64_t> B{DenseDims<>{{4}, {2}}};
-  B << A[_(end - 2, end), _].transpose();
+  B << A[_(end - 2, end), _].t();
   for (ptrdiff_t j = 0; j < 4; ++j)
     for (ptrdiff_t i = 0; i < 2; ++i) EXPECT_EQ((B[j, i]), 4 * (i + 2) + j);
 }

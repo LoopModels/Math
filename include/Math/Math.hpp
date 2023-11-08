@@ -21,9 +21,6 @@
 namespace poly::math {
 struct Rational;
 
-template <class A>
-concept VecOrMat = AbstractVector<A> || AbstractMatrix<A>;
-
 template <class T, class C>
 concept RangeOffsetPair =
   (std::convertible_to<T, Range<ptrdiff_t, ptrdiff_t>> &&
@@ -280,10 +277,6 @@ inline constexpr auto view(const auto &x) { return x.view(); }
 template <class T, class S> constexpr auto view(const Array<T, S> &x) {
   return x;
 }
-constexpr auto transpose(const auto &a) { return Transpose{view(a)}; }
-template <typename T> constexpr auto transpose(const Transpose<T> &a) -> T {
-  return a.transpose();
-}
 
 template <TrivialVecOrMat C, Trivial A, Trivial B>
 struct Select : public AbstractSelect<C, A, B> {
@@ -372,7 +365,7 @@ template <AbstractMatrix A, AbstractMatrix B> struct MatMatMul {
     return {numRow(), numCol()};
   }
   [[nodiscard]] constexpr auto view() const { return *this; };
-  [[nodiscard]] constexpr auto transpose() const { return Transpose{*this}; };
+  [[nodiscard]] constexpr auto t() const { return Transpose{*this}; };
 };
 template <AbstractMatrix A, AbstractVector B> struct MatVecMul {
   using value_type = utils::promote_eltype_t<A, B>;
@@ -565,20 +558,35 @@ static_assert(AbstractMatrix<Elementwise<std::negate<>, PtrMatrix<int64_t>>>);
 static_assert(AbstractMatrix<Array<int64_t, SquareDims<>>>);
 static_assert(AbstractMatrix<ManagedArray<int64_t, SquareDims<>>>);
 
+constexpr auto dot(const auto &a, const auto &b) {
+  ptrdiff_t L = a.size();
+  invariant(L, b.size());
+  decltype(a[0] * b[0] + a[1] * b[1]) s{};
+  for (ptrdiff_t i = 0; i < L; ++i) s += a[i] * b[i];
+  return s;
+}
+
+// we can have vector*vector (elementwise)
+// matrix*vector
+// matrix*matrix
+// We can't have vector*matrix
 constexpr auto operator*(const VecOrMat auto &a, const VecOrMat auto &b) {
   auto AA{a.view()};
   auto BB{b.view()};
+  invariant(ptrdiff_t(AA.numCol()), ptrdiff_t(BB.numRow()));
   if constexpr (AbstractVector<decltype(BB)>) {
     if constexpr (AbstractVector<decltype(AA)>) {
       ElementwiseBinaryOp(std::multiplies<>{}, AA, BB);
+    } else if constexpr (RowVector<decltype(a)>) {
+      return dot(AA.t(), BB);
     } else {
       invariant(ptrdiff_t(AA.numCol()) == BB.size());
       return MatVecMul<decltype(AA), decltype(BB)>{.a = AA, .b = BB};
     }
-  } else {
-    invariant(ptrdiff_t(AA.numCol()) == ptrdiff_t(BB.numRow()));
-    return MatMatMul<decltype(AA), decltype(BB)>{.a = AA, .b = BB};
-  }
+  } else if constexpr (RowVector<decltype(a)>) {
+    static_assert(AbstractVector<decltype(transpose(a))>); // no recursion
+    return transpose(transpose(b) * transpose(a));
+  } else return MatMatMul<decltype(AA), decltype(BB)>{.a = AA, .b = BB};
 }
 template <AbstractVector M, utils::ElementOf<M> S>
 constexpr auto operator*(const M &b, S a) {
@@ -669,7 +677,7 @@ static_assert(AbstractMatrix<Transpose<PtrMatrix<int64_t>>>);
 template <AbstractVector V>
 constexpr auto operator*(const Transpose<V> &at, const AbstractVector auto &b) {
   utils::promote_eltype_t<V, decltype(b)> s{};
-  auto a = at.transpose();
+  auto a = at.t();
   ptrdiff_t l = a.size();
   invariant(l == b.size());
   for (ptrdiff_t i = 0; i < l; ++i) s += a[i] * b[i];

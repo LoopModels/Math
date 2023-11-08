@@ -66,7 +66,7 @@ TEST(DoubleFactorization, BasicAssertions) {
     EXPECT_TRUE(norm2(D * B - C) < 1e-10);
 
     // LDL; make `A` symmetric
-    D << A + A.transpose();
+    D << A + A.t();
     A << D;
     B << C;
     // B = A \ B

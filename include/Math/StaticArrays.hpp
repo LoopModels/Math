@@ -130,7 +130,7 @@ struct StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
     else return CartesianIndex{Row(S{}), Col(S{})};
   }
   [[nodiscard]] static constexpr auto dim() noexcept -> S { return S{}; }
-  [[nodiscard]] constexpr auto transpose() const { return Transpose{*this}; }
+  [[nodiscard]] constexpr auto t() const { return Transpose{*this}; }
   [[nodiscard]] constexpr auto isExchangeMatrix() const -> bool {
     ptrdiff_t N = ptrdiff_t(numRow());
     if (N != ptrdiff_t(numCol())) return false;

@@ -264,13 +264,13 @@ public:
     // LD^-1L' x = rhs
     // L y = rhs // L is UnitLowerTriangular
     for (ptrdiff_t m = 0; m < M; ++m)
-      rhs[m, _] -= rhs[_(0, m), _].transpose() * fact[m, _(0, m)];
+      rhs[m, _] -= rhs[_(0, m), _].t() * fact[m, _(0, m)];
 
     // D^-1 L' x = y
     // L' x = D y
     for (ptrdiff_t m = M; m--;) {
       rhs[m, _] *= fact[m, m];
-      rhs[m, _] -= rhs[_(m + 1, M), _].transpose() * fact[_(m + 1, M), m];
+      rhs[m, _] -= rhs[_(m + 1, M), _].t() * fact[_(m + 1, M), m];
     }
   }
   constexpr void ldiv(MutPtrVector<T> rhs) {
@@ -279,12 +279,12 @@ public:
     // LD^-1L' x = rhs
     // L y = rhs // L is UnitLowerTriangular
     for (ptrdiff_t m = 0; m < M; ++m)
-      rhs[m] -= fact[m, _(0, m)].transpose() * rhs[_(0, m)];
+      rhs[m] -= fact[m, _(0, m)].t() * rhs[_(0, m)];
     // D^-1 L' x = y
     // L' x = D y
     for (ptrdiff_t m = M; m--;) {
       rhs[m] *= fact[m, m];
-      rhs[m] -= fact[_(m + 1, M), m].transpose() * rhs[_(m + 1, M)];
+      rhs[m] -= fact[_(m + 1, M), m].t() * rhs[_(m + 1, M)];
     }
   }
   constexpr void ldiv(MutPtrVector<T> dst, TrivialVec auto src) {
@@ -294,13 +294,13 @@ public:
     // LD^-1L' x = rhs
     // L y = rhs // L is UnitLowerTriangular
     for (ptrdiff_t m = 0; m < M; ++m)
-      dst[m] = src[m] - fact[m, _(0, m)].transpose() * dst[_(0, m)];
+      dst[m] = src[m] - fact[m, _(0, m)].t() * dst[_(0, m)];
 
     // D^-1 L' x = y
     // L' x = D y
     for (ptrdiff_t m = M; m--;) {
       dst[m] *= fact[m, m];
-      dst[m] -= fact[_(m + 1, M), m].transpose() * dst[_(m + 1, M)];
+      dst[m] -= fact[_(m + 1, M), m].t() * dst[_(m + 1, M)];
     }
   }
 };

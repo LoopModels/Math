@@ -169,6 +169,7 @@ template <typename T, T V>
 constexpr auto is_integral_const(std::integral_constant<T, V>) -> bool {
   return true;
 }
+constexpr auto row(StridedRange r) -> Row<> { return {r.len}; }
 
 template <typename T>
 concept StaticInt =
@@ -238,7 +239,7 @@ constexpr auto calcNewDim(StridedDims<> d, CartesianIndex<B, C> i) {
 
 template <ScalarIndex R, AbstractSlice C>
 constexpr auto calcNewDim(StridedDims<> d, CartesianIndex<R, C> i) {
-  return calcNewDim(ptrdiff_t(Col(d)), i.col);
+  return DenseDims{Row<1>{}, col(calcNewDim(ptrdiff_t(Col(d)), i.col))};
 }
 
 template <AbstractSlice B, AbstractSlice C>

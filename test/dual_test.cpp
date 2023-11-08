@@ -22,7 +22,7 @@ TEST(DualTest, BasicAssertions) {
   Vector<double> x(15);
   for (auto &a : A) a = dist(gen);
   for (auto &xx : x) xx = dist(gen);
-  SquareMatrix<double> B = A + A.transpose();
+  SquareMatrix<double> B = A + A.t();
   const auto halfquadform = [&](const auto &y) {
     return 0.5 * (transpose(y) * (B * y));
   };

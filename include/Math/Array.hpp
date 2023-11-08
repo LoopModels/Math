@@ -222,7 +222,7 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
     auto offset = calcOffset(sz, i);
     auto newDim = calcNewDim(sz, i);
     invariant(ptr != nullptr);
-    if constexpr (std::is_same_v<decltype(newDim), Empty>)
+    if constexpr (std::same_as<decltype(newDim), Empty>)
       return static_cast<const T *>(ptr)[offset];
     else return Array<T, decltype(newDim)>{ptr + offset, newDim};
   }
@@ -257,20 +257,14 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
     return N;
   }
 
-  [[nodiscard]] constexpr auto numRow() const noexcept
-  requires(MatrixDimension<S>)
-  {
-    return Row(sz);
+  [[nodiscard]] constexpr auto numRow() const noexcept { return row(sz); }
+  [[nodiscard]] constexpr auto numCol() const noexcept {
+    if constexpr (MatrixDimension<S>) return Col(sz);
+    else return Col<1>{};
   }
-  [[nodiscard]] constexpr auto numCol() const noexcept
-  requires(MatrixDimension<S>)
-  {
-    return Col(sz);
-  }
-  [[nodiscard]] constexpr auto rowStride() const noexcept
-  requires(MatrixDimension<S>)
-  {
-    return RowStride(sz);
+  [[nodiscard]] constexpr auto rowStride() const noexcept {
+    if constexpr (MatrixDimension<S>) return RowStride(sz);
+    else return RowStride<1>{};
   }
   [[nodiscard]] constexpr auto empty() const -> bool { return sz == S{}; }
   [[nodiscard]] constexpr auto size() const noexcept {
@@ -281,7 +275,11 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   }
   [[nodiscard]] constexpr auto dim() const noexcept -> S { return sz; }
   constexpr void clear() { sz = S{}; }
-  [[nodiscard]] constexpr auto transpose() const { return Transpose{*this}; }
+  [[nodiscard]] constexpr auto t() const {
+    if constexpr (!std::same_as<decltype(numRow()), Row<1>>)
+      return Transpose{*this};
+    else return Array<T, ptrdiff_t>{ptr, ptrdiff_t(numCol())};
+  }
   [[nodiscard]] constexpr auto isExchangeMatrix() const -> bool
   requires(MatrixDimension<S>)
   {
@@ -662,6 +660,10 @@ static_assert(std::convertible_to<MutArray<int64_t, SquareDims<>>,
                                   MutArray<int64_t, StridedDims<>>>);
 static_assert(std::convertible_to<MutArray<int64_t, DenseDims<>>,
                                   MutArray<int64_t, StridedDims<>>>);
+static_assert(AbstractVector<Array<int64_t, ptrdiff_t>>);
+static_assert(!AbstractVector<Array<int64_t, StridedDims<>>>);
+static_assert(AbstractMatrix<Array<int64_t, StridedDims<>>>);
+static_assert(RowVector<Transpose<Array<int64_t, ptrdiff_t>>>);
 
 template <typename T>
 auto operator*(SliceIterator<T, false> it)
