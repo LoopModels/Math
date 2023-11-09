@@ -27,12 +27,20 @@ template <class R, class C> struct CartesianIndex {
   {
     return {ptrdiff_t(row), ptrdiff_t(col)};
   }
+  constexpr operator ptrdiff_t() const
+  requires(std::same_as<R, std::integral_constant<ptrdiff_t, 1>>)
+  {
+    return col;
+  }
   constexpr operator SquareDims<>() const
-  requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>);
+  requires(std::convertible_to<R, ptrdiff_t> &&
+           std::convertible_to<C, ptrdiff_t>);
   constexpr operator DenseDims<>() const
-  requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>);
+  requires(std::convertible_to<R, ptrdiff_t> &&
+           std::convertible_to<C, ptrdiff_t>);
   constexpr operator StridedDims<>() const
-  requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>);
+  requires(std::convertible_to<R, ptrdiff_t> &&
+           std::convertible_to<C, ptrdiff_t>);
 };
 template <class R, class C> CartesianIndex(R, C) -> CartesianIndex<R, C>;
 
@@ -322,20 +330,20 @@ constexpr inline auto DenseDims<R, C>::operator=(SquareDims<R> D)
 
 template <class R, class C>
 constexpr inline CartesianIndex<R, C>::operator SquareDims<>() const
-requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>)
+requires(std::convertible_to<R, ptrdiff_t> && std::convertible_to<C, ptrdiff_t>)
 {
   invariant(row, col);
   return SquareDims{Row<>{row}};
 }
 template <class R, class C>
 constexpr inline CartesianIndex<R, C>::operator DenseDims<>() const
-requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>)
+requires(std::convertible_to<R, ptrdiff_t> && std::convertible_to<C, ptrdiff_t>)
 {
   return DenseDims{Row<>{row}, Col<>{col}};
 }
 template <class R, class C>
 constexpr inline CartesianIndex<R, C>::operator StridedDims<>() const
-requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>)
+requires(std::convertible_to<R, ptrdiff_t> && std::convertible_to<C, ptrdiff_t>)
 {
   return StridedDims{Row<>{row}, Col<>{col}, RowStride<>{col}};
 }

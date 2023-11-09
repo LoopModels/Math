@@ -7,13 +7,9 @@ namespace poly::math {
 static_assert(
   AbstractSimilar<PtrVector<int64_t>, std::integral_constant<unsigned int, 4>>);
 
-// TODO: add MatrixDimension support
-template <typename T>
-concept StaticSize = StaticInt<T>;
-
-template <class T, StaticSize S>
-struct StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
-  static constexpr ptrdiff_t capacity = ptrdiff_t{S{}};
+template <class T, ptrdiff_t M, ptrdiff_t N>
+struct StaticArray : public ArrayOps<T, DenseDims<M, N>, StaticArray<T, M, N>> {
+  static constexpr ptrdiff_t capacity = M * N;
   T memory_[capacity]; // NOLINT(modernize-avoid-c-arrays)
 
   using value_type = T;
@@ -26,6 +22,8 @@ struct StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
   using pointer = T *;
   using const_pointer = const T *;
   using concrete = std::true_type;
+  using S = std::conditional_t<M == 1, std::integral_constant<ptrdiff_t, N>,
+                               DenseDims<M, N>>;
   constexpr explicit StaticArray(){}; // NOLINT(modernize-use-equals-default)
   constexpr explicit StaticArray(const T &x) noexcept {
     (*this) << x;
@@ -113,31 +111,29 @@ struct StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
   [[nodiscard]] static constexpr auto isSquare() noexcept -> bool {
     return Row(S{}) == Col(S{});
   }
-  [[nodiscard]] constexpr auto checkSquare() const -> Optional<ptrdiff_t> {
-    ptrdiff_t N = ptrdiff_t(numRow());
-    if (N != ptrdiff_t(numCol())) return {};
-    return N;
-  }
 
-  [[nodiscard]] constexpr auto numRow() const noexcept { return row(S{}); }
-  [[nodiscard]] constexpr auto numCol() const noexcept { return col(S{}); }
-  [[nodiscard]] constexpr auto rowStride() const noexcept {
-    return rowStride(S{});
+  [[nodiscard]] constexpr auto checkSquare() const -> Optional<ptrdiff_t> {
+    if constexpr (M == N) return M;
+    else return {};
+  }
+  [[nodiscard]] constexpr auto numRow() const noexcept -> Row<M> { return {}; }
+  [[nodiscard]] constexpr auto numCol() const noexcept -> Col<N> { return {}; }
+  [[nodiscard]] constexpr auto rowStride() const noexcept -> RowStride<N> {
+    return {};
   }
   [[nodiscard]] static constexpr auto empty() -> bool { return capacity == 0; }
   [[nodiscard]] static constexpr auto size() noexcept {
-    if constexpr (StaticInt<S>) return S{};
-    else return CartesianIndex{Row(S{}), Col(S{})};
+    return std::integral_constant<ptrdiff_t, M * N>{};
   }
   [[nodiscard]] static constexpr auto dim() noexcept -> S { return S{}; }
   [[nodiscard]] constexpr auto t() const { return Transpose{*this}; }
   [[nodiscard]] constexpr auto isExchangeMatrix() const -> bool {
-    ptrdiff_t N = ptrdiff_t(numRow());
-    if (N != ptrdiff_t(numCol())) return false;
-    for (ptrdiff_t i = 0; i < N; ++i) {
-      for (ptrdiff_t j = 0; j < N; ++j)
-        if ((*this)(i, j) != (i + j == N - 1)) return false;
-    }
+    if constexpr (M == N) {
+      for (ptrdiff_t i = 0; i < M; ++i) {
+        for (ptrdiff_t j = 0; j < M; ++j)
+          if ((*this)(i, j) != (i + j == M - 1)) return false;
+      }
+    } else return false;
   }
   [[nodiscard]] constexpr auto isDiagonal() const -> bool {
     for (ptrdiff_t r = 0; r < numRow(); ++r)
@@ -202,19 +198,24 @@ struct StaticArray : public ArrayOps<T, S, StaticArray<T, S>> {
   }
 };
 
-template <class T, ptrdiff_t N>
-using SVector = StaticArray<T, std::integral_constant<ptrdiff_t, N>>;
+template <class T, ptrdiff_t N> using SVector = StaticArray<T, 1, N>;
+static_assert(
+  std::same_as<Row<1>, decltype(std::declval<SVector<int64_t, 3>>().numRow())>);
+static_assert(
+  std::same_as<Row<1>, decltype(numRows(std::declval<SVector<int64_t, 3>>()))>);
 
-static_assert(AbstractVector<SVector<int64_t, 3>>);
+static_assert(RowVector<SVector<int64_t, 3>>);
+static_assert(!ColVector<SVector<int64_t, 3>>);
+static_assert(!RowVector<Transpose<SVector<int64_t, 3>>>);
+static_assert(ColVector<Transpose<SVector<int64_t, 3>>>);
 
-template <class T, StaticSize S>
-inline constexpr auto view(const StaticArray<T, S> &x) {
+template <class T, ptrdiff_t M, ptrdiff_t N>
+inline constexpr auto view(const StaticArray<T, M, N> &x) {
   return x.view();
 }
 
 template <class T, class... U>
-StaticArray(T, U...)
-  -> StaticArray<T, std::integral_constant<ptrdiff_t, 1 + sizeof...(U)>>;
+StaticArray(T, U...) -> StaticArray<T, 1, 1 + sizeof...(U)>;
 
 }; // namespace poly::math
 

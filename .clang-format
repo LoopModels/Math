@@ -101,7 +101,6 @@ IndentGotoLabels: true
 IndentPPDirectives: None
 IndentExternBlock: AfterExternBlock
 IndentRequires:  false
-RequiresClausePosition = SingleLine
 IndentWidth:     2
 IndentWrappedFunctionNames: false
 InsertTrailingCommas: None

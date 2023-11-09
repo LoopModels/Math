@@ -271,7 +271,7 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   }
 
   [[nodiscard]] constexpr auto numRow() const noexcept {
-    if constexpr (std::integral<S>) return Row<1>{};
+    if constexpr (std::convertible_to<S, ptrdiff_t>) return Row<1>{};
     else return row(sz);
   }
   [[nodiscard]] constexpr auto numCol() const noexcept { return col(sz); }
@@ -1297,7 +1297,7 @@ struct POLY_MATH_GSL_OWNER ManagedArray : ReallocView<T, S, A> {
   }
   template <AbstractSimilar<S> V>
   constexpr ManagedArray(const V &b) noexcept
-    : BaseT{memory.data(), S(b.size()), U(N)} {
+    : BaseT{memory.data(), S(shape(b)), U(N)} {
     U len = U(this->sz);
     this->growUndef(len);
     (*this) << b;
