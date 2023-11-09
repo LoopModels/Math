@@ -3,7 +3,6 @@
 #include "Math/Indexing.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/UniformScaling.hpp"
-#include "Math/Vector.hpp"
 #include "Utilities/LoopMacros.hpp"
 #include <algorithm>
 #include <cstring>
@@ -97,11 +96,10 @@ template <class T, class S, class P> class ArrayOps {
     invariant(N, ptrdiff_t(B.numCol()));
     P &self{Self()};
     if constexpr (DenseLayout<S> &&
-                  DataMatrix<std::remove_cvref_t<decltype(B)>> &&
-                  DenseLayout<std::remove_cvref_t<decltype(B.dim())>>) {
+                  DenseTensor<std::remove_cvref_t<decltype(B)>>) {
       if constexpr (std::is_copy_assignable_v<T>)
-        std::copy_n(B.data(), M * N, data_());
-      else std::memcpy(data_(), M * N * sizeof(T), B.data());
+        std::copy_n(B.begin(), M * N, data_());
+      else std::memcpy(data_(), M * N * sizeof(T), B.begin());
     } else {
       POLYMATHNOVECTORIZE
       for (ptrdiff_t i = 0; i < M; ++i) {
@@ -122,11 +120,10 @@ template <class T, class S, class P> class ArrayOps {
     invariant(N, ptrdiff_t(B.numCol()));
     P &self{Self()};
     if constexpr (DenseLayout<S> &&
-                  DataMatrix<std::remove_cvref_t<decltype(B)>> &&
-                  DenseLayout<std::remove_cvref_t<decltype(B.dim())>>) {
+                  DenseTensor<std::remove_cvref_t<decltype(B)>>) {
       if constexpr (std::is_copy_assignable_v<T>)
-        std::copy_n(B.data(), M * N, data_());
-      else std::memcpy(data_(), M * N * sizeof(T), B.data());
+        std::copy_n(B.begin(), M * N, data_());
+      else std::memcpy(data_(), M * N * sizeof(T), B.begin());
     } else {
       POLYMATHNOVECTORIZE
       for (ptrdiff_t i = 0; i < M; ++i) {

@@ -9,7 +9,7 @@ namespace LU {
 [[nodiscard]] constexpr auto ldivrat(SquarePtrMatrix<Rational> F,
                                      PtrVector<unsigned> ipiv,
                                      MutPtrMatrix<Rational> rhs) -> bool {
-  auto [M, N] = rhs.size();
+  auto [M, N] = shape(rhs);
   invariant(ptrdiff_t(F.numRow()), ptrdiff_t(M));
   // permute rhs
   for (ptrdiff_t i = 0; i < M; ++i)
@@ -41,7 +41,7 @@ namespace LU {
 template <class S>
 constexpr void ldiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
                     MutPtrMatrix<S> R) {
-  auto [M, N] = R.size();
+  auto [M, N] = shape(R);
   invariant(ptrdiff_t(F.numRow()), ptrdiff_t(M));
   // permute rhs
   for (ptrdiff_t i = 0; i < M; ++i)
@@ -59,7 +59,7 @@ constexpr void ldiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
 [[nodiscard]] constexpr auto rdivrat(SquarePtrMatrix<Rational> F,
                                      PtrVector<unsigned> ipiv,
                                      MutPtrMatrix<Rational> rhs) -> bool {
-  auto [M, N] = rhs.size();
+  auto [M, N] = shape(rhs);
   invariant(ptrdiff_t(F.numCol()), ptrdiff_t(N));
   // PA = LU
   // x LU = rhs
@@ -92,7 +92,7 @@ constexpr void ldiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
 template <class S>
 constexpr void rdiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
                     MutPtrMatrix<S> rhs) {
-  auto [M, N] = rhs.size();
+  auto [M, N] = shape(rhs);
   invariant(ptrdiff_t(F.numCol()), ptrdiff_t(N));
   // PA = LU
   // x LU = rhs

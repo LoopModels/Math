@@ -127,7 +127,7 @@ constexpr auto orthogonalizeBang(MutDensePtrMatrix<int64_t> &A)
   -> std::pair<SquareMatrix<int64_t>, Vector<unsigned>> {
   // we try to orthogonalize with respect to as many rows of `A` as we can
   // prioritizing earlier rows.
-  auto [M, N] = A.size();
+  auto [M, N] = shape(A);
   SquareMatrix<int64_t> K{identity(alloc::Mallocator<int64_t>{}, unsigned(M))};
   Vector<unsigned> included;
   included.reserve(std::min(ptrdiff_t(M), ptrdiff_t(N)));
@@ -160,7 +160,7 @@ constexpr auto orthogonalize(IntMatrix<> A)
 }
 
 constexpr void zeroSupDiagonal(MutPtrMatrix<int64_t> A, Col<> c, Row<> r) {
-  auto [M, N] = A.size();
+  auto [M, N] = shape(A);
   for (ptrdiff_t j = ptrdiff_t(r) + 1; j < M; ++j) {
     int64_t Aii = A[r, c];
     if (int64_t Aij = A[j, c]) {
@@ -176,7 +176,7 @@ constexpr void zeroSupDiagonal(MutPtrMatrix<int64_t> A, Col<> c, Row<> r) {
 constexpr void zeroSupDiagonal(std::array<MutPtrMatrix<int64_t>, 2> AB, Col<> c,
                                Row<> r) {
   auto [A, B] = AB;
-  auto [M, N] = A.size();
+  auto [M, N] = shape(A);
   const Col K = B.numCol();
   invariant(M, ptrdiff_t(B.numRow()));
   for (ptrdiff_t j = ptrdiff_t(r) + 1; j < M; ++j) {
@@ -317,7 +317,7 @@ constexpr void removeZeroRows(MutDensePtrMatrix<int64_t> &A) {
 // pass by value, returns number of rows to truncate
 constexpr auto simplifySystemImpl(MutPtrMatrix<int64_t> A,
                                   ptrdiff_t colInit = 0) -> Row<> {
-  auto [M, N] = A.size();
+  auto [M, N] = shape(A);
   for (ptrdiff_t r = 0, c = colInit; c < N && r < M; ++c)
     if (!pivotRows(A, Col<>{c}, Row<>{M}, Row<>{r}))
       reduceColumn(A, Col<>{c}, Row<>{r++});
@@ -342,7 +342,7 @@ constexpr void reduceColumn(std::array<MutPtrMatrix<int64_t>, 2> AB, Col<> c,
   reduceSubDiagonal(AB, c, r);
 }
 constexpr void simplifySystemsImpl(std::array<MutPtrMatrix<int64_t>, 2> AB) {
-  auto [M, N] = AB[0].size();
+  auto [M, N] = shape(AB[0]);
   for (ptrdiff_t r = 0, c = 0; c < N && r < M; ++c)
     if (!pivotRowsPair(AB, Col<>{c}, Row<>{M}, Row<>{r}))
       reduceColumn(AB, Col<>{c}, Row<>{r++});
@@ -490,7 +490,7 @@ constexpr auto pivotRowsBareiss(MutPtrMatrix<int64_t> A, ptrdiff_t i, Row<> M,
 }
 constexpr void bareiss(MutPtrMatrix<int64_t> A,
                        MutPtrVector<ptrdiff_t> pivots) {
-  const auto [M, N] = A.size();
+  const auto [M, N] = shape(A);
   invariant(ptrdiff_t(pivots.size()), std::min(M, N));
   int64_t prev = 1, pivInd = 0;
   for (ptrdiff_t r = 0, c = 0; c < N && r < M; ++c) {
@@ -570,7 +570,7 @@ constexpr auto updateForNewRow(MutPtrMatrix<int64_t> A) -> ptrdiff_t {
 /// Once \f$\textbf{A}\f$ has been diagonalized, the solution is trivial.
 /// Both inputs are overwritten with the product of the left multiplications.
 constexpr void solveSystem(MutPtrMatrix<int64_t> A, MutPtrMatrix<int64_t> B) {
-  const auto [M, N] = A.size();
+  const auto [M, N] = shape(A);
   for (ptrdiff_t r = 0, c = 0; c < N && r < M; ++c)
     if (!pivotRowsPair({A, B}, Col<>{c}, Row<>{M}, Row<>{r}))
       zeroColumnPair({A, B}, Col<>{c}, Row<>{r++});
@@ -584,7 +584,7 @@ constexpr void solveSystem(MutPtrMatrix<int64_t> A, ptrdiff_t K) {
 }
 // diagonalizes A(0:K,1:K+1)
 constexpr void solveSystemSkip(MutPtrMatrix<int64_t> A) {
-  const auto [M, N] = A.size();
+  const auto [M, N] = shape(A);
   for (ptrdiff_t r = 0, c = 1; c < N && r < M; ++c)
     if (!pivotRows(A, Col<>{c}, Row<>{M}, Row<>{r}))
       zeroColumn(A, Col<>{c}, Row<>{r++});

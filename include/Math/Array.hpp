@@ -9,7 +9,6 @@
 #include "Math/Matrix.hpp"
 #include "Math/MatrixDimensions.hpp"
 #include "Math/Rational.hpp"
-#include "Math/Vector.hpp"
 #include "Utilities/Invariant.hpp"
 #include "Utilities/Optional.hpp"
 #include "Utilities/TypePromotion.hpp"
@@ -47,7 +46,7 @@
 #endif
 
 namespace poly::math {
-template <class T, class S, ptrdiff_t N = PreAllocStorage<T, S>(),
+template <class T, class S, ptrdiff_t N = containers::PreAllocStorage<T, S>(),
           class A = alloc::Mallocator<T>>
 struct ManagedArray;
 
@@ -163,6 +162,11 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   using const_pointer = const T *;
   using concrete = std::true_type;
 
+  static constexpr bool isdense =
+    std::convertible_to<S, ptrdiff_t> || std::convertible_to<S, DenseDims<>>;
+  static constexpr bool flatstride = isdense || std::same_as<S, StridedRange>;
+  static_assert(flatstride ^ std::same_as<S, StridedDims<>>);
+
   constexpr Array() = default;
   constexpr Array(const Array &) = default;
   constexpr Array(Array &&) noexcept = default;
@@ -194,22 +198,29 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
     return StridedIterator{p, sz.stride};
   }
   [[nodiscard]] constexpr auto begin() const noexcept
-    -> const T *requires(!std::is_same_v<S, StridedRange>) { return ptr; }
+    -> const T *requires(isdense) { return ptr; }
 
-  [[nodiscard]] constexpr auto end() const noexcept {
+  [[nodiscard]] constexpr auto end() const noexcept
+  requires(flatstride)
+  {
     return begin() + ptrdiff_t(sz);
   }
-  [[nodiscard]] constexpr auto rbegin() const noexcept {
+  [[nodiscard]] constexpr auto rbegin() const noexcept
+  requires(flatstride)
+  {
     return std::reverse_iterator(end());
   }
-  [[nodiscard]] constexpr auto rend() const noexcept {
+  [[nodiscard]] constexpr auto rend() const noexcept
+  requires(flatstride)
+  {
     return std::reverse_iterator(begin());
   }
   [[nodiscard]] constexpr auto front() const noexcept -> const T & {
-    return *begin();
+    return *ptr;
   }
   [[nodiscard]] constexpr auto back() const noexcept -> const T & {
-    return *(end() - 1);
+    if constexpr (flatstride) return *(end() - 1);
+    else return ptr[sride(sz) * ptrdiff_t(row(sz)) - 1];
   }
   // indexing has two components:
   // 1. offsetting the pointer
@@ -232,7 +243,9 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
     -> decltype(auto) {
     if constexpr (MatrixDimension<S>)
       return (*this)[CartesianIndex(unwrapRow(r), unwrapCol(c))];
-    else return (*this)[ptrdiff_t(r)];
+    else if constexpr (std::same_as<S, StridedRange>)
+      return (*this)[ptrdiff_t(r)];
+    else return (*this)[ptrdiff_t(c)];
   }
   [[nodiscard]] constexpr auto minRowCol() const -> ptrdiff_t {
     return std::min(ptrdiff_t(numRow()), ptrdiff_t(numCol()));
@@ -257,21 +270,19 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
     return N;
   }
 
-  [[nodiscard]] constexpr auto numRow() const noexcept { return row(sz); }
-  [[nodiscard]] constexpr auto numCol() const noexcept {
-    if constexpr (MatrixDimension<S>) return Col(sz);
-    else return Col<1>{};
+  [[nodiscard]] constexpr auto numRow() const noexcept {
+    if constexpr (std::integral<S>) return Row<1>{};
+    else return row(sz);
   }
+  [[nodiscard]] constexpr auto numCol() const noexcept { return col(sz); }
   [[nodiscard]] constexpr auto rowStride() const noexcept {
-    if constexpr (MatrixDimension<S>) return RowStride(sz);
-    else return RowStride<1>{};
+    if constexpr (std::integral<S>) return RowStride<1>{};
+    else return stride(sz);
   }
   [[nodiscard]] constexpr auto empty() const -> bool { return sz == S{}; }
   [[nodiscard]] constexpr auto size() const noexcept {
     if constexpr (StaticInt<S>) return S{};
-    else if constexpr (std::integral<S>) return sz;
-    else if constexpr (std::is_same_v<S, StridedRange>) return ptrdiff_t(sz);
-    else return CartesianIndex{ptrdiff_t(Row(sz)), ptrdiff_t(Col(sz))};
+    else return ptrdiff_t(sz);
   }
   [[nodiscard]] constexpr auto dim() const noexcept -> S { return sz; }
   constexpr void clear() { sz = S{}; }
@@ -663,7 +674,10 @@ static_assert(std::convertible_to<MutArray<int64_t, DenseDims<>>,
 static_assert(AbstractVector<Array<int64_t, ptrdiff_t>>);
 static_assert(!AbstractVector<Array<int64_t, StridedDims<>>>);
 static_assert(AbstractMatrix<Array<int64_t, StridedDims<>>>);
-static_assert(RowVector<Transpose<Array<int64_t, ptrdiff_t>>>);
+static_assert(RowVector<Array<int64_t, ptrdiff_t>>);
+static_assert(ColVector<Transpose<Array<int64_t, ptrdiff_t>>>);
+static_assert(ColVector<Array<int64_t, StridedRange>>);
+static_assert(RowVector<Transpose<Array<int64_t, StridedRange>>>);
 
 template <typename T>
 auto operator*(SliceIterator<T, false> it)
@@ -686,7 +700,7 @@ static_assert(std::ranges::range<SliceRange<int64_t, false>>);
 template <class T, class S>
 struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
   using BaseT = MutArray<T, S>;
-  using U = default_capacity_type_t<S>;
+  using U = containers::default_capacity_type_t<S>;
   constexpr ResizeableView() noexcept : BaseT(nullptr, 0), capacity(0) {}
   constexpr ResizeableView(T *p, S s, U c) noexcept
     : BaseT(p, s), capacity(c) {}
@@ -911,7 +925,7 @@ static_assert(std::is_trivially_move_assignable_v<MutArray<void *, ptrdiff_t>>);
 template <class T, class S, class A = alloc::Mallocator<T>>
 struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S> {
   using BaseT = ResizeableView<T, S>;
-  using U = default_capacity_type_t<S>;
+  using U = containers::default_capacity_type_t<S>;
   constexpr ReallocView(T *p, S s, U c) noexcept : BaseT(p, s, c) {}
   constexpr ReallocView(T *p, S s, U c, A alloc) noexcept
     : BaseT(p, s, c), allocator(alloc) {}
@@ -1187,7 +1201,7 @@ template <class T, class S, ptrdiff_t N, class A>
 struct POLY_MATH_GSL_OWNER ManagedArray : ReallocView<T, S, A> {
   static_assert(std::is_trivially_destructible_v<T>);
   using BaseT = ReallocView<T, S, A>;
-  using U = default_capacity_type_t<S>;
+  using U = containers::default_capacity_type_t<S>;
   // We're deliberately not initializing storage.
 #if !defined(__clang__) && defined(__GNUC__)
 #pragma GCC diagnostic push
@@ -1451,7 +1465,7 @@ static_assert(
   sizeof(ManagedArray<int64_t, SquareDims<>, 64, alloc::Mallocator<int64_t>>) ==
   536);
 
-template <class T, ptrdiff_t N = PreAllocStorage<T, ptrdiff_t>()>
+template <class T, ptrdiff_t N = containers::PreAllocStorage<T, ptrdiff_t>()>
 using Vector = ManagedArray<T, ptrdiff_t, N>;
 template <class T> using PtrVector = Array<T, ptrdiff_t>;
 template <class T> using MutPtrVector = MutArray<T, ptrdiff_t>;
@@ -1483,7 +1497,8 @@ template <class T, ptrdiff_t L = 64>
 using DenseMatrix = ManagedArray<T, DenseDims<>, L>;
 template <class T> using SquarePtrMatrix = Array<T, SquareDims<>>;
 template <class T> using MutSquarePtrMatrix = MutArray<T, SquareDims<>>;
-template <class T, ptrdiff_t L = PreAllocSquareStorage<T, SquareDims<>>()>
+template <class T,
+          ptrdiff_t L = containers::PreAllocSquareStorage<T, SquareDims<>>()>
 using SquareMatrix = ManagedArray<T, SquareDims<>, L>;
 
 static_assert(sizeof(PtrMatrix<int64_t>) ==
@@ -1697,7 +1712,7 @@ constexpr auto getMaxDigits(PtrMatrix<T> A) -> Vector<T> {
 template <typename T>
 inline auto printMatrix(std::ostream &os, PtrMatrix<T> A) -> std::ostream & {
   // std::ostream &printMatrix(std::ostream &os, T const &A) {
-  auto [M, N] = A.size();
+  auto [M, N] = shape(A);
   if ((!M) || (!N)) return os << "[ ]";
   // first, we determine the number of digits needed per column
   auto maxDigits{getMaxDigits(A)};
@@ -1726,7 +1741,7 @@ inline auto printMatrix(std::ostream &os, PtrMatrix<T> A) -> std::ostream & {
 inline auto printMatrix(std::ostream &os, PtrMatrix<double> A)
   -> std::ostream & {
   // std::ostream &printMatrix(std::ostream &os, T const &A) {
-  auto [M, N] = A.size();
+  auto [M, N] = shape(A);
   if ((!M) || (!N)) return os << "[ ]";
   // first, we determine the number of digits needed per column
   Vector<char, 512> digits;

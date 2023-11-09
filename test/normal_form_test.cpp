@@ -122,7 +122,7 @@ TEST(OrthogonalizationTest, BasicAssertions) {
 }
 
 auto isHNF(PtrMatrix<int64_t> A) -> bool {
-  const auto [M, N] = A.size();
+  const auto [M, N] = shape(A);
   // l is lead
   Col<> l = {0};
   for (ptrdiff_t m = 0; m < M; ++m) {

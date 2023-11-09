@@ -69,7 +69,7 @@ constexpr void eraseConstraintImpl(MutDensePtrMatrix<int64_t> A, ptrdiff_t _i,
                                    ptrdiff_t _j) {
   invariant(_i != _j);
   ptrdiff_t i = std::min(_i, _j), j = std::max(_i, _j);
-  const auto [M, N] = A.size();
+  const auto [M, N] = shape(A);
   ptrdiff_t lastRow = M - 1;
   ptrdiff_t penuRow = lastRow - 1;
   if (j == penuRow) {
@@ -92,7 +92,7 @@ constexpr void eraseConstraint(MutDensePtrMatrix<int64_t> &A, ptrdiff_t i,
 
 constexpr auto substituteEqualityImpl(MutDensePtrMatrix<int64_t> E,
                                       const ptrdiff_t i) -> Row<> {
-  const auto [numConstraints, numVar] = E.size();
+  const auto [numConstraints, numVar] = shape(E);
   ptrdiff_t minNonZero = numVar + 1;
   ptrdiff_t rowMinNonZero = numConstraints;
   for (ptrdiff_t j = 0; j < numConstraints; ++j)
@@ -137,7 +137,7 @@ constexpr auto
 substituteEqualityPairImpl(std::array<MutDensePtrMatrix<int64_t>, 2> AE,
                            ptrdiff_t i) -> Row<> {
   auto [A, E] = AE;
-  const auto [numConstraints, numVar] = E.size();
+  const auto [numConstraints, numVar] = shape(E);
   ptrdiff_t minNonZero = numVar + 1;
   ptrdiff_t rowMinNonZero = numConstraints;
   for (ptrdiff_t j = 0; j < numConstraints; ++j) {
@@ -403,7 +403,7 @@ constexpr auto uniqueConstraint(DensePtrMatrix<int64_t> A, Row<> r) -> bool {
 [[nodiscard]] constexpr auto removeRedundantRows(MutDensePtrMatrix<int64_t> A,
                                                  MutDensePtrMatrix<int64_t> B)
   -> std::array<Row<>, 2> {
-  auto [M, N] = B.size();
+  auto [M, N] = shape(B);
   for (ptrdiff_t r = 0, c = 0; c++ < N && r < M;)
     if (!NormalForm::pivotRows(B, Col<>{c == N ? 0 : c}, Row<>{M}, Row<>{r}))
       NormalForm::reduceColumnStack(A, B, c == N ? 0 : c, r++);

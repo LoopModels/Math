@@ -10,17 +10,28 @@ template <ptrdiff_t R = -1, ptrdiff_t C = -1> struct DenseDims;
 template <ptrdiff_t R = -1, ptrdiff_t C = -1, ptrdiff_t X = -1>
 struct StridedDims;
 
+// template <class From, class To>
+// concept ConvertibleToButNot =
+//   std::convertible_to<From, To> && (!std::same_as<From, To>);
+
 template <class R, class C> struct CartesianIndex {
   [[no_unique_address]] R row;
   [[no_unique_address]] C col;
   explicit constexpr operator Row<>() const { return {row}; }
   explicit constexpr operator Col<>() const { return {col}; }
   constexpr auto operator==(const CartesianIndex &) const -> bool = default;
-  constexpr operator SquareDims<>()
+  constexpr operator CartesianIndex<ptrdiff_t, ptrdiff_t>() const
+  requires(std::convertible_to<R, ptrdiff_t> &&
+           std::convertible_to<C, ptrdiff_t> &&
+           (!(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>)))
+  {
+    return {ptrdiff_t(row), ptrdiff_t(col)};
+  }
+  constexpr operator SquareDims<>() const
   requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>);
-  constexpr operator DenseDims<>()
+  constexpr operator DenseDims<>() const
   requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>);
-  constexpr operator StridedDims<>()
+  constexpr operator StridedDims<>() const
   requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>);
 };
 template <class R, class C> CartesianIndex(R, C) -> CartesianIndex<R, C>;
@@ -179,6 +190,16 @@ template <ptrdiff_t R, ptrdiff_t C> struct DenseDims {
   {
     return {M, N};
   }
+  constexpr operator ptrdiff_t() const
+  requires(R == 1)
+  {
+    return ptrdiff_t(N);
+  }
+  constexpr operator std::integral_constant<ptrdiff_t, C>() const
+  requires((R == 1) && (C != -1))
+  {
+    return {};
+  }
   friend inline auto operator<<(std::ostream &os, DenseDims x)
     -> std::ostream & {
     return os << x.M << " x " << x.N;
@@ -300,20 +321,20 @@ constexpr inline auto DenseDims<R, C>::operator=(SquareDims<R> D)
   };
 
 template <class R, class C>
-constexpr inline CartesianIndex<R, C>::operator SquareDims<>()
+constexpr inline CartesianIndex<R, C>::operator SquareDims<>() const
 requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>)
 {
   invariant(row, col);
   return SquareDims{Row<>{row}};
 }
 template <class R, class C>
-constexpr inline CartesianIndex<R, C>::operator DenseDims<>()
+constexpr inline CartesianIndex<R, C>::operator DenseDims<>() const
 requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>)
 {
   return DenseDims{Row<>{row}, Col<>{col}};
 }
 template <class R, class C>
-constexpr inline CartesianIndex<R, C>::operator StridedDims<>()
+constexpr inline CartesianIndex<R, C>::operator StridedDims<>() const
 requires(std::same_as<R, ptrdiff_t> && std::same_as<C, ptrdiff_t>)
 {
   return StridedDims{Row<>{row}, Col<>{col}, RowStride<>{col}};
@@ -340,10 +361,9 @@ concept PromoteDimFrom = (!std::same_as<T, S>)&&std::convertible_to<S, T>;
 
 constexpr auto row(MatrixDimension auto s) { return Row(s); }
 constexpr auto col(MatrixDimension auto s) { return Col(s); }
-constexpr auto rowStride(MatrixDimension auto s) { return RowStride(s); }
+constexpr auto stride(MatrixDimension auto s) { return RowStride(s); }
 
 template <typename T>
 concept HasInnerReduction = bool(T::has_reduction_loop);
-
 
 } // namespace poly::math

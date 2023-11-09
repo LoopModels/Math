@@ -172,12 +172,10 @@ constexpr auto operator==(RowStride<> y, ptrdiff_t x) -> bool {
 constexpr auto operator==(RowStride<> x, RowStride<> y) -> bool {
   return ptrdiff_t(x) == ptrdiff_t(y);
 }
-constexpr auto operator<=>(ptrdiff_t x, RowStride<> y)
-  -> std::strong_ordering {
+constexpr auto operator<=>(ptrdiff_t x, RowStride<> y) -> std::strong_ordering {
   return x <=> ptrdiff_t(y);
 }
-constexpr auto operator<=>(RowStride<> x, ptrdiff_t y)
-  -> std::strong_ordering {
+constexpr auto operator<=>(RowStride<> x, ptrdiff_t y) -> std::strong_ordering {
   return ptrdiff_t(x) <=> y;
 }
 constexpr auto operator<=>(RowStride<> x, RowStride<> y)
@@ -210,11 +208,13 @@ template <ptrdiff_t M> constexpr auto standardizeRangeBound(Col<M> x) {
   else return std::integral_constant<ptrdiff_t, M>{};
 }
 
-template <ptrdiff_t M> constexpr auto unwrapRow(Row<M> x) -> ptrdiff_t {
-  return ptrdiff_t(x);
+template <ptrdiff_t M> constexpr auto unwrapRow(Row<M> x) {
+  if constexpr (M == -1) return ptrdiff_t(x);
+  else return std::integral_constant<ptrdiff_t, M>{};
 }
-template <ptrdiff_t M> constexpr auto unwrapCol(Col<M> x) -> ptrdiff_t {
-  return ptrdiff_t(x);
+template <ptrdiff_t M> constexpr auto unwrapCol(Col<M> x) {
+  if constexpr (M == -1) return ptrdiff_t(x);
+  else return std::integral_constant<ptrdiff_t, M>{};
 }
 constexpr auto unwrapRow(auto x) { return x; }
 constexpr auto unwrapCol(auto x) { return x; }

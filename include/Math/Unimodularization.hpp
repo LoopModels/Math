@@ -3,11 +3,6 @@
 #include "Math/NormalForm.hpp"
 #include <cstdint>
 
-// function unimod_hnf(A)
-//     H, U = Matrix.(hnf_with_transform(MatrixSpace(ZZ, size(A')...)(A')))
-//     (isdiag(H) && all(isone, @views H[diagind(H)])) || return nothing
-//     [A; Int.(inv(U' .// 1))[size(A, 1)+1:end, :]]
-// end
 namespace poly::math {
 // if `A` can be unimodularized, returns the inverse of the unimodularized `A`
 [[nodiscard]] inline auto unimodularize(IntMatrix<> A)

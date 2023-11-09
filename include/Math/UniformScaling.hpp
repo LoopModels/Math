@@ -11,7 +11,10 @@ template <class T> struct UniformScaling {
   }
   static constexpr auto numRow() -> Row<0> { return {}; }
   static constexpr auto numCol() -> Col<0> { return {}; }
-  static constexpr auto size() -> CartesianIndex<ptrdiff_t, ptrdiff_t> {
+  static constexpr auto size() -> std::integral_constant<ptrdiff_t, 0> {
+    return {};
+  }
+  static constexpr auto shape() -> CartesianIndex<ptrdiff_t, ptrdiff_t> {
     return {0, 0};
   }
   static constexpr auto dim() -> DenseDims<0, 0> { return {{}, {}}; }
