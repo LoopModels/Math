@@ -1,3 +1,4 @@
+#include "include/randdual.hpp"
 #include <Containers/TinyVector.hpp>
 #include <Math/Array.hpp>
 #include <Math/Dual.hpp>
@@ -6,9 +7,7 @@
 #include <Math/StaticArrays.hpp>
 #include <Utilities/Invariant.hpp>
 #include <algorithm>
-#include <array>
 #include <benchmark/benchmark.h>
-#include <concepts>
 #include <cstdint>
 #include <random>
 #include <ranges>
@@ -18,21 +17,6 @@
 namespace poly::math {
 static_assert(std::convertible_to<int, Dual<double, 4>>);
 static_assert(std::convertible_to<int, Dual<Dual<double, 4>, 2>>);
-
-template <class T> struct URand {};
-
-template <class T, ptrdiff_t N> struct URand<Dual<T, N>> {
-  auto operator()(std::mt19937_64 &rng) -> Dual<T, N> {
-    Dual<T, N> x{URand<T>{}(rng)};
-    for (size_t i = 0; i < N; ++i) x.gradient()[i] = URand<T>{}(rng);
-    return x;
-  }
-};
-template <> struct URand<double> {
-  auto operator()(std::mt19937_64 &rng) -> double {
-    return std::uniform_real_distribution<double>(-2, 2)(rng);
-  }
-};
 
 template <typename T>
 constexpr void evalpoly(MutSquarePtrMatrix<T> B, MutSquarePtrMatrix<T> A,
@@ -153,7 +137,7 @@ void expbench(const auto &A) {
 static void BM_expm(benchmark::State &state) {
   std::mt19937_64 rng0;
   SquareMatrix<double> A{SquareDims{{state.range(0)}}};
-  for (auto &a : A) a = URand<double>{}(rng0);
+  for (auto &&a : A) a = URand<double>{}(rng0);
   for (auto b : state) expbench(A);
 }
 BENCHMARK(BM_expm)->DenseRange(2, 10, 1);
@@ -161,7 +145,7 @@ static void BM_expm_dual4(benchmark::State &state) {
   std::mt19937_64 rng0;
   using D = Dual<double, 8>;
   SquareMatrix<D> A{SquareDims{{state.range(0)}}};
-  for (auto &a : A) a = URand<D>{}(rng0);
+  for (auto &&a : A) a = URand<D>{}(rng0);
   for (auto b : state) expbench(A);
 }
 BENCHMARK(BM_expm_dual4)->DenseRange(2, 10, 1);
@@ -170,7 +154,7 @@ static void BM_expm_dual8x2(benchmark::State &state) {
   std::mt19937_64 rng0;
   using D = Dual<Dual<double, 8>, 2>;
   SquareMatrix<D> A{SquareDims{{state.range(0)}}};
-  for (auto &a : A) a = URand<D>{}(rng0);
+  for (auto &&a : A) a = URand<D>{}(rng0);
   for (auto b : state) expbench(A);
 }
 BENCHMARK(BM_expm_dual8x2)->DenseRange(2, 10, 1);

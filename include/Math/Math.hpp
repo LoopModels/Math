@@ -347,7 +347,9 @@ template <AbstractTensor A, AbstractTensor B> struct MatMatMul {
   // Matrix * Matrix
   [[no_unique_address]] A a;
   [[no_unique_address]] B b;
-  auto operator[](ptrdiff_t i, ptrdiff_t j) const -> value_type
+  [[gnu::always_inline]] constexpr auto operator[](ptrdiff_t i,
+                                                   ptrdiff_t j) const
+    -> value_type
   requires(ismatrix)
   {
     static_assert(AbstractMatrix<B>, "B should be an AbstractMatrix");
@@ -358,7 +360,8 @@ template <AbstractTensor A, AbstractTensor B> struct MatMatMul {
       s += a[i, k] * b[k, j];
     return s;
   }
-  auto operator[](ptrdiff_t i) const -> value_type
+  [[gnu::always_inline]] constexpr auto operator[](ptrdiff_t i) const
+    -> value_type
   requires(!ismatrix)
   {
     value_type s = 0;

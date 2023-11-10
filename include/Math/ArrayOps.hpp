@@ -35,6 +35,7 @@ template <class T, class S, class P> class ArrayOps {
   }
 
   void vcopyTo(const AbstractVector auto &B) {
+    static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     P &self{Self()};
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
@@ -87,6 +88,7 @@ template <class T, class S, class P> class ArrayOps {
     }
   }
   void vcopyTo(const AbstractMatrix auto &B) {
+    static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     static_assert(MatrixDimension<S>);
     ptrdiff_t M = nr(), N = nc();
     invariant(M, ptrdiff_t(B.numRow()));
@@ -136,6 +138,7 @@ template <class T, class S, class P> class ArrayOps {
   }
 
   template <std::convertible_to<T> Y> void vcopyTo(const Y &b) {
+    static_assert(sizeof(utils::eltype_t<decltype(b)>) <= 8);
     P &self{Self()};
     if constexpr (DenseLayout<S>) {
       std::fill_n(data_(), ptrdiff_t(size_()), T(b));
@@ -166,6 +169,7 @@ template <class T, class S, class P> class ArrayOps {
   }
 
   void vadd(const AbstractMatrix auto &B) {
+    static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     static_assert(MatrixDimension<S>);
     ptrdiff_t M = nr(), N = nc();
     invariant(M, ptrdiff_t(B.numRow()));
@@ -191,6 +195,7 @@ template <class T, class S, class P> class ArrayOps {
   }
 
   void vsub(const AbstractMatrix auto &B) {
+    static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     static_assert(MatrixDimension<S>);
     ptrdiff_t M = nr(), N = nc();
     invariant(M, ptrdiff_t(B.numRow()));
@@ -215,6 +220,7 @@ template <class T, class S, class P> class ArrayOps {
     }
   }
   void vadd(const AbstractVector auto &B) {
+    static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     P &self{Self()};
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
@@ -251,6 +257,7 @@ template <class T, class S, class P> class ArrayOps {
     }
   }
   template <std::convertible_to<T> Y> void vadd(Y b) {
+    static_assert(sizeof(utils::eltype_t<decltype(b)>) <= 8);
     P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
@@ -279,6 +286,7 @@ template <class T, class S, class P> class ArrayOps {
     }
   }
   void vsub(const AbstractVector auto &B) {
+    static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     P &self{Self()};
     if constexpr (MatrixDimension<S>) {
       ptrdiff_t M = nr(), N = nc();
@@ -315,6 +323,7 @@ template <class T, class S, class P> class ArrayOps {
     }
   }
   template <std::convertible_to<T> Y> void vmul(Y b) {
+    static_assert(sizeof(utils::eltype_t<decltype(b)>) <= 8);
     P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
@@ -344,6 +353,7 @@ template <class T, class S, class P> class ArrayOps {
     }
   }
   template <std::convertible_to<T> Y> void vdiv(Y b) {
+    static_assert(sizeof(utils::eltype_t<decltype(b)>) <= 8);
     P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
       ptrdiff_t M = nr(), N = nc();
