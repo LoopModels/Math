@@ -73,17 +73,15 @@ constexpr void evalpoly(MutSquarePtrMatrix<T> B, SquarePtrMatrix<T> C,
 }
 
 template <AbstractMatrix T> constexpr auto opnorm1(const T &A) {
-  using S = decltype(extractDualValRecurse(std::declval<eltype_t<T>>()));
+  using S = decltype(value(std::declval<eltype_t<T>>()));
   ptrdiff_t n = ptrdiff_t(A.numRow());
   invariant(n > 0);
   Vector<S> v;
   v.resizeForOverwrite(n);
   invariant(A.numRow() > 0);
-  for (ptrdiff_t j = 0; j < n; ++j)
-    v[j] = std::abs(extractDualValRecurse(A[0, j]));
+  for (ptrdiff_t j = 0; j < n; ++j) v[j] = std::abs(value(A[0, j]));
   for (ptrdiff_t i = 1; i < n; ++i)
-    for (ptrdiff_t j = 0; j < n; ++j)
-      v[j] += std::abs(extractDualValRecurse(A[i, j]));
+    for (ptrdiff_t j = 0; j < n; ++j) v[j] += std::abs(value(A[i, j]));
   return *std::max_element(v.begin(), v.end());
 }
 

@@ -276,10 +276,8 @@ constexpr auto gradient(alloc::Arena<> *arena, PtrVector<double> x,
   }
 }
 // only computes the upper triangle blocks
-constexpr auto extractDualValRecurse(std::floating_point auto x) { return x; }
-template <class T, ptrdiff_t N>
-constexpr auto extractDualValRecurse(const Dual<T, N> &x) {
-  return extractDualValRecurse(x.value());
+template <class T, ptrdiff_t N> constexpr auto value(const Dual<T, N> &x) {
+  return value(x.value());
 }
 
 /// fills the lower triangle of the hessian
