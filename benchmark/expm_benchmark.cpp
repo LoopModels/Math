@@ -128,10 +128,7 @@ auto expwork(const auto &A) {
   }
   return B;
 }
-void expbench(const auto &A) {
-  auto B{expwork(A)};
-  for (auto &b : B) benchmark::DoNotOptimize(b);
-}
+void expbench(const auto &A) { benchmark::DoNotOptimize(expwork(A)); }
 
 static void BM_expm(benchmark::State &state) {
   std::mt19937_64 rng0;
