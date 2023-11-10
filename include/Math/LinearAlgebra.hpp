@@ -205,9 +205,6 @@ template <typename S> constexpr auto factImpl(MutSquarePtrMatrix<S> A) {
     S invAkk = 1.0 / A[k, k];
     for (ptrdiff_t i = k + 1; i < M; ++i)
       A[i, _(k + 1, end)] -= (A[i, k] *= invAkk) * A[k, _(k + 1, end)];
-    // A[_(k + 1, end), k] /= A[k, k];
-    // A[_(k + 1, end), _(k + 1, end)] -=
-    //   A[_(k + 1, end), k] * A[k, _(k + 1, end)];
   }
   return ipiv;
 }
@@ -253,55 +250,45 @@ namespace LDL {
 /// NOT OWNING
 /// TODO: make the API consistent between LU and LDL
 template <typename T> class Fact {
-  MutSquarePtrMatrix<T> fact;
+  MutSquarePtrMatrix<T> F;
 
 public:
-  constexpr Fact(MutSquarePtrMatrix<T> A) : fact{A} {};
+  constexpr Fact(MutSquarePtrMatrix<T> A) : F{A} {};
 
-  constexpr void ldiv(MutPtrMatrix<T> rhs) {
-    ptrdiff_t M = ptrdiff_t(rhs.numRow());
-    invariant(ptrdiff_t(fact.numRow()), M);
+  constexpr void ldiv(MutPtrMatrix<T> R) {
+    ptrdiff_t M = ptrdiff_t(R.numRow());
+    invariant(ptrdiff_t(F.numRow()), M);
     // LD^-1L' x = rhs
     // L y = rhs // L is UnitLowerTriangular
-    for (ptrdiff_t m = 0; m < M; ++m)
-      rhs[m, _] -= rhs[_(0, m), _].t() * fact[m, _(0, m)];
-
+    for (ptrdiff_t m = 0; m < M; ++m) R[m, _] -= F[m, _(0, m)] * R[_(0, m), _];
     // D^-1 L' x = y
     // L' x = D y
-    for (ptrdiff_t m = M; m--;) {
-      rhs[m, _] *= fact[m, m];
-      rhs[m, _] -= rhs[_(m + 1, M), _].t() * fact[_(m + 1, M), m];
-    }
+    for (ptrdiff_t m = M; m--;)
+      R[m, _] << R[m, _] * F[m, m] - F[_(m + 1, M), m].t() * R[_(m + 1, M), _];
   }
-  constexpr void ldiv(MutPtrVector<T> rhs) {
-    ptrdiff_t M = rhs.size();
-    invariant(ptrdiff_t(fact.numRow()), M);
+  constexpr void ldiv(MutPtrVector<T> R) {
+    ptrdiff_t M = R.size();
+    invariant(ptrdiff_t(F.numRow()), M);
     // LD^-1L' x = rhs
     // L y = rhs // L is UnitLowerTriangular
-    for (ptrdiff_t m = 0; m < M; ++m)
-      rhs[m] -= fact[m, _(0, m)].t() * rhs[_(0, m)];
+    for (ptrdiff_t m = 0; m < M; ++m) R[m] -= R[_(0, m)] * F[m, _(0, m)].t();
     // D^-1 L' x = y
     // L' x = D y
-    for (ptrdiff_t m = M; m--;) {
-      rhs[m] *= fact[m, m];
-      rhs[m] -= fact[_(m + 1, M), m].t() * rhs[_(m + 1, M)];
-    }
+    for (ptrdiff_t m = M; m--;)
+      R[m] = R[m] * F[m, m] - R[_(m + 1, M)] * F[_(m + 1, M), m];
   }
   constexpr void ldiv(MutPtrVector<T> dst, TrivialVec auto src) {
     ptrdiff_t M = dst.size();
-    invariant(M == src.size());
-    invariant(ptrdiff_t(fact.numRow()), M);
+    invariant(M, ptrdiff_t(src.size()));
+    invariant(ptrdiff_t(F.numRow()), M);
     // LD^-1L' x = rhs
     // L y = rhs // L is UnitLowerTriangular
     for (ptrdiff_t m = 0; m < M; ++m)
-      dst[m] = src[m] - fact[m, _(0, m)].t() * dst[_(0, m)];
-
+      dst[m] = src[m] - dst[_(0, m)] * F[m, _(0, m)].t();
     // D^-1 L' x = y
     // L' x = D y
-    for (ptrdiff_t m = M; m--;) {
-      dst[m] *= fact[m, m];
-      dst[m] -= fact[_(m + 1, M), m].t() * dst[_(m + 1, M)];
-    }
+    for (ptrdiff_t m = M; m--;)
+      dst[m] = dst[m] * F[m, m] - dst[_(m + 1, M)] * F[_(m + 1, M), m];
   }
 };
 
@@ -314,10 +301,8 @@ constexpr auto factorize(MutSquarePtrMatrix<T> A) -> Fact<T> {
     if constexpr (ForcePD) Akk = std::max(Akk, T(0.001));
     T invAkk = A[k, k] = 1.0 / Akk;
     A[_(k + 1, M), k] *= invAkk;
-    for (ptrdiff_t i = k + 1; i < M; ++i) {
-      T Aik = A[i, k] * Akk;
-      for (ptrdiff_t j = k + 1; j <= i; ++j) A[i, j] -= Aik * A[j, k];
-    }
+    for (ptrdiff_t i = k + 1; i < M; ++i)
+      A[i, _(k + 1, i + 1)] -= (A[i, k] * Akk) * A[_(k + 1, i + 1), k];
   }
   return Fact{A};
 }

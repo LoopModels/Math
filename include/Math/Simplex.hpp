@@ -782,7 +782,7 @@ public:
     // subSimp.tableau(0, 1) = 0;
     auto fC{getTableau()};
     auto sC{subSimp->getTableau()};
-    sC[_, 0] << fC[_, 0] - fC[_, _(1 + off, 1 + off + numFix)] * x;
+    sC[_, 0] << fC[_, 0] - fC[_, _(1 + off, 1 + off + numFix)] * x.t();
     // sC(_, 0) = fC(_, 0);
     // for (ptrdiff_t i = 0; i < numFix; ++i)
     //     sC(_, 0) -= x(i) * fC(_, i + 1 + off);
@@ -812,7 +812,7 @@ public:
     auto fC{getConstraints()};
     auto sC{subSimp->getConstraints()};
     sC[_, 0] << fC[_(begin, numRow), 0] -
-                  fC[_(begin, numRow), _(off, off + numFix)] * x;
+                  fC[_(begin, numRow), _(off, off + numFix)] * x.t();
     sC[_, _(1, off)] << fC[_(begin, numRow), _(1, off)];
     return subSimp->initiateFeasible();
   }

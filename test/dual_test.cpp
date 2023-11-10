@@ -24,9 +24,9 @@ TEST(DualTest, BasicAssertions) {
   for (auto &xx : x) xx = dist(gen);
   SquareMatrix<double> B = A + A.t();
   const auto halfquadform = [&](const auto &y) {
-    return 0.5 * (transpose(y) * (B * y));
+    return 0.5 * ((y * B) * transpose(y));
   };
-  Vector<double> g = B * x;
+  Vector<double> g = x * B;
   auto f = halfquadform(x);
 
   auto [fx, gx] = gradient(&arena, x, halfquadform);

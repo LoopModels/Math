@@ -15,8 +15,8 @@ struct StaticArray : public ArrayOps<T, DenseDims<M, N>, StaticArray<T, M, N>> {
   using value_type = T;
   using reference = T &;
   using const_reference = const T &;
-  using size_type = unsigned;
-  using difference_type = int;
+  using size_type = ptrdiff_t;
+  using difference_type = ptrdiff_t;
   using iterator = T *;
   using const_iterator = const T *;
   using pointer = T *;

@@ -331,7 +331,7 @@ constexpr auto conditional(auto op, const AbstractTensor auto &c, const auto &a,
     {vc, va, vb}, op};
 }
 
-template <AbstractMatrix A, AbstractMatrix B> struct MatMatMul {
+template <AbstractTensor A, AbstractTensor B> struct MatMatMul {
   using value_type = utils::promote_eltype_t<A, B>;
   using concrete = is_concrete_t<A, B>;
   static constexpr bool has_reduction_loop = true;
@@ -570,11 +570,29 @@ static_assert(AbstractMatrix<Elementwise<std::negate<>, PtrMatrix<int64_t>>>);
 static_assert(AbstractMatrix<Array<int64_t, SquareDims<>>>);
 static_assert(AbstractMatrix<ManagedArray<int64_t, SquareDims<>>>);
 
-constexpr auto selfDot(const auto &a) {
+constexpr auto abs2(auto x) { return x * x; }
+template <AbstractTensor B> constexpr auto norm2(const B &A) {
+  utils::eltype_t<B> s = 0;
+  if constexpr (!LinearlyIndexable<B, utils::eltype_t<B>>) {
+    for (ptrdiff_t i = 0; i < A.numRow(); ++i) {
+      for (ptrdiff_t j = 0; j < A.numCol(); ++j) {
+#pragma clang fp reassociate(on) contract(fast)
+        s += abs2(A[i, j]);
+      }
+    }
+  } else
+    for (ptrdiff_t j = 0, L = ptrdiff_t(A.size()); j < L; ++j) {
+#pragma clang fp reassociate(on) contract(fast)
+      s += abs2(A[j]);
+    }
+  return s;
+}
+
+constexpr auto norm2(const auto &a) {
   decltype(a[0] * a[0] + a[1] * a[1]) s{};
   for (auto x : a) {
 #pragma clang fp reassociate(on) contract(fast)
-    s += x * x;
+    s += abs2(x, x);
   }
   return s;
 }
@@ -599,7 +617,7 @@ constexpr auto operator*(const AbstractTensor auto &a,
                          const AbstractTensor auto &b) {
   auto AA{a.view()};
   auto BB{b.view()};
-  invariant(ptrdiff_t(AA.numCol()), ptrdiff_t(BB.numRow()));
+  invariant(ptrdiff_t(numCols(AA)), ptrdiff_t(numRows(BB)));
   if constexpr ((RowVector<decltype(AA)> && RowVector<decltype(BB)>) ||
                 (ColVector<decltype(AA)> && ColVector<decltype(BB)>))
     return ElementwiseBinaryOp(std::multiplies<>{}, AA, BB);
@@ -751,17 +769,6 @@ template <typename T, typename I> struct SliceView {
 };
 
 static_assert(AbstractVector<SliceView<int64_t, unsigned>>);
-constexpr auto abs2(auto x) { return x * x; }
-
-template <AbstractTensor B> constexpr auto norm2(const B &A) {
-  utils::eltype_t<B> s = 0;
-  if constexpr (!LinearlyIndexable<B, utils::eltype_t<B>>) {
-    for (ptrdiff_t i = 0; i < A.numRow(); ++i)
-      for (ptrdiff_t j = 0; j < A.numCol(); ++j) s += abs2(A[i, j]);
-  } else
-    for (ptrdiff_t j = 0, L = ptrdiff_t(A.dim()); j < L; ++j) s += abs2(A[j]);
-  return s;
-}
 
 // template <class T, size_t N> struct Zip {
 //   std::array<T, N> a;

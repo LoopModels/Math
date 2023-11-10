@@ -286,11 +286,7 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   }
   [[nodiscard]] constexpr auto dim() const noexcept -> S { return sz; }
   constexpr void clear() { sz = S{}; }
-  [[nodiscard]] constexpr auto t() const {
-    if constexpr (!std::same_as<decltype(numRow()), Row<1>>)
-      return Transpose{*this};
-    else return Array<T, ptrdiff_t>{ptr, ptrdiff_t(numCol())};
-  }
+  [[nodiscard]] constexpr auto t() const { return Transpose{*this}; }
   [[nodiscard]] constexpr auto isExchangeMatrix() const -> bool
   requires(MatrixDimension<S>)
   {
