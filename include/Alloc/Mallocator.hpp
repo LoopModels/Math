@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <new>
 #ifdef USING_MIMALLOC
 // #include <mimalloc-new-delete.h>
 #include <mimalloc.h>
@@ -9,6 +10,9 @@
 #include <jemalloc/jemalloc.h>
 #else
 #include <cstdlib>
+#endif
+#ifdef __cpp_lib_allocate_at_least
+#include <memory>
 #endif
 namespace poly::alloc {
 

@@ -351,6 +351,7 @@ template <AbstractTensor A, AbstractTensor B> struct MatMatMul {
   requires(ismatrix)
   {
     static_assert(AbstractMatrix<B>, "B should be an AbstractMatrix");
+    invariant(ptrdiff_t(a.numCol()) > 0);
     value_type s{};
     POLYMATHNOVECTORIZE
     for (ptrdiff_t k = 0; k < ptrdiff_t(a.numCol()); ++k)
@@ -363,6 +364,7 @@ template <AbstractTensor A, AbstractTensor B> struct MatMatMul {
     value_type s = 0;
     if constexpr (RowVector<A>) {
       invariant(a.size() == b.numRow());
+      invariant(a.size() > 0);
       POLYMATHNOVECTORIZE
       for (ptrdiff_t k = 0; k < a.numCol(); ++k) {
         POLYMATHFAST
@@ -370,6 +372,7 @@ template <AbstractTensor A, AbstractTensor B> struct MatMatMul {
       }
     } else { // ColVector<B>
       invariant(a.numCol() == b.size());
+      invariant(b.size() > 0);
       for (ptrdiff_t k = 0; k < a.numCol(); ++k) {
         POLYMATHFAST
         s += a[i, k] * b[k];

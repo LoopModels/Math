@@ -355,10 +355,12 @@ template <typename D>
 concept MatrixDimension = requires(D d) {
   { d } -> std::convertible_to<StridedDims<-1, -1, -1>>;
   { Row(d) } -> different<Row<1>>;
+  { Col(d) } -> different<Col<1>>;
 };
 static_assert(MatrixDimension<SquareDims<>>);
 static_assert(MatrixDimension<DenseDims<>>);
 static_assert(!MatrixDimension<DenseDims<1>>);
+static_assert(!MatrixDimension<DenseDims<-1, 1>>);
 static_assert(MatrixDimension<StridedDims<>>);
 static_assert(MatrixDimension<SquareDims<8>>);
 static_assert(MatrixDimension<DenseDims<8, 8>>);

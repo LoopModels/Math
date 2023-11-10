@@ -1,7 +1,9 @@
 #pragma once
+#include <algorithm>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
-#include <bit>
+#include <type_traits>
 
 namespace poly::containers {
 template <typename T, ptrdiff_t N> struct Storage {
@@ -41,10 +43,10 @@ template <class T, class S> consteval auto PreAllocStorage() -> ptrdiff_t {
   constexpr ptrdiff_t N = remainingBytes / sizeof(T);
   return std::max<ptrdiff_t>(0, N);
 }
-constexpr auto log2Floor(uint64_t x) -> uint64_t {
+consteval auto log2Floor(uint64_t x) -> uint64_t {
   return 63 - std::countl_zero(x);
 }
-constexpr auto log2Ceil(uint64_t x) -> uint64_t {
+consteval auto log2Ceil(uint64_t x) -> uint64_t {
   return 64 - std::countl_zero(x - 1);
 }
 // NOLINTNEXTLINE(misc-no-recursion)
@@ -59,13 +61,19 @@ template <class T, class S>
 consteval auto PreAllocSquareStorage() -> ptrdiff_t {
   // 2* because we want to allow more space for matrices
   // also removes need for other checks; log2Floor(2)==1
-  constexpr uint64_t N = 2 * PreAllocStorage<T, S>();
-  if (!N) return 0;
-  // a fairly naive algorirthm for computing the next square `N`
-  // sqrt(x) = x^(1/2) = exp2(log2(x)/2)
-  constexpr uint64_t L = 1 << (log2Floor(N) / 2);
-  constexpr uint64_t H = 1 << ((log2Ceil(N) + 1) / 2);
-  return ptrdiff_t(bisectFindSquare(L, H, N));
+  constexpr ptrdiff_t SN = 2 * PreAllocStorage<T, S>();
+  if constexpr (SN <= 0) return 0;
+  else {
+    constexpr uint64_t N = uint64_t(SN);
+    static_assert(N < 128);
+    // a fairly naive algorirthm for computing the next square `N`
+    // sqrt(x) = x^(1/2) = exp2(log2(x)/2)
+    constexpr uint64_t R = log2Floor(N) / 2;
+    static_assert(R < 63);
+    constexpr uint64_t L = uint64_t(1) << R;
+    constexpr uint64_t H = uint64_t(1) << ((log2Ceil(N) + 1) / 2);
+    return ptrdiff_t(bisectFindSquare(L, H, N));
+  }
 }
 
 } // namespace poly::containers
