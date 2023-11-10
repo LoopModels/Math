@@ -360,17 +360,18 @@ template <AbstractTensor A, AbstractTensor B> struct MatMatMul {
   auto operator[](ptrdiff_t i) const -> value_type
   requires(!ismatrix)
   {
-    invariant(a.numCol() == b.size());
     value_type s = 0;
     if constexpr (RowVector<A>) {
+      invariant(a.size() == b.numRow());
       POLYMATHNOVECTORIZE
       for (ptrdiff_t k = 0; k < a.numCol(); ++k) {
-#pragma clang fp reassociate(on) contract(fast)
+        POLYMATHFAST
         s += a[k] * b[k, i];
       }
     } else { // ColVector<B>
+      invariant(a.numCol() == b.size());
       for (ptrdiff_t k = 0; k < a.numCol(); ++k) {
-#pragma clang fp reassociate(on) contract(fast)
+        POLYMATHFAST
         s += a[i, k] * b[k];
       }
     }
@@ -576,13 +577,13 @@ template <AbstractTensor B> constexpr auto norm2(const B &A) {
   if constexpr (!LinearlyIndexable<B, utils::eltype_t<B>>) {
     for (ptrdiff_t i = 0; i < A.numRow(); ++i) {
       for (ptrdiff_t j = 0; j < A.numCol(); ++j) {
-#pragma clang fp reassociate(on) contract(fast)
+        POLYMATHFAST
         s += abs2(A[i, j]);
       }
     }
   } else
     for (ptrdiff_t j = 0, L = ptrdiff_t(A.size()); j < L; ++j) {
-#pragma clang fp reassociate(on) contract(fast)
+      POLYMATHFAST
       s += abs2(A[j]);
     }
   return s;
@@ -591,7 +592,7 @@ template <AbstractTensor B> constexpr auto norm2(const B &A) {
 constexpr auto norm2(const auto &a) {
   decltype(a[0] * a[0] + a[1] * a[1]) s{};
   for (auto x : a) {
-#pragma clang fp reassociate(on) contract(fast)
+    POLYMATHFAST
     s += abs2(x, x);
   }
   return s;
@@ -601,7 +602,7 @@ constexpr auto dot(const auto &a, const auto &b) {
   invariant(L, b.size());
   decltype(a[0] * b[0] + a[1] * b[1]) s{};
   for (ptrdiff_t i = 0; i < L; ++i) {
-#pragma clang fp reassociate(on) contract(fast)
+    POLYMATHFAST
     s += a[i] * b[i];
   }
   return s;

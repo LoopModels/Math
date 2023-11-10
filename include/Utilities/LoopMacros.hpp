@@ -11,6 +11,7 @@
 #else
 #define POLYMATHNOVECTORIZE
 #endif
+#define POLYMATHFAST
 // #define POLYMATHVECTORIZE _Pragma("GCC unroll 2") _Pragma("GCC ivdep")
 #elif defined (__clang__)
 #define POLYMATHVECTORIZE _Pragma("omp simd")\
@@ -18,11 +19,13 @@
 #define POLYMATHIVDEP _Pragma("clang loop vectorize(disable)")
 #define POLYMATHNOUNROLL _Pragma("nounroll")
 #define POLYMATHNOVECTORIZE _Pragma("clang loop vectorize(disable)")
+#define POLYMATHFAST _Pragma("clang fp reassociate(on) contract(fast)")
 #else
 #define POLYMATHVECTORIZE
 #define POLYMATHIVDEP
 #define POLYMATHNOUNROLL
 #define POLYMATHNOVECTORIZE
+#define POLYMATHFAST
 #endif
 
 #endif // LoopMacros_hpp_INCLUDED

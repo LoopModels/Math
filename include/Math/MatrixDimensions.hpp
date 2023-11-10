@@ -348,12 +348,17 @@ requires(std::convertible_to<R, ptrdiff_t> && std::convertible_to<C, ptrdiff_t>)
   return StridedDims{Row<>{row}, Col<>{col}, RowStride<>{col}};
 }
 
+template <typename T, typename S>
+concept different = !std::same_as<T, S>;
+
 template <typename D>
 concept MatrixDimension = requires(D d) {
   { d } -> std::convertible_to<StridedDims<-1, -1, -1>>;
+  { Row(d) } -> different<Row<1>>;
 };
 static_assert(MatrixDimension<SquareDims<>>);
 static_assert(MatrixDimension<DenseDims<>>);
+static_assert(!MatrixDimension<DenseDims<1>>);
 static_assert(MatrixDimension<StridedDims<>>);
 static_assert(MatrixDimension<SquareDims<8>>);
 static_assert(MatrixDimension<DenseDims<8, 8>>);
