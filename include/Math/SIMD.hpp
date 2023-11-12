@@ -2,11 +2,15 @@
 #ifndef SIMD_hpp_INCLUDED
 #define SIMD_hpp_INCLUDED
 
+#include <array>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 
+namespace poly::math::simd {
+
 template <ptrdiff_t W, typename T>
-using Vec __attribute__((vector_size(W * sizeof(T)))) = T;
+using Vec [[gnu::vector_size(W * sizeof(T))]] = T;
 
 template <typename T> static constexpr bool SupportsSIMD = false;
 template <> static constexpr bool SupportsSIMD<double> = true;
@@ -17,6 +21,7 @@ struct NoMask {};
 template <ptrdiff_t W, typename U = NoMask> struct VectorIndex {
   ptrdiff_t i;
   [[no_unique_address]] U mask{};
+  explicit constexpr operator ptrdiff_t() const { return ptrdiff_t(index); }
 };
 static_assert(sizeof(VectorIndex<2>) == sizeof(ptrdiff_t));
 
@@ -215,59 +220,59 @@ store(int64_t *p, VectorIndex<2> i, Vec<2, int64_t> x) {
 #else
 static constexpr ptrdiff_t REGISTERS = 32;
 static constexpr ptrdiff_t VECTORWIDTH = 16;
-[[gnu::always_inline, gnu::artificial]] inline auto load(const double *p,
-                                                         VectorIndex<2> i)
-  -> Vec<2, double> {
-  Vec<2, double> ret;
-  ret[0] = p[i.i];
-  ret[1] = p[i.i + 1];
+template <ptrdiff_t W, typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto load(const T *p,
+                                                         VectorIndex<W> i)
+  -> Vec<W, T> {
+  Vec<W, T> ret;
+#pragma unroll
+  for (ptrdiff_t w = 0; w < W; ++w) ret[w] = p[i.i + w];
   return ret;
 }
-
+template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, VectorIndex<2> i, Vec<2, double> x) {
-  p[i.i] = x[0];
-  p[i.i + 1] = x[1];
+store(T *p, VectorIndex<W> i, Vec<W, T> x) {
+#pragma unroll
+  for (ptrdiff_t w = 0; w < W; ++w) p[i.i + w] = x[w];
 }
-
-[[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
-                                                         VectorIndex<2> i) {
-  Vec<2, int64_t> ret;
-  ret[0] = p[i.i];
-  ret[1] = p[i.i + 1];
-  return ret;
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, VectorIndex<2> i, Vec<2, int64_t> x) {
-  p[i.i] = x[0];
-  p[i.i + 1] = x[1];
-}
+template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const double *p, VectorIndex<2, uint8_t> i) -> Vec<2, double> {
-  Vec<2, double> ret;
-  ret[0] = (i.mask & 1) ? p[i.i] : 0;
-  ret[1] = (i.mask & 2) ? p[i.i + 1] : 0;
+load(const T *p, VectorIndex<W, uint8_t> i) -> Vec<W, T> {
+  Vec<W, T> ret;
+#pragma unroll
+  for (ptrdiff_t w = 0; w < W; ++w)
+    ret[w] = (i.mask & (1 << w)) ? p[i.i + w] : 0;
   return ret;
 }
-
+template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, VectorIndex<2, uint8_t> i, Vec<2, double> x) {
-  if (i.mask & 1) p[i.i] = x[0];
-  if (i.mask & 2) p[i.i + 1] = x[1];
-}
-
-[[gnu::always_inline, gnu::artificial]] inline auto
-load(const int64_t *p, VectorIndex<2, uint8_t> i) {
-  Vec<2, int64_t> ret;
-  ret[0] = (i.mask & 1) ? p[i.i] : 0;
-  ret[1] = (i.mask & 2) ? p[i.i + 1] : 0;
-  return ret;
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, VectorIndex<2, uint8_t> i, Vec<2, int64_t> x) {
-  if (i.mask & 1) p[i.i] = x[0];
-  if (i.mask & 2) p[i.i + 1] = x[1];
+store(T *p, VectorIndex<W, uint8_t> i, Vec<W, T> x) {
+#pragma unroll
+  for (ptrdiff_t w = 0; w < W; ++w)
+    if (i.mask & (1 << w)) p[i.i + w] = x[w];
 }
 #endif
+
+template <typename T>
+static constexpr ptrdiff_t Width = VECTORWIDTH / sizeof(T);
+
+// note, when `I` isa `VectorIndex<W,uint8_t>`
+// then the mask only gets applied to the last unroll!
+template <ptrdiff_t U, typename I> struct Unroll {
+  I index;
+  explicit constexpr operator ptrdiff_t() const { return ptrdiff_t(index); }
+};
+
+// returns { vector_size, num_vectors, remainder }
+template <ptrdiff_t L, typename T>
+consteval auto VectorDivRem() -> std::array<ptrdiff_t, 3> {
+  constexpr ptrdiff_t W = Width<T>;
+  if constexpr (L <= W) {
+    constexpr auto V = ptrdiff_t(std::bit_ceil(size_t(L)));
+    return {V, L / V, L % V};
+  } else return {W, L / W, L % W};
+};
+
+} // namespace poly::math::simd
 
 #endif // SIMD_hpp_INCLUDED

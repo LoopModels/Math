@@ -2,6 +2,7 @@
 #include "Math/AxisTypes.hpp"
 #include "Math/Iterators.hpp"
 #include "Math/MatrixDimensions.hpp"
+#include "Math/SIMD.hpp"
 #include <cstddef>
 
 namespace poly::math {
@@ -57,15 +58,26 @@ concept ScalarRelativeIndex =
   std::same_as<T, End> || std::same_as<T, Begin> ||
   std::same_as<T, OffsetBegin> || std::same_as<T, OffsetEnd>;
 
+namespace simd {
+template <class T> struct IsSimdScalarIndex : std::false_type {};
+template <ptrdiff_t N, typename I>
+struct IsSimdScalarIndex<Unroll<N, I>> : std::true_type {};
+template <ptrdiff_t N, typename U>
+struct IsSimdScalarIndex<VectorIndex<N, U>> : std::true_type {};
+template <typename T>
+concept SIMDIndex = simd::IsSimdScalarIndex<T>::value;
+} // namespace simd
+
 template <typename T>
 concept ScalarIndex =
-  std::convertible_to<T, ptrdiff_t> || ScalarRelativeIndex<T>;
+  std::convertible_to<T, ptrdiff_t> || ScalarRelativeIndex<T> || SIMDIndex<T>;
 
 [[maybe_unused]] static constexpr inline struct Colon {
   [[nodiscard]] inline constexpr auto operator()(auto B, auto E) const {
     return Range{standardizeRangeBound(B), standardizeRangeBound(E)};
   }
-} _; // NOLINT(bugprone-reserved-identifier)
+} _;
+
 constexpr auto canonicalize(ptrdiff_t e, ptrdiff_t) -> ptrdiff_t { return e; }
 constexpr auto canonicalize(Begin, ptrdiff_t) -> ptrdiff_t { return 0; }
 constexpr auto canonicalize(OffsetBegin b, ptrdiff_t) -> ptrdiff_t {
@@ -177,14 +189,14 @@ template <typename T>
 concept StaticInt =
   std::is_same_v<T, std::integral_constant<typename T::value_type, T::value>>;
 
-template <class T>
+template <typename T>
 concept DenseLayout =
   std::integral<T> || std::is_convertible_v<T, DenseDims<>> || StaticInt<T>;
 
 static_assert(StaticInt<std::integral_constant<ptrdiff_t, 3>>);
 static_assert(!StaticInt<int64_t>);
 
-template <class D>
+template <typename D>
 concept VectorDimension =
   std::integral<D> || std::same_as<D, StridedRange> || StaticInt<D>;
 

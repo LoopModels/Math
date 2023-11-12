@@ -362,6 +362,21 @@ template <AbstractTensor A, AbstractTensor B> struct MatMatMul {
       s += a[i, k] * b[k, j];
     return s;
   }
+  // If `T isa Dual<Dual<double,7>,2>`, we would not want to construct
+  // intermediates that require masked loads/stores, as compilers have
+  // trouble optimizing these away.
+  // We can imagine two strategies for avoiding this:
+  // 1. Do not write/construct any intermediates, but write into the result
+  // directly.
+  // 2. Decompress/compress on load/store, so temporaries do not need masks.
+  // `1.` seems ideal, but harder to implement.
+  // For example, here, `s` would have to alias the result. Then we also have
+  // `s +=`, which would have to invoke somehow call
+  // `Dual<Dual<double,7>,2>::operator+=` without storing.
+  // Or, we'd need a method that can see through it, so we operate on the teminal values, but still in one go to only have one instance of the reduction loop.
+  // Thus, `1.` seems conceptually simple but without a clear implementation strategy.
+  // 
+  //  
   [[gnu::always_inline]] constexpr auto operator[](ptrdiff_t i) const
     -> value_type
   requires(!ismatrix)

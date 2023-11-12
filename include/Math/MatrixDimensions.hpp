@@ -27,6 +27,8 @@ template <class R, class C> struct CartesianIndex {
   {
     return {ptrdiff_t(row), ptrdiff_t(col)};
   }
+  // FIXME: Do we need this??
+  // Either document why, or delete this method.
   constexpr operator ptrdiff_t() const
   requires(std::same_as<R, std::integral_constant<ptrdiff_t, 1>>)
   {
