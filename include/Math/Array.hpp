@@ -65,6 +65,26 @@ using utils::Valid, utils::Optional;
 template <class T, class S> struct Array;
 template <class T, class S> struct MutArray;
 
+template <typename T, typename S, typename I>
+[[gnu::flatten, gnu::always_inline]] constexpr auto index(T *ptr, S shape,
+                                                          I i) noexcept
+  -> decltype(auto);
+
+template <typename T, typename S, typename R, typename C>
+[[gnu::flatten, gnu::always_inline]] constexpr auto index(T *ptr, S shape, R r,
+                                                          C c) noexcept
+  -> decltype(auto);
+
+template <typename T, typename S, typename I>
+[[gnu::flatten, gnu::always_inline]] constexpr auto index(const T *ptr, S shape,
+                                                          I i) noexcept
+  -> decltype(auto);
+
+template <typename T, typename S, typename R, typename C>
+[[gnu::flatten, gnu::always_inline]] constexpr auto index(const T *ptr, S shape,
+                                                          R r, C c) noexcept
+  -> decltype(auto);
+
 template <typename T, bool Column = false> struct SliceIterator {
   using stride_type = std::conditional_t<Column, StridedRange, ptrdiff_t>;
   using value_type =
@@ -1811,5 +1831,28 @@ inline auto operator<<(std::ostream &os, Array<T, DenseDims<R, C>> A)
 
 static_assert(std::same_as<const int64_t &,
                            decltype(std::declval<PtrMatrix<int64_t>>()[0, 0])>);
+
+template <typename T, typename S, typename I>
+[[gnu::flatten, gnu::always_inline]] constexpr auto index(T *ptr, S shape,
+                                                          I i) noexcept
+  -> decltype(auto) {
+  auto offset = calcOffset(shape, i);
+  auto newDim = calcNewDim(shape, i);
+  invariant(ptr != nullptr);
+  if constexpr (std::same_as<decltype(newDim), Empty>)
+    return static_cast<const T *>(ptr)[offset];
+  else return Array<T, decltype(newDim)>{ptr + offset, newDim};
+}
+// for (row/col)vectors, we drop the row/col, essentially broadcasting
+template <typename T, typename S, typename R, typename C>
+[[gnu::flatten, gnu::always_inline]] constexpr auto index(T *ptr, S shape, R r,
+                                                          C c) noexcept
+  -> decltype(auto) {
+  if constexpr (MatrixDimension<S>) {
+    // FIXME
+  } else if constexpr (std::same_as<S, StridedRange>)
+    return index(ptr, shape, r);
+  else return index(ptr, shape, c);
+}
 
 } // namespace poly::math

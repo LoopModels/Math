@@ -17,6 +17,8 @@ namespace poly::math {
     return os << "end";
   }
 } end;
+/// TODO: remove `OffsetBegin`
+/// We probably won't support non-zero-based indexing
 struct OffsetBegin {
   [[no_unique_address]] ptrdiff_t offset;
   friend inline auto operator<<(std::ostream &os, OffsetBegin r)
@@ -69,8 +71,8 @@ concept SIMDIndex = simd::IsSimdScalarIndex<T>::value;
 } // namespace simd
 
 template <typename T>
-concept ScalarIndex =
-  std::convertible_to<T, ptrdiff_t> || ScalarRelativeIndex<T> || SIMDIndex<T>;
+concept ScalarIndex = std::convertible_to<T, ptrdiff_t> ||
+                      ScalarRelativeIndex<T> || simd::SIMDIndex<T>;
 
 [[maybe_unused]] static constexpr inline struct Colon {
   [[nodiscard]] inline constexpr auto operator()(auto B, auto E) const {
