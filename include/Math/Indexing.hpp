@@ -157,13 +157,10 @@ constexpr auto calcOffset(SquareDims<>, ptrdiff_t i) -> ptrdiff_t { return i; }
 constexpr auto calcOffset(DenseDims<>, ptrdiff_t i) -> ptrdiff_t { return i; }
 
 template <class R, class C>
-[[nodiscard]] inline constexpr auto calcOffset(StridedDims<> d,
-                                               CartesianIndex<R, C> i)
+[[nodiscard]] inline constexpr auto calcOffset(StridedDims<> d, R r, C c)
   -> ptrdiff_t {
-  ptrdiff_t r =
-    ptrdiff_t(RowStride<>(d)) * calcOffset(ptrdiff_t(Row<>(d)), i.row);
-  ptrdiff_t c = calcOffset(ptrdiff_t(Col<>(d)), i.col);
-  return r + c;
+  return ptrdiff_t(RowStride<>(d)) * calcOffset(ptrdiff_t(Row<>(d)), r) +
+         calcOffset(ptrdiff_t(Col<>(d)), c);
 }
 
 struct StridedRange {
@@ -238,7 +235,7 @@ constexpr auto calcNewDim(StridedRange len, Range<B, E> r) -> StridedRange {
   return StridedRange{ptrdiff_t(calcNewDim(len.len, r)), len.stride};
 }
 template <ScalarIndex R, ScalarIndex C>
-constexpr auto calcNewDim(StridedDims<>, CartesianIndex<R, C>) -> Empty {
+constexpr auto calcNewDim(StridedDims<>, R, C) -> Empty {
   return {};
 }
 constexpr auto calcNewDim(std::integral auto len, Colon) -> ptrdiff_t {
@@ -248,30 +245,30 @@ constexpr auto calcNewDim(StaticInt auto len, Colon) { return len; };
 constexpr auto calcNewDim(StridedRange len, Colon) { return len; };
 
 template <AbstractSlice B, ScalarIndex C>
-constexpr auto calcNewDim(StridedDims<> d, CartesianIndex<B, C> i) {
-  ptrdiff_t rowDims = ptrdiff_t(calcNewDim(ptrdiff_t(Row(d)), i.row));
+constexpr auto calcNewDim(StridedDims<> d, B b, C) {
+  ptrdiff_t rowDims = ptrdiff_t(calcNewDim(ptrdiff_t(Row(d)), b));
   return StridedRange{rowDims, ptrdiff_t(RowStride(d))};
 }
 
 template <ScalarIndex R, AbstractSlice C>
-constexpr auto calcNewDim(StridedDims<> d, CartesianIndex<R, C> i) {
-  return calcNewDim(ptrdiff_t(Col(d)), i.col);
+constexpr auto calcNewDim(StridedDims<> d, R, C c) {
+  return calcNewDim(ptrdiff_t(Col(d)), c);
 }
 
 template <AbstractSlice B, AbstractSlice C>
-constexpr auto calcNewDim(StridedDims<> d, CartesianIndex<B, C> i) {
-  auto rowDims = calcNewDim(ptrdiff_t(Row(d)), i.row);
-  auto colDims = calcNewDim(ptrdiff_t(Col(d)), i.col);
+constexpr auto calcNewDim(StridedDims<> d, B r, C c) {
+  auto rowDims = calcNewDim(ptrdiff_t(Row(d)), r);
+  auto colDims = calcNewDim(ptrdiff_t(Col(d)), c);
   return StridedDims(row(rowDims), col(colDims), RowStride(d));
 }
 template <AbstractSlice B>
-constexpr auto calcNewDim(DenseDims<> d, CartesianIndex<B, Colon> i) {
-  auto rowDims = calcNewDim(ptrdiff_t(Row(d)), i.row);
+constexpr auto calcNewDim(DenseDims<> d, B r, Colon) {
+  auto rowDims = calcNewDim(ptrdiff_t(Row(d)), r);
   return DenseDims(row(rowDims), Col(d));
 }
 template <AbstractSlice B>
-constexpr auto calcNewDim(SquareDims<> d, CartesianIndex<B, Colon> i) {
-  auto rowDims = calcNewDim(ptrdiff_t(Row(d)), i.row);
+constexpr auto calcNewDim(SquareDims<> d, B r, Colon) {
+  auto rowDims = calcNewDim(ptrdiff_t(Row(d)), r);
   return DenseDims(row(rowDims), Col(d));
 }
 

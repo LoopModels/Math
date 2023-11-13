@@ -1832,6 +1832,51 @@ inline auto operator<<(std::ostream &os, Array<T, DenseDims<R, C>> A)
 static_assert(std::same_as<const int64_t &,
                            decltype(std::declval<PtrMatrix<int64_t>>()[0, 0])>);
 
+// Cases we need to consider:
+// 1. Slice-indexing
+// 2.a. `ptrdiff_t` indexing, not compressed
+// 2.b. `ptrdiff_t` indexing, compressed
+// 3.a.i. Vector indexing, contig, no mask
+// 3.a.ii. Vector indexing, contig, mask
+// 3.b.i. Vector indexing, discontig, no mask
+// 3.b.ii. Vector indexing, discontig, mask
+// all of the above for `T*` and `const T*`
+template <typename T, typename S, typename I>
+[[gnu::flatten, gnu::always_inline]] constexpr auto index(const T *ptr, S shape,
+                                                          I i) noexcept
+  -> decltype(auto) {
+  auto offset = calcOffset(shape, i);
+  auto newDim = calcNewDim(shape, i);
+  invariant(ptr != nullptr);
+  if constexpr (std::same_as<decltype(newDim), Empty>) {
+    if constexpr (Compressible<T>) return decompress(ptr + offset);
+    else if constexpr (IsVectorIndex<decltype(offset)>)
+      return load(ptr, offset);
+    else return ptr[offset];
+  } else return Array<T, decltype(newDim)>{ptr + offset, newDim};
+}
+// for (row/col)vectors, we drop the row/col, essentially broadcasting
+template <typename T, typename S, typename R, typename C>
+[[gnu::flatten, gnu::always_inline]] constexpr auto index(const T *ptr, S shape,
+                                                          R r, C c) noexcept
+  -> decltype(auto) {
+  if constexpr (MatrixDimension<S>) {
+    auto offset = calcOffset(shape, r, c);
+    auto newDim = calcNewDim(shape, r, c);
+    if constexpr (std::same_as<decltype(newDim), Empty>)
+      // 3.a.i. Vector indexing, contig, no mask
+      // 3.a.ii. Vector indexing, contig, mask
+      if constexpr (utils::Compressible<T>)
+        return utils::decompress(ptr + offset);
+      else if constexpr (IsVectorIndex<decltype(offset)>)
+        return load(ptr, offset);
+      else return ptr[offset];
+    else return Array<T, decltype(newDim)>{ptr + offset, newDim};
+  } else if constexpr (std::same_as<S, StridedRange>)
+    return index(ptr, shape, r);
+  else return index(ptr, shape, c);
+}
+
 template <typename T, typename S, typename I>
 [[gnu::flatten, gnu::always_inline]] constexpr auto index(T *ptr, S shape,
                                                           I i) noexcept
@@ -1839,9 +1884,12 @@ template <typename T, typename S, typename I>
   auto offset = calcOffset(shape, i);
   auto newDim = calcNewDim(shape, i);
   invariant(ptr != nullptr);
-  if constexpr (std::same_as<decltype(newDim), Empty>)
-    return static_cast<const T *>(ptr)[offset];
-  else return Array<T, decltype(newDim)>{ptr + offset, newDim};
+  if constexpr (std::same_as<decltype(newDim), Empty>) {
+    if constexpr (Compressible<T>) return ref(ptr + offset);
+    else if constexpr (IsVectorIndex<decltype(offset)>)
+      return load(ptr, offset);
+    else return ptr[offset];
+  } else return Array<T, decltype(newDim)>{ptr + offset, newDim};
 }
 // for (row/col)vectors, we drop the row/col, essentially broadcasting
 template <typename T, typename S, typename R, typename C>
@@ -1849,7 +1897,16 @@ template <typename T, typename S, typename R, typename C>
                                                           C c) noexcept
   -> decltype(auto) {
   if constexpr (MatrixDimension<S>) {
-    // FIXME
+    auto offset = calcOffset(shape, r, c);
+    auto newDim = calcNewDim(shape, r, c);
+    if constexpr (std::same_as<decltype(newDim), Empty>)
+      // 3.a.i. Vector indexing, contig, no mask
+      // 3.a.ii. Vector indexing, contig, mask
+      if constexpr (utils::Compressible<T>) return ref(ptr + offset);
+      else if constexpr (IsVectorIndex<decltype(offset)>)
+        return load(ptr, offset);
+      else return ptr[offset];
+    else return Array<T, decltype(newDim)>{ptr + offset, newDim};
   } else if constexpr (std::same_as<S, StridedRange>)
     return index(ptr, shape, r);
   else return index(ptr, shape, c);

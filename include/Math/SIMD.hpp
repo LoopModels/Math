@@ -164,11 +164,11 @@ store(int64_t *p, VectorIndex<8, BitMask> i, Vec<8, int64_t> x,
   _mm512_mask_i32scatter_epi64(p, uint8_t(i.mask), vindex(i, stride),
                                std::bit_cast<__m512i>(x), 8);
 }
-#else
+#else // no AVX512F
 static constexpr ptrdiff_t REGISTERS = 16;
 #ifdef __AVX__
 static constexpr ptrdiff_t VECTORWIDTH = 32;
-#else
+#else // no AVX
 static constexpr ptrdiff_t VECTORWIDTH = 16;
 #endif
 #endif
