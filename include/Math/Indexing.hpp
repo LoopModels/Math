@@ -62,8 +62,8 @@ concept ScalarRelativeIndex =
 
 namespace simd {
 template <class T> struct IsSimdScalarIndex : std::false_type {};
-template <ptrdiff_t R, ptrdiff_t C, typename I>
-struct IsSimdScalarIndex<index::Unroll<R, C, I>> : std::true_type {};
+template <ptrdiff_t U, typename I>
+struct IsSimdScalarIndex<index::Unroll<U, I>> : std::true_type {};
 template <ptrdiff_t N, typename U>
 struct IsSimdScalarIndex<index::Vector<N, U>> : std::true_type {};
 template <typename T>
@@ -270,6 +270,21 @@ template <AbstractSlice B>
 constexpr auto calcNewDim(SquareDims<> d, B r, Colon) {
   auto rowDims = calcNewDim(ptrdiff_t(Row(d)), r);
   return DenseDims(row(rowDims), Col(d));
+}
+
+template <typename I> struct Stride {
+  I index;
+  [[no_unique_address]] ptrdiff_t stride;
+};
+template <ptrdiff_t U>
+constexpr auto calcOffset(ptrdiff_t len, simd::index::Unroll<U> i) {
+  invariant(i.index + (U - 1) < len);
+  return i;
+}
+template <ptrdiff_t W>
+constexpr auto calcOffset(ptrdiff_t len, simd::index::Vector<W> i) {
+  invariant(i.index + (W - 1) < len);
+  return i;
 }
 
 } // namespace poly::math
