@@ -62,10 +62,10 @@ concept ScalarRelativeIndex =
 
 namespace simd {
 template <class T> struct IsSimdScalarIndex : std::false_type {};
-template <ptrdiff_t N, typename I>
-struct IsSimdScalarIndex<Unroll<N, I>> : std::true_type {};
+template <ptrdiff_t R, ptrdiff_t C, typename I>
+struct IsSimdScalarIndex<index::Unroll<R, C, I>> : std::true_type {};
 template <ptrdiff_t N, typename U>
-struct IsSimdScalarIndex<VectorIndex<N, U>> : std::true_type {};
+struct IsSimdScalarIndex<index::Vector<N, U>> : std::true_type {};
 template <typename T>
 concept SIMDIndex = simd::IsSimdScalarIndex<T>::value;
 } // namespace simd
