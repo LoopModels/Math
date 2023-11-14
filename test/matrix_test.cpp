@@ -93,6 +93,7 @@ TEST(SparseIndexingTest, BasicAssertions) {
   int64_t i = 0;
   IntMatrix<> D{C};
   std::cout << "C=" << C << "\n";
+  static_assert(std::same_as<decltype(D[0, _]), MutArray<long, long>>);
   for (ptrdiff_t r : _(0, D.numRow())) D[r, _] += ptrdiff_t(r) + 1;
   for (auto r : C.eachRow()) {
     EXPECT_EQ(r.size(), ptrdiff_t(C.numCol()));

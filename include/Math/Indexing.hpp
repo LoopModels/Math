@@ -60,19 +60,9 @@ concept ScalarRelativeIndex =
   std::same_as<T, End> || std::same_as<T, Begin> ||
   std::same_as<T, OffsetBegin> || std::same_as<T, OffsetEnd>;
 
-namespace simd {
-template <class T> struct IsSimdScalarIndex : std::false_type {};
-template <ptrdiff_t U, typename I>
-struct IsSimdScalarIndex<index::Unroll<U, I>> : std::true_type {};
-template <ptrdiff_t N, typename U>
-struct IsSimdScalarIndex<index::Vector<N, U>> : std::true_type {};
 template <typename T>
-concept SIMDIndex = simd::IsSimdScalarIndex<T>::value;
-} // namespace simd
-
-template <typename T>
-concept ScalarIndex = std::convertible_to<T, ptrdiff_t> ||
-                      ScalarRelativeIndex<T> || simd::SIMDIndex<T>;
+concept ScalarIndex =
+  std::convertible_to<T, ptrdiff_t> || ScalarRelativeIndex<T>;
 
 [[maybe_unused]] static constexpr inline struct Colon {
   [[nodiscard]] inline constexpr auto operator()(auto B, auto E) const {
@@ -159,7 +149,7 @@ constexpr auto calcOffset(DenseDims<>, ptrdiff_t i) -> ptrdiff_t { return i; }
 template <class R, class C>
 [[nodiscard]] inline constexpr auto calcOffset(StridedDims<> d, R r, C c)
   -> ptrdiff_t {
-  return ptrdiff_t(RowStride<>(d)) * calcOffset(ptrdiff_t(Row<>(d)), r) +
+  return ptrdiff_t(stride(d)) * calcOffset(ptrdiff_t(Row<>(d)), r) +
          calcOffset(ptrdiff_t(Col<>(d)), c);
 }
 
@@ -202,8 +192,10 @@ concept VectorDimension =
 // Concept for aligning array dimensions with indices.
 template <class I, class D>
 concept Index =
-  (VectorDimension<D> && (ScalarIndex<I> || AbstractSlice<I>)) ||
-  (DenseLayout<D> && ScalarIndex<I>) || (MatrixDimension<D> && requires(I i) {
+  (VectorDimension<D> &&
+   (ScalarIndex<I> || AbstractSlice<I> || simd::index::issimd<I>)) ||
+  (DenseLayout<D> && (ScalarIndex<I> || simd::index::issimd<I>)) ||
+  (MatrixDimension<D> && requires(I i) {
     { i.row };
     { i.col };
   });
@@ -272,19 +264,44 @@ constexpr auto calcNewDim(SquareDims<> d, B r, Colon) {
   return DenseDims(row(rowDims), Col(d));
 }
 
-template <typename I> struct Stride {
-  I index;
-  [[no_unique_address]] ptrdiff_t stride;
-};
-template <ptrdiff_t U, typename I>
-constexpr auto calcOffset(ptrdiff_t len, simd::index::Unroll<U, I> i) {
-  invariant(i.index + (U - 1) < len);
-  return i;
+template <ptrdiff_t U, ptrdiff_t W, typename M>
+constexpr auto calcOffset(ptrdiff_t len, simd::index::Unroll<U, W, M> i) {
+  if constexpr (std::same_as<M, simd::mask::None<W>>)
+    invariant((i.index + U * W - 1) < len);
+  else invariant(i.index + (U - 1) * W + i.mask.lastUnmasked() - 1 < len);
+  return i.index;
 }
-template <ptrdiff_t W, typename M>
-constexpr auto calcOffset(ptrdiff_t len, simd::index::Vector<W, M> i) {
-  invariant(i.index + (W - 1) < len);
-  return i;
+
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename M>
+constexpr auto calcNewDim(StridedDims<> d, simd::index::Unroll<R>,
+                          simd::index::Unroll<C, W, M> c) {
+  return simd::index::UnrollDims<R, C, W, M>{c.mask, RowStride(d)};
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename M>
+constexpr auto calcNewDim(StridedDims<> d, simd::index::Unroll<C, W, M> r,
+                          simd::index::Unroll<R>) {
+  return simd::index::UnrollDims<R, C, W, M, true>{r.mask, RowStride(d)};
+}
+
+template <ptrdiff_t C, ptrdiff_t W, typename M>
+constexpr auto calcNewDim(StridedDims<> d, ptrdiff_t,
+                          simd::index::Unroll<C, W, M> c) {
+  return simd::index::UnrollDims<1, C, W, M>{c.mask, RowStride(d)};
+}
+template <ptrdiff_t R, ptrdiff_t W, typename M>
+constexpr auto calcNewDim(StridedDims<> d, simd::index::Unroll<R, W, M> r,
+                          ptrdiff_t) {
+  return simd::index::UnrollDims<1, R, W, M, true>{r.mask, RowStride(d)};
+}
+
+template <ptrdiff_t U, ptrdiff_t W, typename M>
+constexpr auto calcNewDim(ptrdiff_t, simd::index::Unroll<U, W, M> i) {
+  return simd::index::UnrollDims<1, U, W, M, false, 1>{i.mask, RowStride<1>{}};
+}
+
+template <ptrdiff_t U, ptrdiff_t W, typename M>
+constexpr auto calcNewDim(StridedRange x, simd::index::Unroll<U, W, M> i) {
+  return simd::index::UnrollDims<1, U, W, M, true, -1>{i.mask, stride(x)};
 }
 
 } // namespace poly::math

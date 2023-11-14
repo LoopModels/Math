@@ -4,24 +4,31 @@
 
 #include <Math/AxisTypes.hpp>
 #include <Utilities/Invariant.hpp>
+#include <Utilities/LoopMacros.hpp>
 #include <array>
 #include <bit>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
 
-namespace poly::math {
-namespace simd {
+#ifdef __x86_64__
+#include <immintrin.h>
+#endif
+namespace poly::math::simd {
 
 template <ptrdiff_t W, typename T>
 using Vec [[gnu::vector_size(W * sizeof(T))]] = T;
 
-template <typename T> static constexpr bool SupportsSIMD = false;
-template <> static constexpr bool SupportsSIMD<double> = true;
-template <> static constexpr bool SupportsSIMD<int64_t> = true;
+// Supported means by this library currently; more types may be added in the
+// future as needed.
+template <typename T>
+concept SIMDSupported = std::same_as<T, int64_t> || std::same_as<T, double>;
 
 namespace mask {
-template <ptrdiff_t W> struct None {};
+template <ptrdiff_t W> struct None {
+  static constexpr auto lastUnmasked() -> ptrdiff_t { return W; }
+};
+
 // Alternatives we can have: BitMask and VectorMask
 } // namespace mask
 
@@ -29,19 +36,40 @@ template <ptrdiff_t W> struct None {};
 
 template <ptrdiff_t W,
           typename I = std::conditional_t<W == 2, int64_t, int32_t>>
-consteval auto range() {
+consteval auto range() -> Vec<W, I> {
   static_assert(std::popcount(size_t(W)) == 1);
-  Vec<W, I> r;
-  for (ptrdiff_t w = 0; w < W; ++w) r[w] = I(w);
-  return r;
+  if constexpr (W == 2) return Vec<W, I>{0, 1};
+  else if constexpr (W == 4) return Vec<W, I>{0, 1, 2, 3};
+  else if constexpr (W == 8) return Vec<W, I>{0, 1, 2, 3, 4, 5, 6, 7};
+  else if constexpr (W == 16)
+    return Vec<W, I>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+  else {
+    Vec<W, I> r;
+    for (ptrdiff_t w = 0; w < W; ++w) r[w] = I(w);
+    return r;
+  }
 }
 
 #ifdef __x86_64__
-#include <immintrin.h>
 
+// TODO: make `consteval` when clang supports it
+template <ptrdiff_t W, typename T> consteval auto mmzero() {
+  // Extend if/when supporting more types
+  static_assert(std::popcount(size_t(W)) == 1 && W <= 8);
+  constexpr Vec<W, T> z{};
+  if constexpr (std::same_as<T, double>) {
+    if constexpr (W == 8) return std::bit_cast<__m512d>(z);
+    else if constexpr (W == 4) return std::bit_cast<__m256d>(z);
+    else return std::bit_cast<__m128d>(z);
+  } else {
+    static_assert(std::same_as<T, int64_t>);
+    if constexpr (W == 8) return std::bit_cast<__m512i>(z);
+    else if constexpr (W == 4) return std::bit_cast<__m256i>(z);
+    else return std::bit_cast<__m128i>(z);
+  }
+}
 template <ptrdiff_t W> inline auto vindex(int32_t stride) {
-  if constexpr (W == 2) return std::bit_cast<__m128i>(range<W>() * stride);
-  else if constexpr (W == 4) return std::bit_cast<__m128i>(range<W>() * stride);
+  if constexpr (W <= 4) return std::bit_cast<__m128i>(range<W>() * stride);
   else if constexpr (W == 8) return std::bit_cast<__m256i>(range<W>() * stride);
   else {
     static_assert(W == 16);
@@ -55,7 +83,13 @@ template <ptrdiff_t W> struct Bit {
   template <std::unsigned_integral U> explicit constexpr operator U() {
     return U(m);
   }
-  explicit constexpr operator bool() { return m; }
+  explicit constexpr operator bool() const { return m; }
+  [[nodiscard]] constexpr auto lastUnmasked() const -> ptrdiff_t {
+    // could make this `countr_ones` if we decide to only
+    // support leading masks
+    uint64_t m = mask & ((uint64_t(1) << W) - uint64_t(1));
+    reutrn 64 - ptrdiff_t(std::countl_zeros(m));
+  }
 };
 template <ptrdiff_t W> constexpr auto operator&(Bit<W> a, Bit<W> b) -> Bit<W> {
   return {a.mask & b.mask};
@@ -78,9 +112,13 @@ namespace mask {
 template <ptrdiff_t W> struct Vector {
   static_assert((W == 2) || (W == 4));
   Vec<W, int64_t> m;
-  explicit constexpr operator bool() {
+  [[nodiscard]] constexpr auto intmask() const -> int32_t {
     if constexpr (W == 2) return _mm_movemask_epi8(std::bit_cast<__m128i>(m));
     else return _mm256_movemask_epi8(std::bit_cast<__m256i>(m));
+  }
+  explicit constexpr operator bool() const { return intmask(); }
+  [[nodiscard]] constexpr auto lastUnmasked() const -> ptrdiff_t {
+    return 32 - std::countl_zero(intmask());
   }
   constexpr operator __m128i()
   requires(W == 2)
@@ -199,22 +237,6 @@ store(int64_t *p, mask::Bit<8> i, Vec<8, int64_t> x) {
   _mm512_mask_storeu_epi64(p, uint8_t(i.mask), std::bit_cast<__m512i>(x));
 }
 // strided memory accesses
-// TODO: make `consteval` when clang supports it
-template <ptrdiff_t W, typename T> inline auto mmzero() {
-  // Extend if/when supporting more types
-  static_assert(std::popcount(size_t(W)) == 1 && W <= 8);
-  Vec<W, T> z{};
-  if constexpr (std::same_as<T, double>) {
-    if constexpr (W == 8) return std::bit_cast<__m512d>(z);
-    else if constexpr (W == 4) return std::bit_cast<__m256d>(z);
-    else return std::bit_cast<__m128d>(z);
-  } else {
-    static_assert(std::same_as<T, int64_t>);
-    if constexpr (W == 8) return std::bit_cast<__m512i>(z);
-    else if constexpr (W == 4) return std::bit_cast<__m256i>(z);
-    else return std::bit_cast<__m128i>(z);
-  }
-}
 [[gnu::always_inline, gnu::artificial]] inline auto
 load(const double *p, mask::None<8>, int32_t stride) -> Vec<8, double> {
   return std::bit_cast<Vec<8, double>>(
@@ -267,23 +289,23 @@ static constexpr ptrdiff_t VECTORWIDTH = 16;
 // Non-masked gather/scatter are the same with AVX512VL and AVX2
 [[gnu::always_inline, gnu::artificial]] inline auto
 load(const double *p, mask::None<4>, int32_t stride) -> Vec<4, double> {
-  return std::bit_cast<Vec<4, double>>(
-    _mm256_i32gather_pd(vindex<4>(stride), p, 8));
+  auto x{vindex<4>(stride)};
+  return std::bit_cast<Vec<4, double>>(_mm256_i32gather_pd(p, x, 8));
 }
 [[gnu::always_inline, gnu::artificial]] inline auto
 load(const double *p, mask::None<2>, int32_t stride) -> Vec<2, double> {
-  return std::bit_cast<Vec<2, double>>(
-    _mm_i64gather_pd(vindex<2>(stride), p, 8));
+  auto x{vindex<2>(stride)};
+  return std::bit_cast<Vec<2, double>>(_mm_i64gather_pd(p, x, 8));
 }
 [[gnu::always_inline, gnu::artificial]] inline auto
 load(const int64_t *p, mask::None<4>, int32_t stride) -> Vec<4, int64_t> {
-  return std::bit_cast<Vec<4, double>>(
-    _mm256_i32gather_pd(vindex<4>(stride), p, 8));
+  auto x{vindex<4>(stride)};
+  return std::bit_cast<Vec<4, int64_t>>(_mm256_i32gather_pd(p, x, 8));
 }
 [[gnu::always_inline, gnu::artificial]] inline auto
 load(const int64_t *p, mask::None<2>, int32_t stride) -> Vec<2, int64_t> {
-  return std::bit_cast<Vec<2, double>>(
-    _mm_i64gather_pd(vindex<2>(stride), p, 8));
+  auto x{vindex<2>(stride)};
+  return std::bit_cast<Vec<2, int64_t>>(_mm_i64gather_pd(p, x, 8));
 }
 #endif
 
@@ -305,26 +327,25 @@ store(double *p, mask::Bit<4> i, Vec<4, double> x) {
 }
 [[gnu::always_inline, gnu::artificial]] inline void
 store(int64_t *p, mask::Bit<4> i, Vec<4, int64_t> x) {
-  _mm256_mask_storeu_epi64(p + i.i, uint8_t(i.mask), std::bit_cast<__m256i>(x));
+  _mm256_mask_storeu_epi64(p, uint8_t(i.mask), std::bit_cast<__m256i>(x));
 }
 
 [[gnu::always_inline, gnu::artificial]] inline auto load(const double *p,
                                                          mask::Bit<2> i) {
-  return std::bit_cast<Vec<2, double>>(
-    _mm_maskz_loadu_pd(uint8_t(i.mask), p + i.i));
+  return std::bit_cast<Vec<2, double>>(_mm_maskz_loadu_pd(uint8_t(i.mask), p));
 }
 [[gnu::always_inline, gnu::artificial]] inline void
 store(double *p, mask::Bit<2> i, Vec<2, double> x) {
-  _mm_mask_storeu_pd(p + i.i, uint8_t(i.mask), std::bit_cast<__128d>(x));
+  _mm_mask_storeu_pd(p, uint8_t(i.mask), std::bit_cast<__128d>(x));
 }
 [[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
                                                          mask::Bit<2> i) {
   return std::bit_cast<Vec<2, int64_t>>(
-    _mm_maskz_loadu_epi64(uint8_t(i.mask), p + i.i));
+    _mm_maskz_loadu_epi64(uint8_t(i.mask), p));
 }
 [[gnu::always_inline, gnu::artificial]] inline void
 store(int64_t *p, mask::Bit<2> i, Vec<2, int64_t> x) {
-  _mm_mask_storeu_epi64(p + i.i, uint8_t(i.mask), std::bit_cast<__m128i>(x));
+  _mm_mask_storeu_epi64(p, uint8_t(i.mask), std::bit_cast<__m128i>(x));
 }
 // gather/scatter
 [[gnu::always_inline, gnu::artificial]] inline auto
@@ -384,6 +405,15 @@ store(int64_t *p, mask::Bit<2> i, Vec<2, int64_t> x, int32_t stride) {
   _mm_mask_i64scatter_epi64(p, uint8_t(i.mask), vindex<2>(stride),
                             std::bit_cast<__m128i>(x), 8);
 }
+
+[[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
+                                                         mask::None<4>) {
+  return std::bit_cast<Vec<4, int64_t>>(_mm256_loadu_epi64(p));
+}
+[[gnu::always_inline, gnu::artificial]] inline void
+store(int64_t *p, mask::None<4>, Vec<4, int64_t> x) {
+  _mm256_storeu_epi64(p, std::bit_cast<__m256i>(x));
+}
 #else // No AVX512VL
 
 // We need [gather, scatter, load, store] * [unmasked, masked]
@@ -406,10 +436,10 @@ store(int64_t *p, mask::None<4>, Vec<4, int64_t> x, int32_t stride) {
 }
 [[gnu::always_inline, gnu::artificial]] inline void
 store(double *p, mask::Vector<4> i, Vec<4, double> x, int32_t stride) {
-  if (i.m[0] != 0) p[i.i] = x[0];
-  if (i.m[1] != 0) p[i.i + stride] = x[1];
-  if (i.m[2] != 0) p[i.i + 2 * stride] = x[2];
-  if (i.m[3] != 0) p[i.i + 3 * stride] = x[3];
+  if (i.m[0] != 0) p[0] = x[0];
+  if (i.m[1] != 0) p[stride] = x[1];
+  if (i.m[2] != 0) p[2 * stride] = x[2];
+  if (i.m[3] != 0) p[3 * stride] = x[3];
 }
 [[gnu::always_inline, gnu::artificial]] inline void
 store(int64_t *p, mask::Vector<4> i, Vec<4, int64_t> x, int32_t stride) {
@@ -445,24 +475,33 @@ store(int64_t *p, mask::Vector<2> i, Vec<2, int64_t> x, int32_t stride) {
 #ifdef __AVX2__
 // masked gathers
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const double *p, mask::Vector<4> i, int32_t stride) -> Vec<4, double> {
+load(const double *p, mask::Vector<4> m, int32_t stride) -> Vec<4, double> {
+  constexpr __m256d z = mmzero<4, double>();
+  __m128i x = vindex<4>(stride);
+  __m256i mask = __m256i(m);
   return std::bit_cast<Vec<4, double>>(
-    _m256_mmask_i32gather_pd(mmzero<4, double>(), i, vindex<4>(stride), p, 8));
+    _mm256_mask_i32gather_pd(z, p, x, mask, 8));
 }
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const double *p, mask::Vector<2> i, int32_t stride) -> Vec<2, double> {
-  return std::bit_cast<Vec<2, double>>(
-    _mm_mask_i64gather_pd(mmzero<2, double>(), i, vindex<2>(stride), p, 8));
+load(const double *p, mask::Vector<2> m, int32_t stride) -> Vec<2, double> {
+  constexpr __m128d z = mmzero<2, double>();
+  __m128i x = vindex<2>(stride), mask = __m128i(m);
+  return std::bit_cast<Vec<2, double>>(_mm_mask_i64gather_pd(z, p, x, mask, 8));
 }
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const int64_t *p, mask::Vector<4> i, int32_t stride) -> Vec<4, int64_t> {
-  return std::bit_cast<Vec<4, int64_t>>(_m256_mmask_i32gather_epi64(
-    mmzero<4, int64_t>(), i, vindex<4>(stride), p, 8));
+load(const int64_t *p, mask::Vector<4> m, int32_t stride) -> Vec<4, int64_t> {
+  constexpr __m256i z = mmzero<4, int64_t>();
+  __m128i x = vindex<4>(stride);
+  __m256i mask = __m256i(m);
+  return std::bit_cast<Vec<4, int64_t>>(
+    _mm256_mask_i32gather_epi64(z, p, x, mask, 8));
 }
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const int64_t *p, mask::Vector<2> i, int32_t stride) -> Vec<2, int64_t> {
+load(const int64_t *p, mask::Vector<2> m, int32_t stride) -> Vec<2, int64_t> {
+  constexpr __m128i z = mmzero<2, int64_t>();
+  __m128i x = vindex<2>(stride), mask = __m128i(m);
   return std::bit_cast<Vec<2, int64_t>>(
-    _mm_mask_i64gather_epi64(mmzero<2, int64_t>(), i, vindex<2>(stride), p, 8));
+    _mm_mask_i64gather_epi64(z, p, x, mask, 8));
 }
 
 #else          // no AVX2
@@ -554,11 +593,12 @@ store(double *p, mask::Vector<4> i, Vec<4, double> x) {
 [[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
                                                          mask::Vector<4> i)
   -> Vec<4, int64_t> {
-  return std::bit_cast<Vec<4, int64_t>>(_mm256_maskload_epi64(p, i));
+  return std::bit_cast<Vec<4, int64_t>>(
+    _mm256_maskload_epi64((const long long *)p, i));
 }
 [[gnu::always_inline, gnu::artificial]] inline void
 store(int64_t *p, mask::Vector<4> i, Vec<4, int64_t> x) {
-  _mm256_maskstore_epi64(p, i, std::bit_cast<__m256i>(x));
+  _mm256_maskstore_epi64((long long *)p, i, std::bit_cast<__m256i>(x));
 }
 [[gnu::always_inline, gnu::artificial]] inline auto load(const double *p,
                                                          mask::Vector<2> i)
@@ -572,11 +612,21 @@ store(double *p, mask::Vector<2> i, Vec<2, double> x) {
 [[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
                                                          mask::Vector<2> i)
   -> Vec<2, int64_t> {
-  return std::bit_cast<Vec<2, int64_t>>(_mm_maskload_epi64(p, i));
+  return std::bit_cast<Vec<2, int64_t>>(
+    _mm_maskload_epi64((const long long *)p, i));
 }
 [[gnu::always_inline, gnu::artificial]] inline void
 store(int64_t *p, mask::Vector<2> i, Vec<2, int64_t> x) {
-  _mm_maskstore_epi64(p, i, std::bit_cast<__m128i>(x));
+  _mm_maskstore_epi64((long long *)p, i, std::bit_cast<__m128i>(x));
+}
+
+[[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
+                                                         mask::None<4>) {
+  return std::bit_cast<Vec<4, int64_t>>(_mm256_loadu_si256((const __m256i *)p));
+}
+[[gnu::always_inline, gnu::artificial]] inline void
+store(int64_t *p, mask::None<4>, Vec<4, int64_t> x) {
+  _mm256_storeu_si256((__m256i *)p, std::bit_cast<__m256i>(x));
 }
 #else  // No AVX
 [[gnu::always_inline, gnu::artificial]] inline auto load(const double *p,
@@ -618,15 +668,6 @@ store(int64_t *p, mask::Vector<2> i, Vec<2, int64_t> x) {
 [[gnu::always_inline, gnu::artificial]] inline void
 store(double *p, mask::None<4>, Vec<4, double> x) {
   _mm256_storeu_pd(p, std::bit_cast<__m256d>(x));
-}
-
-[[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
-                                                         mask::None<4>) {
-  return std::bit_cast<Vec<4, int64_t>>(_mm256_loadu_epi64(p));
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::None<4>, Vec<4, int64_t> x) {
-  _mm256_storeu_epi64(p, std::bit_cast<__m256i>(x));
 }
 
 // // non-power-of-2 memory ops
@@ -692,6 +733,12 @@ template <ptrdiff_t W> struct Vector {
     for (ptrdiff_t w = 0; w < W; ++w) any |= m[w];
     return any;
   }
+  [[nodiscard]] constexpr auto lastUnmasked() const -> ptrdiff_t {
+    ptrdiff_t l = 0;
+    for (ptrdiff_t w = 0; w < W; ++w)
+      if (m[w]) l = w;
+    return l;
+  }
 };
 
 template <ptrdiff_t W> constexpr auto create(ptrdiff_t i) -> Vector<W> {
@@ -710,14 +757,14 @@ template <ptrdiff_t W, typename T>
                                                          mask::None<W>)
   -> Vec<W, T> {
   Vec<W, T> ret;
-#pragma unroll
+  POLYMATHFULLUNROLL
   for (ptrdiff_t w = 0; w < W; ++w) ret[w] = p[w];
   return ret;
 }
 template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline void store(T *p, mask::None<W>,
                                                           Vec<W, T> x) {
-#pragma unroll
+  POLYMATHFULLUNROLL
   for (ptrdiff_t w = 0; w < W; ++w) p[w] = x[w];
 }
 
@@ -726,14 +773,14 @@ template <ptrdiff_t W, typename T>
                                                          mask::Vector<W> i)
   -> Vec<W, T> {
   Vec<W, T> ret;
-#pragma unroll
+  POLYMATHFULLUNROLL
   for (ptrdiff_t w = 0; w < W; ++w) ret[w] = (i.m[w] != 0) ? p[w] : T{};
   return ret;
 }
 template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
 store(T *p, mask::Vector<W> i, Vec<W, T> x) {
-#pragma unroll
+  POLYMATHFULLUNROLL
   for (ptrdiff_t w = 0; w < W; ++w)
     if (i.m[w] != 0) p[w] = x[w];
 }
@@ -742,14 +789,14 @@ template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
 load(const T *p, mask::None<W>, int32_t stride) -> Vec<W, T> {
   Vec<W, T> ret;
-#pragma unroll
+  POLYMATHFULLUNROLL
   for (ptrdiff_t w = 0; w < W; ++w) ret[w] = p[w * stride];
   return ret;
 }
 template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
 store(T *p, mask::None<W>, Vec<W, T> x, int32_t stride) {
-#pragma unroll
+  POLYMATHFULLUNROLL
   for (ptrdiff_t w = 0; w < W; ++w) p[w * stride] = x[w];
 }
 
@@ -757,7 +804,7 @@ template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
 load(const T *p, mask::Vector<W> i, int32_t stride) -> Vec<W, T> {
   Vec<W, T> ret;
-#pragma unroll
+  POLYMATHFULLUNROLL
   for (ptrdiff_t w = 0; w < W; ++w)
     ret[w] = (i.m[w] != 0) ? p[w * stride] : T{};
   return ret;
@@ -765,7 +812,7 @@ load(const T *p, mask::Vector<W> i, int32_t stride) -> Vec<W, T> {
 template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
 store(T *p, mask::Vector<W> i, Vec<W, T> x, int32_t stride) {
-#pragma unroll
+  POLYMATHFULLUNROLL
   for (ptrdiff_t w = 0; w < W; ++w)
     if (i.m[w] != 0) p[w * stride] = x[w];
 }
@@ -776,12 +823,32 @@ template <typename T>
 static constexpr ptrdiff_t Width = VECTORWIDTH / sizeof(T);
 
 namespace index {
-// note, when `I` isa `index::Vector<W,uint8_t>`
-// then the mask only gets applied to the last unroll!
-template <ptrdiff_t U, typename I = ptrdiff_t> struct Unroll {
-  I index;
-  explicit constexpr operator ptrdiff_t() const { return ptrdiff_t(index); }
+// Unroll rows by a factor of `R` and cols by `C`, vectorizing with width `W`
+template <ptrdiff_t U, ptrdiff_t W = 1, typename M = mask::None<W>>
+struct Unroll {
+  ptrdiff_t index;
+  [[no_unique_address]] M mask;
+  explicit constexpr operator ptrdiff_t() const { return index; }
 };
+
+// template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename M, ptrdiff_t X>
+// constexpr auto unroll(ptrdiff_t index, M mask, RowStride<X> rs){
+//   return Unroll<R,C,W,M,X>{index,mask,rs};
+// }
+
+template <ptrdiff_t R, ptrdiff_t C = 1, ptrdiff_t W = 1,
+          typename M = mask::None<W>, bool Transposed = false, ptrdiff_t X = -1>
+struct UnrollDims {
+  [[no_unique_address]] M mask;
+  [[no_unique_address]] RowStride<X> rs;
+};
+
+template <typename T> static constexpr bool issimd = false;
+
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename M, bool Transposed,
+          ptrdiff_t X>
+static constexpr bool issimd<UnrollDims<R, C, W, M, Transposed, X>> = true;
+
 } // namespace index
 
 // Vector goes across cols
@@ -794,6 +861,23 @@ template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t N, typename T> struct Unroll {
   }
 };
 
+template <ptrdiff_t R, ptrdiff_t C, typename T> struct Unroll<R, C, 1, T> {
+  T data[R * C];
+  constexpr auto operator[](ptrdiff_t i) -> T & { return data[i]; }
+  constexpr auto operator[](ptrdiff_t r, ptrdiff_t c) -> T & {
+    return data[r * C + c];
+  }
+};
+
+template <typename T>
+constexpr auto load(const T *p, mask::None<1>) -> const T & {
+  return *p;
+}
+template <typename T>
+constexpr auto load(const T *p, mask::None<1>, int32_t) -> const T & {
+  return *p;
+}
+
 template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t N, typename T, ptrdiff_t X,
           ptrdiff_t NM, typename MT = mask::None<N>>
 [[gnu::always_inline]] constexpr auto
@@ -802,17 +886,17 @@ loadunroll(const T *ptr, RowStride<X> rowStride, std::array<MT, NM> masks)
   static constexpr auto W = ptrdiff_t(std::bit_ceil(size_t(N)));
   auto rs = ptrdiff_t(rowStride);
   Unroll<R, C, N, T> ret;
-#pragma unroll
+  POLYMATHFULLUNROLL
   for (ptrdiff_t r = 0; r < R; ++r, ptr += rs) {
     if constexpr (NM == 0) {
-#pragma unroll
+      POLYMATHFULLUNROLL
       for (ptrdiff_t c = 0; c < C; ++c)
         ret[r, c] = load(ptr + c * W, mask::None<W>{});
     } else if constexpr (NM == C) {
-#pragma unroll
+      POLYMATHFULLUNROLL
       for (ptrdiff_t c = 0; c < C; ++c) ret[r, c] = load(ptr + c * W, masks[c]);
     } else {
-#pragma unroll
+      POLYMATHFULLUNROLL
       for (ptrdiff_t c = 0; c < C - 1; ++c)
         ret[r, c] = load(ptr + c * W, mask::None<W>{});
       ret[r, C - 1] = load(ptr + (C - 1) * W, masks[0]);
@@ -820,27 +904,30 @@ loadunroll(const T *ptr, RowStride<X> rowStride, std::array<MT, NM> masks)
   }
   return ret;
 }
-template <ptrdiff_t C, ptrdiff_t N, typename T, ptrdiff_t X, ptrdiff_t NM,
-          typename MT = mask::None<N>>
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t N, typename T, ptrdiff_t X,
+          ptrdiff_t NM, typename MT = mask::None<N>>
 [[gnu::always_inline]] constexpr auto
 loadstrideunroll(const T *ptr, RowStride<X> rowStride, std::array<MT, NM> masks)
-  -> Unroll<1, C, N, T> {
+  -> Unroll<R, C, N, T> {
   static constexpr auto W = ptrdiff_t(std::bit_ceil(size_t(N)));
-  Unroll<1, C, N, T> ret;
+  Unroll<R, C, N, T> ret;
   auto s = int32_t(ptrdiff_t(rowStride));
-  if constexpr (NM == 0) {
-#pragma unroll
-    for (ptrdiff_t c = 0; c < C; ++c)
-      ret[0, c] = load(ptr + c * W * s, mask::None<W>{}, s);
-  } else if constexpr (NM == C) {
-#pragma unroll
-    for (ptrdiff_t c = 0; c < C; ++c)
-      ret[0, c] = load(ptr + c * W * s, masks[c], s);
-  } else {
-#pragma unroll
-    for (ptrdiff_t c = 0; c < C - 1; ++c)
-      ret[0, c] = load(ptr + c * W * s, mask::None<W>{}, s);
-    ret[0, C - 1] = load(ptr + (C - 1) * W * s, masks[0], s);
+  POLYMATHFULLUNROLL
+  for (ptrdiff_t r = 0; r < R; ++r, ++ptr) {
+    if constexpr (NM == 0) {
+      POLYMATHFULLUNROLL
+      for (ptrdiff_t c = 0; c < C; ++c)
+        ret[r, c] = load(ptr + c * W * s, mask::None<W>{}, s);
+    } else if constexpr (NM == C) {
+      POLYMATHFULLUNROLL
+      for (ptrdiff_t c = 0; c < C; ++c)
+        ret[r, c] = load(ptr + c * W * s, masks[c], s);
+    } else {
+      POLYMATHFULLUNROLL
+      for (ptrdiff_t c = 0; c < C - 1; ++c)
+        ret[r, c] = load(ptr + c * W * s, mask::None<W>{}, s);
+      ret[r, C - 1] = load(ptr + (C - 1) * W * s, masks[0], s);
+    }
   }
   return ret;
 }
@@ -848,7 +935,7 @@ loadstrideunroll(const T *ptr, RowStride<X> rowStride, std::array<MT, NM> masks)
 // Represents a reference for a SIMD load, in particular so that we can store.
 // Needs to support masking
 template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t N, typename T, ptrdiff_t X,
-          ptrdiff_t NM, typename MT = mask::None<N>>
+          ptrdiff_t NM, typename MT = mask::None<N>, bool Transposed = false>
 struct UnrollRef {
   static constexpr ptrdiff_t W = ptrdiff_t(std::bit_ceil(size_t(N)));
   static_assert(N == W || C == 1,
@@ -860,47 +947,102 @@ struct UnrollRef {
   [[no_unique_address]] RowStride<X> rowStride;
   [[no_unique_address]] std::array<MT, NM> masks;
   constexpr operator Unroll<R, C, N, T>() {
-    return loadunroll<R, C, N, T, X, NM, MT>(ptr, rowStride, masks);
+    if constexpr (!Transposed)
+      return loadunroll<R, C, N, T, X, NM, MT>(ptr, rowStride, masks);
+    else return loadstrideunroll<R, C, N, T, X, NM, MT>(ptr, rowStride, masks);
   }
-  constexpr auto operator=(Unroll<R, C, N, T> x) -> UnrollRef & {
+  constexpr auto operator=(Unroll<R, C, N, T> x) -> UnrollRef &
+  requires(!Transposed)
+  {
     auto rs = ptrdiff_t(rowStride);
-#pragma unroll
-    for (ptrdiff_t r = 0; r < R; ++r, ptr += rs) {
+    T *p = ptr;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t r = 0; r < R; ++r, p += rs) {
       if constexpr (NM == 0) {
-#pragma unroll
+        POLYMATHFULLUNROLL
         for (ptrdiff_t c = 0; c < C; ++c)
-          store(ptr, +c * W, mask::None<W>{}, x[r, c]);
+          store(p, +c * W, mask::None<W>{}, x[r, c]);
       } else if constexpr (NM == C) {
-#pragma unroll
-        for (ptrdiff_t c = 0; c < C; ++c) store(ptr, +c * W, masks[c], x[r, c]);
+        POLYMATHFULLUNROLL
+        for (ptrdiff_t c = 0; c < C; ++c) store(p, +c * W, masks[c], x[r, c]);
       } else { // NM == 1
-#pragma unroll
+        POLYMATHFULLUNROLL
         for (ptrdiff_t c = 0; c < C - 1; ++c)
-          store(ptr, +c * W, mask::None<W>{}, x[r, c]);
-        store(ptr, +(C - 1) * W, masks[0], x[r, C - 1]);
+          store(p, +c * W, mask::None<W>{}, x[r, c]);
+        store(p, +(C - 1) * W, masks[0], x[r, C - 1]);
+      }
+    }
+    return *this;
+  }
+  constexpr auto operator=(Vec<W, T> v) -> UnrollRef &
+  requires(!Transposed)
+  {
+    auto rs = ptrdiff_t(rowStride);
+    T *p = ptr;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t r = 0; r < R; ++r, p += rs) {
+      if constexpr (NM == 0) {
+        POLYMATHFULLUNROLL
+        for (ptrdiff_t c = 0; c < C; ++c) store(p + c * W, mask::None<W>{}, v);
+      } else if constexpr (NM == C) {
+        POLYMATHFULLUNROLL
+        for (ptrdiff_t c = 0; c < C; ++c) store(p + c * W, masks[c], v);
+      } else { // NM == 1
+        POLYMATHFULLUNROLL
+        for (ptrdiff_t c = 0; c < C - 1; ++c)
+          store(p + c * W, mask::None<W>{}, v);
+        store(p + (C - 1) * W, masks[0], v);
+      }
+    }
+    return *this;
+  }
+  constexpr auto operator=(Unroll<R, C, N, T> x) -> UnrollRef &
+  requires(Transposed)
+  {
+    auto s = int32_t(ptrdiff_t(rowStride));
+    T *p = ptr;
+    for (ptrdiff_t r = 0; r < R; ++r, ++p) {
+      if constexpr (NM == 0) {
+        POLYMATHFULLUNROLL
+        for (ptrdiff_t c = 0; c < C; ++c)
+          store(p + c * W * s, mask::None<W>{}, x[0, c], s);
+      } else if constexpr (NM == C) {
+        POLYMATHFULLUNROLL
+        for (ptrdiff_t c = 0; c < C; ++c)
+          store(p + c * W * s, masks[c], x[0, c], s);
+      } else {
+        POLYMATHFULLUNROLL
+        for (ptrdiff_t c = 0; c < C - 1; ++c)
+          store(p + c * W * s, mask::None<W>{}, x[0, c], s);
+        store(p + (C - 1) * W * s, masks[0], x[0, C - 1], s);
+      }
+    }
+    return *this;
+  }
+  constexpr auto operator=(Vec<W, T> v) -> UnrollRef &
+  requires(Transposed)
+  {
+    auto s = int32_t(ptrdiff_t(rowStride));
+    T *p = ptr;
+    for (ptrdiff_t r = 0; r < R; ++r, ++p) {
+      if constexpr (NM == 0) {
+        POLYMATHFULLUNROLL
+        for (ptrdiff_t c = 0; c < C; ++c)
+          store(p + c * W * s, mask::None<W>{}, v, s);
+      } else if constexpr (NM == C) {
+        POLYMATHFULLUNROLL
+        for (ptrdiff_t c = 0; c < C; ++c) store(p + c * W * s, masks[c], v, s);
+      } else {
+        POLYMATHFULLUNROLL
+        for (ptrdiff_t c = 0; c < C - 1; ++c)
+          store(p + c * W * s, mask::None<W>{}, v, s);
+        store(p + (C - 1) * W * s, masks[0], v, s);
       }
     }
     return *this;
   }
   constexpr auto operator=(std::convertible_to<T> auto x) -> UnrollRef & {
-    auto rs = ptrdiff_t(rowStride);
-    Vec<W, T> v{x};
-#pragma unroll
-    for (ptrdiff_t r = 0; r < R; ++r, ptr += rs) {
-      if constexpr (NM == 0) {
-#pragma unroll
-        for (ptrdiff_t c = 0; c < C; ++c)
-          store(ptr + c * W, mask::None<W>{}, v);
-      } else if constexpr (NM == C) {
-#pragma unroll
-        for (ptrdiff_t c = 0; c < C; ++c) store(ptr + c * W, masks[c], v);
-      } else { // NM == 1
-#pragma unroll
-        for (ptrdiff_t c = 0; c < C - 1; ++c)
-          store(ptr + c * W, mask::None<W>{}, v);
-        store(ptr + (C - 1) * W, masks[0], v);
-      }
-    }
+    *this = Vec<W, T>(T(x));
     return *this;
   }
   constexpr auto operator+=(const auto &x) -> UnrollRef & {
@@ -916,77 +1058,12 @@ struct UnrollRef {
     return (*this) = Unroll<R, C, N, T>(*this) / x;
   }
 };
-template <ptrdiff_t C, ptrdiff_t N, typename T, ptrdiff_t X, ptrdiff_t NM,
-          typename MT = mask::None<N>>
-struct StridedRef {
-  static constexpr ptrdiff_t W = ptrdiff_t(std::bit_ceil(size_t(N)));
-  static_assert(N == W || C == 1,
-                "If N != the next power of `2`, then `C` should be `1`");
-  static_assert(
-    NM == 0 || NM == 1 || NM == C,
-    "Should have no masks, one mask for last `C`, or one mask per `C`");
-  T *ptr;
-  [[no_unique_address]] RowStride<X> rowStride;
-  [[no_unique_address]] std::array<MT, NM> masks;
-  constexpr operator Unroll<1, C, N, T>() {
-    return loadstrideunroll<C, N>(ptr, rowStride, masks);
-  }
-  constexpr auto operator=(Unroll<1, C, N, T> x) -> StridedRef & {
-    auto s = int32_t(ptrdiff_t(rowStride));
-    if constexpr (NM == 0) {
-#pragma unroll
-      for (ptrdiff_t c = 0; c < C; ++c)
-        store(ptr + c * W * s, mask::None<W>{}, x[0, c], s);
-    } else if constexpr (NM == C) {
-#pragma unroll
-      for (ptrdiff_t c = 0; c < C; ++c)
-        store(ptr + c * W * s, masks[c], x[0, c], s);
-    } else {
-#pragma unroll
-      for (ptrdiff_t c = 0; c < C - 1; ++c)
-        store(ptr + c * W * s, mask::None<W>{}, x[0, c], s);
-      store(ptr + (C - 1) * W * s, masks[0], x[0, C - 1], s);
-    }
-    return *this;
-  }
-  constexpr auto operator=(std::convertible_to<T> auto x) -> StridedRef & {
-    auto s = int32_t(ptrdiff_t(rowStride));
-    Vec<W, T> v{x};
-    if constexpr (NM == 0) {
-#pragma unroll
-      for (ptrdiff_t c = 0; c < C; ++c)
-        store(ptr + c * W * s, mask::None<W>{}, v, s);
-    } else if constexpr (NM == C) {
-#pragma unroll
-      for (ptrdiff_t c = 0; c < C; ++c) store(ptr + c * W * s, masks[c], v, s);
-    } else {
-#pragma unroll
-      for (ptrdiff_t c = 0; c < C - 1; ++c)
-        store(ptr + c * W * s, mask::None<W>{}, v, s);
-
-      store(ptr + (C - 1) * W * s, masks[0], v, s);
-    }
-    return *this;
-  }
-  constexpr auto operator+=(const auto &x) -> StridedRef & {
-    return (*this) = Unroll<1, C, N, T>(*this) + x;
-  }
-  constexpr auto operator-=(const auto &x) -> StridedRef & {
-    return (*this) = Unroll<1, C, N, T>(*this) - x;
-  }
-  constexpr auto operator*=(const auto &x) -> StridedRef & {
-    return (*this) = Unroll<1, C, N, T>(*this) * x;
-  }
-  constexpr auto operator/=(const auto &x) -> StridedRef & {
-    return (*this) = Unroll<1, C, N, T>(*this) / x;
-  }
-};
 
 // 4 x 4C -> 4C x 4
 template <ptrdiff_t C, typename T>
 constexpr auto transpose(Unroll<2, C, 2, T> u) -> Unroll<2 * C, 1, 2, T> {
   Unroll<2 * C, 1, 2, T> z;
-#pragma unroll
+  POLYMATHFULLUNROLL
   for (ptrdiff_t i = 0; i < C; ++i) {
     Vec<2, T> a{u[0, i]}, b{u[1, i]};
     z[0, i] = __builtin_shufflevector(a, b, 0, 2);
@@ -997,7 +1074,7 @@ constexpr auto transpose(Unroll<2, C, 2, T> u) -> Unroll<2 * C, 1, 2, T> {
 template <ptrdiff_t C, typename T>
 constexpr auto transpose(Unroll<4, C, 4, T> u) -> Unroll<4 * C, 1, 4, T> {
   Unroll<4 * C, 1, 4, T> z;
-#pragma unroll
+  POLYMATHFULLUNROLL
   for (ptrdiff_t i = 0; i < C; ++i) {
     Vec<4, T> a{u[0, i]}, b{u[1, i]}, c{u[2, i]}, d{u[3, i]};
     Vec<4, T> e{__builtin_shufflevector(a, b, 0, 1, 4, 5)};
@@ -1014,7 +1091,7 @@ constexpr auto transpose(Unroll<4, C, 4, T> u) -> Unroll<4 * C, 1, 4, T> {
 template <ptrdiff_t C, typename T>
 constexpr auto transpose(Unroll<8, C, 8, T> u) -> Unroll<8 * C, 1, 8, T> {
   Unroll<8 * C, 1, 8, T> z;
-#pragma unroll
+  POLYMATHFULLUNROLL
   for (ptrdiff_t i = 0; i < C; ++i) {
     Vec<4, T> a{u[0, i]}, b{u[1, i]}, c{u[2, i]}, d{u[3, i]}, e{u[4, i]},
       f{u[5, i]}, g{u[6, i]}, h{u[7, i]};
@@ -1056,15 +1133,20 @@ consteval auto VectorDivRem() -> std::array<ptrdiff_t, 3> {
   } else return {W, L / W, L % W};
 };
 
-} // namespace simd
-
-template <typename T, ptrdiff_t W, typename M>
-[[gnu::always_inline]] constexpr auto ref(const T *p,
-                                          simd::index::Vector<W, M> i)
-  -> simd::Unroll<1, 1, W, T> {
-  return simd::loadunroll<1, 1, W>(p + i.i, RowStride<1>{},
-                                   std::array<M, 1>{i.mask});
+template <typename T, ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename M,
+          bool Transposed, ptrdiff_t X>
+[[gnu::always_inline]] constexpr auto
+ref(const T *p, index::UnrollDims<R, C, W, M, Transposed, X> i)
+  -> Unroll<R, C, W, T> {
+  return loadunroll<R, C, W>(p, i.rs, std::array<M, 1>{i.mask});
+}
+template <typename T, ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename M,
+          bool Transposed, ptrdiff_t X>
+[[gnu::always_inline]] constexpr auto
+ref(T *p, index::UnrollDims<R, C, W, M, Transposed, X> i)
+  -> UnrollRef<R, C, W, T, X, 1, M, Transposed> {
+  return {p, i.rs, std::array<M, 1>{i.mask}};
 }
 
-} // namespace poly::math
+} // namespace poly::math::simd
 #endif // SIMD_hpp_INCLUDED

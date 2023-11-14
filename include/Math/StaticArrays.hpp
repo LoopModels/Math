@@ -1,5 +1,6 @@
 #pragma once
 #include "Math/Array.hpp"
+#include "Math/Indexing.hpp"
 #include <type_traits>
 #include <utility>
 namespace poly::math {
@@ -77,20 +78,13 @@ struct StaticArray : public ArrayOps<T, DenseDims<M, N>, StaticArray<T, M, N>> {
   //   auto
   // }
   constexpr auto operator[](Index<S> auto i) const noexcept -> decltype(auto) {
-    auto offset = calcOffset(S{}, i);
-    auto newDim = calcNewDim(S{}, i);
-    auto ptr = data();
-    invariant(ptr != nullptr);
-    if constexpr (std::is_same_v<decltype(newDim), Empty>) return ptr[offset];
-    else return Array<T, decltype(newDim)>{ptr + offset, newDim};
+    return index(data(), S{}, i);
   }
   // TODO: switch to operator[] when we enable c++23
   // for vectors, we just drop the column, essentially broadcasting
   template <class R, class C>
   constexpr auto operator[](R r, C c) const noexcept -> decltype(auto) {
-    if constexpr (MatrixDimension<S>)
-      return (*this)[CartesianIndex<R, C>{r, c}];
-    else return (*this)[ptrdiff_t(r)];
+    return index(data(), S{}, r, c);
   }
   [[nodiscard]] constexpr auto minRowCol() const -> ptrdiff_t {
     return std::min(ptrdiff_t(numRow()), ptrdiff_t(numCol()));

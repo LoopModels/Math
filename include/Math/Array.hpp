@@ -11,6 +11,7 @@
 #include "Math/Rational.hpp"
 #include "Utilities/Invariant.hpp"
 #include "Utilities/Optional.hpp"
+#include "Utilities/TypeCompression.hpp"
 #include "Utilities/TypePromotion.hpp"
 #include "Utilities/Valid.hpp"
 #include <algorithm>
@@ -65,25 +66,85 @@ using utils::Valid, utils::Optional;
 template <class T, class S> struct Array;
 template <class T, class S> struct MutArray;
 
-template <typename T, typename S, typename I>
-[[gnu::flatten, gnu::always_inline]] constexpr auto index(T *ptr, S shape,
-                                                          I i) noexcept
-  -> decltype(auto);
-
-template <typename T, typename S, typename R, typename C>
-[[gnu::flatten, gnu::always_inline]] constexpr auto index(T *ptr, S shape, R r,
-                                                          C c) noexcept
-  -> decltype(auto);
-
+// Cases we need to consider:
+// 1. Slice-indexing
+// 2.a. `ptrdiff_t` indexing, not compressed
+// 2.b. `ptrdiff_t` indexing, compressed
+// 3.a.i. Vector indexing, contig, no mask
+// 3.a.ii. Vector indexing, contig, mask
+// 3.b.i. Vector indexing, discontig, no mask
+// 3.b.ii. Vector indexing, discontig, mask
+// all of the above for `T*` and `const T*`
 template <typename T, typename S, typename I>
 [[gnu::flatten, gnu::always_inline]] constexpr auto index(const T *ptr, S shape,
                                                           I i) noexcept
-  -> decltype(auto);
-
+  -> decltype(auto) {
+  auto offset = calcOffset(shape, i);
+  auto newDim = calcNewDim(shape, i);
+  invariant(ptr != nullptr);
+  if constexpr (std::same_as<decltype(newDim), Empty>)
+    if constexpr (utils::Compressible<T>) return decompress(ptr + offset);
+    else return ptr[offset];
+  else if constexpr (simd::index::issimd<decltype(newDim)>)
+    return simd::ref(ptr + offset, newDim);
+  else return Array<T, decltype(newDim)>{ptr + offset, newDim};
+}
+// for (row/col)vectors, we drop the row/col, essentially broadcasting
 template <typename T, typename S, typename R, typename C>
 [[gnu::flatten, gnu::always_inline]] constexpr auto index(const T *ptr, S shape,
                                                           R r, C c) noexcept
-  -> decltype(auto);
+  -> decltype(auto) {
+  if constexpr (MatrixDimension<S>) {
+    auto offset = calcOffset(shape, unwrapRow(r), unwrapCol(c));
+    auto newDim = calcNewDim(shape, unwrapRow(r), unwrapCol(c));
+    if constexpr (std::same_as<decltype(newDim), Empty>)
+      // 3.a.i. Vector indexing, contig, no mask
+      // 3.a.ii. Vector indexing, contig, mask
+      if constexpr (utils::Compressible<T>)
+        return utils::decompress(ptr + offset);
+      else return ptr[offset];
+    else if constexpr (simd::index::issimd<decltype(newDim)>)
+      return simd::ref(ptr + offset, newDim);
+    else return Array<T, decltype(newDim)>{ptr + offset, newDim};
+  } else if constexpr (std::same_as<S, StridedRange>)
+    return index(ptr, shape, r);
+  else return index(ptr, shape, c);
+}
+
+template <typename T, typename S, typename I>
+[[gnu::flatten, gnu::always_inline]] constexpr auto index(T *ptr, S shape,
+                                                          I i) noexcept
+  -> decltype(auto) {
+  auto offset = calcOffset(shape, i);
+  auto newDim = calcNewDim(shape, i);
+  invariant(ptr != nullptr);
+  if constexpr (std::same_as<decltype(newDim), Empty>)
+    if constexpr (utils::Compressible<T>) return ref(ptr + offset);
+    else return ptr[offset];
+  else if constexpr (simd::index::issimd<decltype(newDim)>)
+    return simd::ref(ptr + offset, newDim);
+  else return MutArray<T, decltype(newDim)>{ptr + offset, newDim};
+}
+// for (row/col)vectors, we drop the row/col, essentially broadcasting
+template <typename T, typename S, typename R, typename C>
+[[gnu::flatten, gnu::always_inline]] constexpr auto index(T *ptr, S shape, R r,
+                                                          C c) noexcept
+  -> decltype(auto) {
+  if constexpr (MatrixDimension<S>) {
+    auto offset = calcOffset(shape, unwrapRow(r), unwrapCol(c));
+    auto newDim = calcNewDim(shape, unwrapRow(r), unwrapCol(c));
+    if constexpr (std::same_as<decltype(newDim), Empty>)
+      // 3.a.i. Vector indexing, contig, no mask
+      // 3.a.ii. Vector indexing, contig, mask
+      if constexpr (utils::Compressible<T>) return ref(ptr + offset);
+      else return ptr[offset];
+    else if constexpr (simd::index::issimd<decltype(newDim)>)
+      return simd::ref(ptr + offset, newDim);
+    else return MutArray<T, decltype(newDim)>{ptr + offset, newDim};
+  } else if constexpr (std::same_as<S, StridedRange>)
+    return index(ptr, shape, r);
+  else return index(ptr, shape, c);
+}
 
 template <typename T, bool Column = false> struct SliceIterator {
   using stride_type = std::conditional_t<Column, StridedRange, ptrdiff_t>;
@@ -250,22 +311,13 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   // }
   [[gnu::flatten, gnu::always_inline]] constexpr auto
   operator[](Index<S> auto i) const noexcept -> decltype(auto) {
-    auto offset = calcOffset(sz, i);
-    auto newDim = calcNewDim(sz, i);
-    invariant(ptr != nullptr);
-    if constexpr (std::same_as<decltype(newDim), Empty>)
-      return static_cast<const T *>(ptr)[offset];
-    else return Array<T, decltype(newDim)>{ptr + offset, newDim};
+    return index(ptr, sz, i);
   }
   // for (row/col)vectors, we drop the row/col, essentially broadcasting
   template <class R, class C>
   [[gnu::flatten, gnu::always_inline]] constexpr auto
   operator[](R r, C c) const noexcept -> decltype(auto) {
-    if constexpr (MatrixDimension<S>)
-      return (*this)[CartesianIndex(unwrapRow(r), unwrapCol(c))];
-    else if constexpr (std::same_as<S, StridedRange>)
-      return (*this)[ptrdiff_t(r)];
-    else return (*this)[ptrdiff_t(c)];
+    return index(ptr, sz, r, c);
   }
   [[nodiscard]] constexpr auto minRowCol() const -> ptrdiff_t {
     return std::min(ptrdiff_t(numRow()), ptrdiff_t(numCol()));
@@ -535,21 +587,16 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
   }
   constexpr auto front() noexcept -> T & { return *begin(); }
   constexpr auto back() noexcept -> T & { return *(end() - 1); }
-  [[gnu::flatten]] constexpr auto operator[](Index<S> auto i) noexcept
-    -> decltype(auto) {
-    auto offset = calcOffset(this->sz, i);
-    auto newDim = calcNewDim(this->sz, i);
-    if constexpr (std::is_same_v<decltype(newDim), Empty>)
-      return data()[offset];
-    else return MutArray<T, decltype(newDim)>{data() + offset, newDim};
+  [[gnu::flatten, gnu::always_inline]] constexpr auto
+  operator[](Index<S> auto i) noexcept -> decltype(auto) {
+    return index(data(), this->sz, i);
   }
   // TODO: switch to operator[] when we enable c++23
   template <class R, class C>
-  [[gnu::flatten]] constexpr auto operator[](R r, C c) noexcept
+  [[gnu::flatten, gnu::always_inline]] constexpr auto operator[](R r,
+                                                                 C c) noexcept
     -> decltype(auto) {
-    if constexpr (MatrixDimension<S>)
-      return (*this)[CartesianIndex(unwrapRow(r), unwrapCol(c))];
-    else return (*this)[ptrdiff_t(r)];
+    return index(data(), this->sz, r, c);
   }
   constexpr void fill(T value) {
     std::fill_n(this->data(), ptrdiff_t(this->dim()), value);
@@ -1831,85 +1878,5 @@ inline auto operator<<(std::ostream &os, Array<T, DenseDims<R, C>> A)
 
 static_assert(std::same_as<const int64_t &,
                            decltype(std::declval<PtrMatrix<int64_t>>()[0, 0])>);
-
-// Cases we need to consider:
-// 1. Slice-indexing
-// 2.a. `ptrdiff_t` indexing, not compressed
-// 2.b. `ptrdiff_t` indexing, compressed
-// 3.a.i. Vector indexing, contig, no mask
-// 3.a.ii. Vector indexing, contig, mask
-// 3.b.i. Vector indexing, discontig, no mask
-// 3.b.ii. Vector indexing, discontig, mask
-// all of the above for `T*` and `const T*`
-template <typename T, typename S, typename I>
-[[gnu::flatten, gnu::always_inline]] constexpr auto index(const T *ptr, S shape,
-                                                          I i) noexcept
-  -> decltype(auto) {
-  auto offset = calcOffset(shape, i);
-  auto newDim = calcNewDim(shape, i);
-  invariant(ptr != nullptr);
-  if constexpr (std::same_as<decltype(newDim), Empty>) {
-    if constexpr (Compressible<T>) return decompress(ptr + offset);
-    else if constexpr (IsVectorIndex<decltype(offset)>)
-      return load(ptr, offset);
-    else return ptr[offset];
-  } else return Array<T, decltype(newDim)>{ptr + offset, newDim};
-}
-// for (row/col)vectors, we drop the row/col, essentially broadcasting
-template <typename T, typename S, typename R, typename C>
-[[gnu::flatten, gnu::always_inline]] constexpr auto index(const T *ptr, S shape,
-                                                          R r, C c) noexcept
-  -> decltype(auto) {
-  if constexpr (MatrixDimension<S>) {
-    auto offset = calcOffset(shape, r, c);
-    auto newDim = calcNewDim(shape, r, c);
-    if constexpr (std::same_as<decltype(newDim), Empty>)
-      // 3.a.i. Vector indexing, contig, no mask
-      // 3.a.ii. Vector indexing, contig, mask
-      if constexpr (utils::Compressible<T>)
-        return utils::decompress(ptr + offset);
-      else if constexpr (IsVectorIndex<decltype(offset)>)
-        return load(ptr, offset);
-      else return ptr[offset];
-    else return Array<T, decltype(newDim)>{ptr + offset, newDim};
-  } else if constexpr (std::same_as<S, StridedRange>)
-    return index(ptr, shape, r);
-  else return index(ptr, shape, c);
-}
-
-template <typename T, typename S, typename I>
-[[gnu::flatten, gnu::always_inline]] constexpr auto index(T *ptr, S shape,
-                                                          I i) noexcept
-  -> decltype(auto) {
-  auto offset = calcOffset(shape, i);
-  auto newDim = calcNewDim(shape, i);
-  invariant(ptr != nullptr);
-  if constexpr (std::same_as<decltype(newDim), Empty>) {
-    if constexpr (Compressible<T>) return ref(ptr + offset);
-    else if constexpr (IsVectorIndex<decltype(offset)>)
-      return load(ptr, offset);
-    else return ptr[offset];
-  } else return Array<T, decltype(newDim)>{ptr + offset, newDim};
-}
-// for (row/col)vectors, we drop the row/col, essentially broadcasting
-template <typename T, typename S, typename R, typename C>
-[[gnu::flatten, gnu::always_inline]] constexpr auto index(T *ptr, S shape, R r,
-                                                          C c) noexcept
-  -> decltype(auto) {
-  if constexpr (MatrixDimension<S>) {
-    auto offset = calcOffset(shape, r, c);
-    auto newDim = calcNewDim(shape, r, c);
-    if constexpr (std::same_as<decltype(newDim), Empty>)
-      // 3.a.i. Vector indexing, contig, no mask
-      // 3.a.ii. Vector indexing, contig, mask
-      if constexpr (utils::Compressible<T>) return ref(ptr + offset);
-      else if constexpr (IsVectorIndex<decltype(offset)>)
-        return load(ptr, offset);
-      else return ptr[offset];
-    else return Array<T, decltype(newDim)>{ptr + offset, newDim};
-  } else if constexpr (std::same_as<S, StridedRange>)
-    return index(ptr, shape, r);
-  else return index(ptr, shape, c);
-}
 
 } // namespace poly::math
