@@ -276,13 +276,13 @@ template <typename I> struct Stride {
   I index;
   [[no_unique_address]] ptrdiff_t stride;
 };
-template <ptrdiff_t U>
-constexpr auto calcOffset(ptrdiff_t len, simd::index::Unroll<U> i) {
+template <ptrdiff_t U, typename I>
+constexpr auto calcOffset(ptrdiff_t len, simd::index::Unroll<U, I> i) {
   invariant(i.index + (U - 1) < len);
   return i;
 }
-template <ptrdiff_t W>
-constexpr auto calcOffset(ptrdiff_t len, simd::index::Vector<W> i) {
+template <ptrdiff_t W, typename M>
+constexpr auto calcOffset(ptrdiff_t len, simd::index::Vector<W, M> i) {
   invariant(i.index + (W - 1) < len);
   return i;
 }
