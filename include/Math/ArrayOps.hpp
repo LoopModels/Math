@@ -11,6 +11,17 @@
 
 namespace poly::math {
 
+// returns Unroll, Iters, Remainder
+template <ptrdiff_t R> consteval auto unrollf() -> std::array<ptrdiff_t, 2> {
+  if (R <= 5) return {0, R};
+  if (R == 7) return {0, 7};
+  if ((R % 4) == 0) return {4, 0};
+  if ((R % 3) == 0) return {3, 0};
+  if ((R % 5) == 0) return {5, 0};
+  if ((R % 7) == 0) return {7, 0};
+  return {4, R % 4};
+}
+
 template <typename T> class SmallSparseMatrix;
 template <class T, class S, class P> class ArrayOps {
 
@@ -28,11 +39,42 @@ template <class T, class S, class P> class ArrayOps {
   [[nodiscard]] constexpr auto nr() const -> ptrdiff_t {
     return ptrdiff_t(static_cast<const P *>(this)->numRow());
   }
-  [[nodiscard]] constexpr auto nc() const -> ptrdiff_t {
-    return ptrdiff_t(static_cast<const P *>(this)->numCol());
+  [[nodiscard]] constexpr auto nc() const {
+    return unwrapCol(static_cast<const P *>(this)->numCol());
   }
-  [[nodiscard]] constexpr auto rs() const -> ptrdiff_t {
-    return ptrdiff_t(static_cast<const P *>(this)->rowStride());
+  [[nodiscard]] constexpr auto rs() const {
+    return unwrapRow(static_cast<const P *>(this)->rowStride());
+  }
+  struct NoRowIndex {};
+  template <typename I, typename R>
+  [[gnu::always_inline]] static void vcopyToSIMD(P &self, const auto &B, I L,
+                                                 R row) {
+    // TODO: if `R` is a row index, maybe don't fully unroll static `L`
+    // We're going for very short SIMD vectors to focus on small sizes
+    if constexpr (StaticInt<I>) {
+      constexpr ptrdiff_t SL = ptrdiff_t(L);
+      constexpr std::array<ptrdiff_t, 3> vdr = simd::VectorDivRem<SL, T>();
+      constexpr ptrdiff_t W = vdr[0];
+      constexpr ptrdiff_t fulliter = vdr[1];
+      constexpr ptrdiff_t remainder = vdr[2];
+      if constexpr (remainder > 0) {
+        auto u{simd::index::unrollmask<fulliter + 1, W>(L, 0)};
+        if constexpr (std::same_as<R, NoRowIndex>) self[u] = B[u];
+        else self[row, u] = B[row, u];
+      } else {
+        simd::index::Unroll<fulliter, W> u{0};
+        if constexpr (std::same_as<R, NoRowIndex>) self[u] = B[u];
+        else self[row, u] = B[row, u];
+      }
+    } else {
+      constexpr ptrdiff_t W = simd::Width<T>;
+      for (ptrdiff_t i = 0;; i += W) {
+        auto u{simd::index::unrollmask<1, W>(L, i)};
+        if (!u) break;
+        if constexpr (std::same_as<R, NoRowIndex>) self[u] = B[u];
+        else self[row, u] = B[row, u];
+      }
+    }
   }
 
   void vcopyTo(const AbstractVector auto &B) {
@@ -51,28 +93,7 @@ template <class T, class S, class P> class ArrayOps {
       auto L = size_();
       invariant(ptrdiff_t(L), ptrdiff_t(B.size()));
       if constexpr (simd::SIMDSupported<T>) {
-        // We're going for very short SIMD vectors to focus on small sizes
-        if constexpr (StaticInt<decltype(L)>) {
-          constexpr ptrdiff_t SL = ptrdiff_t(L);
-          constexpr std::array<ptrdiff_t, 3> vdr = simd::VectorDivRem<SL, T>();
-          constexpr ptrdiff_t W = vdr[0];
-          constexpr ptrdiff_t fulliter = vdr[1];
-          constexpr ptrdiff_t remainder = vdr[2];
-          if constexpr (remainder > 0) {
-            auto u{simd::index::unrollmask<fulliter + 1, W>(L, 0)};
-            self[u] = B[u];
-          } else {
-            simd::index::Unroll<fulliter, W> u{0};
-            self[u] = B[u];
-          }
-        } else {
-          constexpr ptrdiff_t W = simd::Width<T>;
-          for (ptrdiff_t i = 0;; i += W) {
-            auto u{simd::index::unrollmask<1, W>(L, i)};
-            if (!u) break;
-            self[u] = B[u];
-          }
-        }
+        vcopyToSIMD(self, B, L, NoRowIndex{});
       } else if constexpr (std::is_copy_assignable_v<T>) {
         POLYMATHVECTORIZE
         for (ptrdiff_t i = 0; i < L; ++i) self[i] = B[i];
@@ -114,8 +135,9 @@ template <class T, class S, class P> class ArrayOps {
   void vcopyTo(const AbstractMatrix auto &B) {
     static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     static_assert(MatrixDimension<S>);
-    ptrdiff_t M = nr(), N = nc();
-    invariant(M, ptrdiff_t(B.numRow()));
+    auto M = nr();
+    auto N = nc();
+    invariant(ptrdiff_t(M), ptrdiff_t(B.numRow()));
     invariant(N, ptrdiff_t(B.numCol()));
     P &self{Self()};
     if constexpr (DenseLayout<S> &&
@@ -123,6 +145,27 @@ template <class T, class S, class P> class ArrayOps {
       if constexpr (std::is_copy_assignable_v<T>)
         std::copy_n(B.begin(), M * N, data_());
       else std::memcpy(data_(), M * N * sizeof(T), B.begin());
+    } else if constexpr (simd::SIMDSupported<T>) {
+      if constexpr (StaticInt<decltype(M)>) {
+        constexpr std::array<ptrdiff_t, 2> UIR = unrollf<ptrdiff_t(M)>();
+        constexpr ptrdiff_t U = UIR[0];
+        if constexpr (U != 0)
+          for (ptrdiff_t r = 0; r < (M - U + 1); r += U)
+            vcopyToSIMD(self, B, N, simd::index::Unroll<U>{r});
+        constexpr ptrdiff_t R = UIR[1];
+        if constexpr (R != 0)
+          vcopyToSIMD(self, B, N, simd::index::Unroll<R>{M - R});
+      } else {
+        ptrdiff_t r = 0;
+        for (; r < (M - 3); r += 4)
+          vcopyToSIMD(self, B, N, simd::index::Unroll<4>{r});
+        switch (M & 3) {
+        case 0: return;
+        case 1: return vcopyToSIMD(self, B, N, simd::index::Unroll<1>{r});
+        case 2: return vcopyToSIMD(self, B, N, simd::index::Unroll<2>{r});
+        default: return vcopyToSIMD(self, B, N, simd::index::Unroll<3>{r});
+        }
+      }
     } else {
       POLYMATHNOVECTORIZE
       for (ptrdiff_t i = 0; i < M; ++i) {
