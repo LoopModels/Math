@@ -47,7 +47,10 @@
 #endif
 
 namespace poly::math {
-template <class T, class S, ptrdiff_t N = containers::PreAllocStorage<T, S>(),
+template <typename S>
+concept Dimension = VectorDimension<S> != MatrixDimension<S>;
+template <class T, Dimension S,
+          ptrdiff_t N = containers::PreAllocStorage<T, S>(),
           class A = alloc::Mallocator<T>>
 struct ManagedArray;
 
@@ -63,8 +66,8 @@ void print_obj(std::ostream &os, const std::pair<F, S> &x) {
 };
 using utils::Valid, utils::Optional;
 
-template <class T, class S> struct Array;
-template <class T, class S> struct MutArray;
+template <class T, Dimension S> struct Array;
+template <class T, Dimension S> struct MutArray;
 
 // Cases we need to consider:
 // 1. Slice-indexing
@@ -228,7 +231,7 @@ template <typename T, bool Column = false> struct SliceRange {
   }
 };
 /// Constant Array
-template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
+template <class T, Dimension S> struct POLY_MATH_GSL_POINTER Array {
   static_assert(!std::is_const_v<T>, "T shouldn't be const");
   static_assert(std::is_trivially_destructible_v<T>,
                 "maybe should add support for destroying");
@@ -246,7 +249,7 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   static constexpr bool isdense =
     std::convertible_to<S, ptrdiff_t> || std::convertible_to<S, DenseDims<>>;
   static constexpr bool flatstride = isdense || std::same_as<S, StridedRange>;
-  static_assert(flatstride ^ std::same_as<S, StridedDims<>>);
+  static_assert(flatstride != std::same_as<S, StridedDims<>>);
 
   constexpr Array() = default;
   constexpr Array(const Array &) = default;
@@ -462,7 +465,7 @@ template <class T, DenseLayout S>
   return M <=> N;
 };
 
-template <class T, class S>
+template <class T, Dimension S>
 struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
                                         ArrayOps<T, S, MutArray<T, S>> {
   using BaseT = Array<T, S>;
@@ -760,7 +763,7 @@ static_assert(std::ranges::range<SliceRange<int64_t, false>>);
 
 /// Non-owning view of a managed array, capable of resizing,
 /// but not of re-allocating in case the capacity is exceeded.
-template <class T, class S>
+template <class T, Dimension S>
 struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
   using BaseT = MutArray<T, S>;
   using U = containers::default_capacity_type_t<S>;
@@ -985,7 +988,7 @@ static_assert(std::is_trivially_move_assignable_v<MutArray<void *, ptrdiff_t>>);
 /// Non-owning view of a managed array, capable of reallocating, etc.
 /// It does not own memory. Mostly, it serves to drop the inlined
 /// stack capacity of the `ManagedArray` from the type.
-template <class T, class S, class A = alloc::Mallocator<T>>
+template <class T, Dimension S, class A = alloc::Mallocator<T>>
 struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S> {
   using BaseT = ResizeableView<T, S>;
   using U = containers::default_capacity_type_t<S>;
@@ -1260,7 +1263,7 @@ concept AbstractSimilar =
 /// or at least build ManagedArrays bypassing the constructors listed here.
 /// This caused invalid frees, as the pointer still pointed to the old
 /// stack memory.
-template <class T, class S, ptrdiff_t N, class A>
+template <class T, Dimension S, ptrdiff_t N, class A>
 struct POLY_MATH_GSL_OWNER ManagedArray : ReallocView<T, S, A> {
   static_assert(std::is_trivially_destructible_v<T>);
   using BaseT = ReallocView<T, S, A>;

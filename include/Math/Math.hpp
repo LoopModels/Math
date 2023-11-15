@@ -83,12 +83,14 @@ template <typename Op, typename A> struct Elementwise {
   static constexpr bool has_reduction_loop = HasInnerReduction<A>;
   [[no_unique_address]] Op op;
   [[no_unique_address]] A a;
-  constexpr auto operator[](ptrdiff_t i) const
-  requires(AbstractVector<A>)
+  constexpr auto operator[](auto i) const
+  requires(LinearlyIndexableOrConvertible<A, value_type>)
   {
     return op(a[i]);
   }
-  constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) const {
+  constexpr auto operator[](auto i, auto j) const
+  requires(CartesianIndexableOrConvertible<A, value_type>)
+  {
     return op(a[i, j]);
   }
 
@@ -112,19 +114,20 @@ template <typename Op, typename A> struct Elementwise {
 template <typename Op, typename A> Elementwise(Op, A) -> Elementwise<Op, A>;
 
 // scalars broadcast
-template <typename S> constexpr auto get(const S &s, ptrdiff_t) -> S {
+template <typename S>
+[[gnu::always_inline]] constexpr auto get(const S &s, auto) -> S {
   return s;
 }
 template <typename S>
-constexpr auto get(const S &s, ptrdiff_t, ptrdiff_t) -> S {
+[[gnu::always_inline]] constexpr auto get(const S &s, auto, auto) -> S {
   return s;
 }
 template <typename S, LinearlyIndexable<S> V>
-constexpr auto get(const V &v, ptrdiff_t i) -> S {
+[[gnu::always_inline]] constexpr auto get(const V &v, auto i) {
   return v[i];
 }
 template <typename S, CartesianIndexable<S> V>
-constexpr auto get(const V &v, ptrdiff_t i, ptrdiff_t j) -> S {
+[[gnu::always_inline]] constexpr auto get(const V &v, auto i, auto j) {
   return v[i, j];
 }
 
@@ -162,29 +165,28 @@ struct ElementwiseBinaryOp {
 
   static constexpr bool has_reduction_loop =
     HasInnerReduction<A> || HasInnerReduction<B>;
-
-  using value_type =
-    decltype(std::declval<Op>()(std::declval<elta>(), std::declval<eltb>()));
-  // using value_type = utils::promote_eltype_t<A, B>;
+  using common = std::common_type_t<elta, eltb>;
+  using value_type = decltype(std::declval<Op>()(std::declval<common>(),
+                                                 std::declval<common>()));
   using concrete = is_concrete_t<A, B>;
   static constexpr bool isvector = AbstractVector<A> || AbstractVector<B>;
   static constexpr bool ismatrix = AbstractMatrix<A> || AbstractMatrix<B>;
-  static_assert(isvector ^ ismatrix);
+  static_assert(isvector != ismatrix);
 
   [[no_unique_address]] Op op;
   [[no_unique_address]] A a;
   [[no_unique_address]] B b;
-  constexpr auto operator[](ptrdiff_t i) const -> value_type
-  requires LinearlyIndexableOrConvertible<A, elta> &&
-           LinearlyIndexableOrConvertible<B, eltb>
+  constexpr auto operator[](auto i) const
+  requires LinearlyIndexableOrConvertible<A, common> &&
+           LinearlyIndexableOrConvertible<B, common>
   {
-    return op(get<elta>(a, i), get<eltb>(b, i));
+    return op(get<common>(a, i), get<common>(b, i));
   }
-  constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) const -> value_type
-  requires CartesianIndexableOrConvertible<A, elta> &&
-           CartesianIndexableOrConvertible<B, eltb>
+  constexpr auto operator[](auto i, auto j) const
+  requires CartesianIndexableOrConvertible<A, common> &&
+           CartesianIndexableOrConvertible<B, common>
   {
-    return op(get<elta>(a, i, j), get<eltb>(b, i, j));
+    return op(get<common>(a, i, j), get<common>(b, i, j));
   }
 
   [[nodiscard]] constexpr auto numRow() const
@@ -373,10 +375,12 @@ template <AbstractTensor A, AbstractTensor B> struct MatMatMul {
   // For example, here, `s` would have to alias the result. Then we also have
   // `s +=`, which would have to invoke somehow call
   // `Dual<Dual<double,7>,2>::operator+=` without storing.
-  // Or, we'd need a method that can see through it, so we operate on the teminal values, but still in one go to only have one instance of the reduction loop.
-  // Thus, `1.` seems conceptually simple but without a clear implementation strategy.
-  // 
-  //  
+  // Or, we'd need a method that can see through it, so we operate on the
+  // teminal values, but still in one go to only have one instance of the
+  // reduction loop. Thus, `1.` seems conceptually simple but without a clear
+  // implementation strategy.
+  //
+  //
   [[gnu::always_inline]] constexpr auto operator[](ptrdiff_t i) const
     -> value_type
   requires(!ismatrix)

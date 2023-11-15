@@ -156,18 +156,12 @@ struct StaticArray : public ArrayOps<T, DenseDims<M, N>, StaticArray<T, M, N>> {
   constexpr auto front() noexcept -> T & { return *begin(); }
   constexpr auto back() noexcept -> T & { return *(end() - 1); }
   constexpr auto operator[](Index<S> auto i) noexcept -> decltype(auto) {
-    auto offset = calcOffset(S{}, i);
-    auto newDim = calcNewDim(S{}, i);
-    if constexpr (std::is_same_v<decltype(newDim), Empty>)
-      return data()[offset];
-    else return MutArray<T, decltype(newDim)>{data() + offset, newDim};
+    return index(data(), S{}, i);
   }
   // TODO: switch to operator[] when we enable c++23
   template <class R, class C>
   constexpr auto operator[](R r, C c) noexcept -> decltype(auto) {
-    if constexpr (MatrixDimension<S>)
-      return (*this)[CartesianIndex<R, C>{r, c}];
-    else return (*this)[ptrdiff_t(r)];
+    return index(data(), S{}, r, c);
   }
   constexpr void fill(T value) {
     std::fill_n((T *)(data()), ptrdiff_t(this->dim()), value);

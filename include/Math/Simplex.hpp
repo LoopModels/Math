@@ -683,7 +683,7 @@ public:
                              A[_, _(1, end)], B[_, _(1, end)]);
     auto consts{simplex->getConstants()};
     consts[_(0, numSlack)] << A[_, 0];
-    consts[_(numSlack, numSlack + numStrict)] << B[_, 0];
+    if (numStrict) consts[_(numSlack, numSlack + numStrict)] << B[_, 0];
     // for (ptrdiff_t i = 0; i < numSlack; ++i) consts[i] = A(i, 0);
     // for (ptrdiff_t i = 0; i < numStrict; ++i) consts[i + numSlack] = B(i, 0);
     if (!simplex->initiateFeasible()) return simplex;

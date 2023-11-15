@@ -100,25 +100,30 @@ template <ptrdiff_t W> constexpr auto operator&(None<W> a, Bit<W> b) -> Bit<W> {
 template <ptrdiff_t W> constexpr auto operator&(Bit<W> a, None<W> b) -> Bit<W> {
   return a;
 }
-template <ptrdiff_t W> constexpr auto exitLoop(mask::Bit<W> i) -> bool {
-  return i.mask == 0;
-}
 } // namespace mask
 
 #endif
 #ifndef __AVX512VL__
 namespace mask {
 
-template <ptrdiff_t W> struct Vector {
+template <ptrdiff_t W, typename I = int64_t> struct Vector {
   static_assert((W == 2) || (W == 4));
-  Vec<W, int64_t> m;
+  // TODO: add support for smaller mask types, we we can use smaller eltypes
+  Vec<W, I> m;
   [[nodiscard]] constexpr auto intmask() const -> int32_t {
-    if constexpr (W == 2) return _mm_movemask_epi8(std::bit_cast<__m128i>(m));
+    if constexpr (sizeof(I) == 8)
+      if constexpr (W == 2) return _mm_movemask_pd(std::bit_cast<__m128i>(m));
+      else return _mm256_movemask_pd(std::bit_cast<__m256i>(m));
+    else if constexpr (sizeof(I) == 4)
+      if constexpr (W == 4) return _mm_movemask_ps(std::bit_cast<__m128i>(m));
+      else return _mm256_movemask_ps(std::bit_cast<__m256i>(m));
+    else if constexpr (W == 16)
+      return _mm_movemask_epi8(std::bit_cast<__m128i>(m));
     else return _mm256_movemask_epi8(std::bit_cast<__m256i>(m));
   }
   explicit constexpr operator bool() const { return intmask(); }
   [[nodiscard]] constexpr auto lastUnmasked() const -> ptrdiff_t {
-    return 32 - std::countl_zero(intmask());
+    return 32 - std::countl_zero(uint32_t(intmask()));
   }
   constexpr operator __m128i()
   requires(W == 2)
@@ -163,9 +168,6 @@ constexpr auto create(ptrdiff_t i, ptrdiff_t len) -> Vector<W> {
   return {range<W, int64_t>() + i < len};
 }
 #endif
-template <ptrdiff_t W> constexpr auto exitLoop(Vector<W> i) -> bool {
-  return i.m[0] == 0;
-}
 
 } // namespace mask
 #endif
@@ -280,10 +282,10 @@ store(int64_t *p, mask::Bit<8> i, Vec<8, int64_t> x, int32_t stride) {
 static constexpr ptrdiff_t REGISTERS = 16;
 #ifdef __AVX__
 static constexpr ptrdiff_t VECTORWIDTH = 32;
-#else // no AVX
+#else  // no AVX
 static constexpr ptrdiff_t VECTORWIDTH = 16;
-#endif
-#endif
+#endif // no AVX
+#endif // no AVX512F
 #ifdef __AVX2__
 
 // Non-masked gather/scatter are the same with AVX512VL and AVX2
@@ -307,7 +309,7 @@ load(const int64_t *p, mask::None<2>, int32_t stride) -> Vec<2, int64_t> {
   auto x{vindex<2>(stride)};
   return std::bit_cast<Vec<2, int64_t>>(_mm_i64gather_pd(p, x, 8));
 }
-#endif
+#endif // AVX2
 
 // Here, we handle masked loads/stores
 #ifdef __AVX512VL__
@@ -414,35 +416,32 @@ store(int64_t *p, mask::Bit<2> i, Vec<2, int64_t> x, int32_t stride) {
 store(int64_t *p, mask::None<4>, Vec<4, int64_t> x) {
   _mm256_storeu_epi64(p, std::bit_cast<__m256i>(x));
 }
+[[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
+                                                         mask::None<2>) {
+  return std::bit_cast<Vec<2, int64_t>>(_mm_loadu_epi64(p));
+}
+[[gnu::always_inline, gnu::artificial]] inline void
+store(int64_t *p, mask::None<2>, Vec<2, int64_t> x) {
+  _mm_storeu_epi64(p, std::bit_cast<__m128i>(x));
+}
+
 #else // No AVX512VL
 
 // We need [gather, scatter, load, store] * [unmasked, masked]
 
 #ifdef __AVX__
 // we need 256 bit fallback scatters
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, mask::None<4>, Vec<4, double> x, int32_t stride) {
+store(T *p, mask::None<4>, Vec<4, T> x, int32_t stride) {
   p[0] = x[0];
   p[stride] = x[1];
   p[2 * stride] = x[2];
   p[3 * stride] = x[3];
 }
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::None<4>, Vec<4, int64_t> x, int32_t stride) {
-  p[0] = x[0];
-  p[stride] = x[1];
-  p[2 * stride] = x[2];
-  p[3 * stride] = x[3];
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, mask::Vector<4> i, Vec<4, double> x, int32_t stride) {
-  if (i.m[0] != 0) p[0] = x[0];
-  if (i.m[1] != 0) p[stride] = x[1];
-  if (i.m[2] != 0) p[2 * stride] = x[2];
-  if (i.m[3] != 0) p[3 * stride] = x[3];
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::Vector<4> i, Vec<4, int64_t> x, int32_t stride) {
+store(T *p, mask::Vector<4> i, Vec<4, T> x, int32_t stride) {
   if (i.m[0] != 0) p[0] = x[0];
   if (i.m[1] != 0) p[stride] = x[1];
   if (i.m[2] != 0) p[2 * stride] = x[2];
@@ -451,23 +450,16 @@ store(int64_t *p, mask::Vector<4> i, Vec<4, int64_t> x, int32_t stride) {
 
 #endif // AVX
 // 128 bit fallback scatters
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, mask::None<2>, Vec<2, double> x, int32_t stride) {
+store(T *p, mask::None<2>, Vec<2, T> x, int32_t stride) {
   p[0] = x[0];
   p[stride] = x[1];
 }
+
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::None<2>, Vec<2, int64_t> x, int32_t stride) {
-  p[0] = x[0];
-  p[stride] = x[1];
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, mask::Vector<2> i, Vec<2, double> x, int32_t stride) {
-  if (i.m[0] != 0) p[0] = x[0];
-  if (i.m[1] != 0) p[stride] = x[1];
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::Vector<2> i, Vec<2, int64_t> x, int32_t stride) {
+store(T *p, mask::Vector<2> i, Vec<2, T> x, int32_t stride) {
   if (i.m[0] != 0) p[0] = x[0];
   if (i.m[1] != 0) p[stride] = x[1];
 }
@@ -506,80 +498,38 @@ load(const int64_t *p, mask::Vector<2> m, int32_t stride) -> Vec<2, int64_t> {
 
 #else          // no AVX2
 // fallback 128-bit gather
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const double *p, mask::None<2>, int32_t stride) -> Vec<2, double> {
-  Vec<2, double> ret;
-  ret[0] = p[0];
-  ret[1] = p[stride];
-  return ret;
+load(const T *p, mask::None<2>, int32_t stride) -> Vec<2, T> {
+  return Vec<2, T>{p[0], p[stride]};
 }
 
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const int64_t *p, mask::None<2>, int32_t stride) -> Vec<2, int64_t> {
-  Vec<2, int64_t> ret;
-  ret[0] = p[0];
-  ret[1] = p[stride];
-  return ret;
-}
-[[gnu::always_inline, gnu::artificial]] inline auto
-load(const double *p, mask::Vector<2> i, int32_t stride) -> Vec<2, double> {
-  Vec<2, double> ret;
-  ret[0] = (i.m[0] != 0) ? p[0] : 0;
-  ret[1] = (i.m[1] != 0) ? p[stride] : 0;
-  return ret;
-}
-
-[[gnu::always_inline, gnu::artificial]] inline auto
-load(const int64_t *p, mask::Vector<2> i, int32_t stride) -> Vec<2, int64_t> {
-  Vec<2, int64_t> ret;
-  ret[0] = (i.m[0] != 0) ? p[0] : 0;
-  ret[1] = (i.m[1] != 0) ? p[stride] : 0;
-  return ret;
+load(const T *p, mask::Vector<2> i, int32_t stride) -> Vec<2, T> {
+  return Vec<2, T>{(i.m[0] != 0) ? p[0] : T{}, (i.m[1] != 0) ? p[stride] : T{}};
 }
 #ifdef __AVX__ // no AVX2, but AVX
 // fallback 256-bit gather
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const double *p, mask::None<4>, int32_t stride) -> Vec<4, double> {
-  Vec<4, double> ret;
-  ret[0] = p[0];
-  ret[1] = p[stride];
-  ret[2] = p[2 * stride];
-  ret[3] = p[3 * stride];
-  return ret;
+load(const T *p, mask::None<4>, int32_t stride) -> Vec<4, T> {
+  return Vec<4, T>{p[0], p[stride], p[2 * stride], p[3 * stride]};
 }
 
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const int64_t *p, mask::None<4>, int32_t stride) -> Vec<4, int64_t> {
-  Vec<4, int64_t> ret;
-  ret[0] = p[0];
-  ret[1] = p[stride];
-  ret[2] = p[2 * stride];
-  ret[3] = p[3 * stride];
-  return ret;
-}
-[[gnu::always_inline, gnu::artificial]] inline auto
-load(const double *p, index::Vector<4, Vec<24 int64_t>> i, int32_t stride)
-  -> Vec<4, double> {
-  Vec<4, double> ret;
-  ret[0] = (i.m[0] != 0) ? p[0] : 0;
-  ret[1] = (i.m[1] != 0) ? p[stride] : 0;
-  ret[2] = (i.m[2] != 0) ? p[2 * stride] : 0;
-  ret[3] = (i.m[3] != 0) ? p[3 * stride] : 0;
-  return ret;
+load(const T *p, mask::Vector<4> i, int32_t stride) -> Vec<4, T> {
+  return Vec<4, T>{
+    (i.m[0] != 0) ? p[0] : T{},
+    (i.m[1] != 0) ? p[stride] : T{},
+    (i.m[2] != 0) ? p[2 * stride] : T{},
+    (i.m[3] != 0) ? p[3 * stride] : T{},
+  };
 }
 
-[[gnu::always_inline, gnu::artificial]] inline auto
-load(const int64_t *p, index::Vector<4, VMask<4>> i, int32_t stride)
-  -> Vec<4, double> {
-  Vec<4, int64_t> ret;
-  ret[0] = (i.m[0] != 0) ? p[0] : 0;
-  ret[1] = (i.m[1] != 0) ? p[stride] : 0;
-  ret[2] = (i.m[2] != 0) ? p[2 * stride] : 0;
-  ret[3] = (i.m[3] != 0) ? p[3 * stride] : 0;
-  return ret;
-}
-#endif         // AVX
-#endif         // no AVX2
+#endif // AVX
+#endif // no AVX2
 #ifdef __AVX__
 [[gnu::always_inline, gnu::artificial]] inline auto load(const double *p,
                                                          mask::Vector<4> i)
@@ -628,35 +578,21 @@ store(int64_t *p, mask::Vector<2> i, Vec<2, int64_t> x) {
 store(int64_t *p, mask::None<4>, Vec<4, int64_t> x) {
   _mm256_storeu_si256((__m256i *)p, std::bit_cast<__m256i>(x));
 }
-#else  // No AVX
-[[gnu::always_inline, gnu::artificial]] inline auto load(const double *p,
+#else // No AVX
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto load(const T *p,
                                                          mask::Vector<2> i)
-  -> Vec<2, double> {
-  Vec<2, double> ret;
-  ret[0] = (i.m[0] != 0) ? p[0] : 0.0;
-  ret[1] = (i.m[1] != 0) ? p[1] : 0.0;
-  return ret;
+  -> Vec<2, T> {
+  return Vec<2, T>{(i.m[0] != 0) ? p[0] : T{}, (i.m[1] != 0) ? p[1] : T{}};
 }
 
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, mask::Vector<2> i, Vec<2, double> x) {
+store(T *p, mask::Vector<2> i, Vec<2, T> x) {
   if (i.m[0] != 0) p[0] = x[0];
   if (i.m[1] != 0) p[1] = x[1];
 }
 
-[[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
-                                                         mask::Vector<2> i)
-  -> Vec<2, int64_t> {
-  Vec<2, int64_t> ret;
-  ret[0] = (i.m[0] != 0) ? p[0] : 0;
-  ret[1] = (i.m[1] != 0) ? p[1] : 0;
-  return ret;
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::Vector<2> i, Vec<2, int64_t> x) {
-  if (i.m[0] != 0) p[0] = x[0];
-  if (i.m[1] != 0) p[1] = x[1];
-}
 #endif // No AVX
 #endif // No AVX512VL
 #ifdef __AVX__
@@ -715,13 +651,12 @@ store(double *p, mask::None<2>, Vec<2, double> x) {
 
 [[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
                                                          mask::None<2>) {
-  return std::bit_cast<Vec<2, int64_t>>(_mm_loadu_epi64(p));
+  return std::bit_cast<Vec<2, int64_t>>(_mm_loadu_si128((const __m128i *)p));
 }
 [[gnu::always_inline, gnu::artificial]] inline void
 store(int64_t *p, mask::None<2>, Vec<2, int64_t> x) {
-  _mm_storeu_epi64(p, std::bit_cast<__m128i>(x));
+  _mm_storeu_si128((__m128i *)p, std::bit_cast<__m128i>(x));
 }
-
 #else // not __x86_64__
 static constexpr ptrdiff_t REGISTERS = 32;
 static constexpr ptrdiff_t VECTORWIDTH = 16;
@@ -747,9 +682,6 @@ template <ptrdiff_t W> constexpr auto create(ptrdiff_t i) -> Vector<W> {
 template <ptrdiff_t W>
 constexpr auto create(ptrdiff_t i, ptrdiff_t len) -> Vector<W> {
   return {range<W, int64_t>() + i < len};
-}
-template <ptrdiff_t W> constexpr auto exitLoop(Vector<W> i) -> bool {
-  return i.mask.m[0] == 0;
 }
 } // namespace mask
 template <ptrdiff_t W, typename T>
@@ -827,8 +759,17 @@ namespace index {
 template <ptrdiff_t U, ptrdiff_t W = 1, typename M = mask::None<W>>
 struct Unroll {
   ptrdiff_t index;
-  [[no_unique_address]] M mask;
+  [[no_unique_address]] M mask{};
   explicit constexpr operator ptrdiff_t() const { return index; }
+  explicit constexpr operator bool() const { return bool(mask); }
+};
+template <ptrdiff_t U, ptrdiff_t W>
+[[gnu::always_inline]] constexpr auto unrollmask(ptrdiff_t L, ptrdiff_t i) {
+  // mask applies to last iter
+  // We can't check that the last iter is non-empty, because that
+  // could be the loop exit condition
+  auto m{mask::create<W>(i + (U - 1) * W, L)};
+  return Unroll<U, W, decltype(m)>{i, m};
 };
 
 // template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename M, ptrdiff_t X>
@@ -845,6 +786,8 @@ struct UnrollDims {
 
 template <typename T> static constexpr bool issimd = false;
 
+template <ptrdiff_t U, ptrdiff_t W, typename M>
+static constexpr bool issimd<Unroll<U, W, M>> = true;
 template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename M, bool Transposed,
           ptrdiff_t X>
 static constexpr bool issimd<UnrollDims<R, C, W, M, Transposed, X>> = true;
@@ -854,20 +797,258 @@ static constexpr bool issimd<UnrollDims<R, C, W, M, Transposed, X>> = true;
 // Vector goes across cols
 template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t N, typename T> struct Unroll {
   static constexpr ptrdiff_t W = ptrdiff_t(std::bit_ceil(size_t(N)));
-  Vec<W, T> data[R * C];
-  constexpr auto operator[](ptrdiff_t i) -> Vec<W, T> & { return data[i]; }
-  constexpr auto operator[](ptrdiff_t r, ptrdiff_t c) -> Vec<W, T> & {
+  using VT = std::conditional_t<W == 1, T, Vec<W, T>>;
+  VT data[R * C];
+  constexpr auto operator[](ptrdiff_t i) -> VT & { return data[i]; }
+  constexpr auto operator[](ptrdiff_t r, ptrdiff_t c) -> VT & {
     return data[r * C + c];
+  }
+  constexpr auto operator[](ptrdiff_t i) const -> VT { return data[i]; }
+  constexpr auto operator[](ptrdiff_t r, ptrdiff_t c) const -> VT {
+    return data[r * C + c];
+  }
+
+  [[gnu::always_inline]] constexpr auto operator-() {
+    Unroll a;
+    for (ptrdiff_t i = 0; i < R * C; ++i) a.data[i] = -data[i];
+    return a;
+  }
+  [[gnu::always_inline]] constexpr auto operator+=(const Unroll &a)
+    -> Unroll & {
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t i = 0; i < R * C; ++i) data[i] += a.data[i];
+    return *this;
+  }
+  [[gnu::always_inline]] constexpr auto operator-=(const Unroll &a)
+    -> Unroll & {
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t i = 0; i < R * C; ++i) data[i] -= a.data[i];
+    return *this;
+  }
+  [[gnu::always_inline]] constexpr auto operator*=(const Unroll &a)
+    -> Unroll & {
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t i = 0; i < R * C; ++i) data[i] *= a.data[i];
+    return *this;
+  }
+  [[gnu::always_inline]] constexpr auto operator/=(const Unroll &a)
+    -> Unroll & {
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t i = 0; i < R * C; ++i) data[i] /= a.data[i];
+    return *this;
+  }
+  [[gnu::always_inline]] constexpr auto operator+=(VT a) -> Unroll & {
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t i = 0; i < R * C; ++i) data[i] += a;
+    return *this;
+  }
+  [[gnu::always_inline]] constexpr auto operator-=(VT a) -> Unroll & {
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t i = 0; i < R * C; ++i) data[i] -= a;
+    return *this;
+  }
+  [[gnu::always_inline]] constexpr auto operator*=(VT a) -> Unroll & {
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t i = 0; i < R * C; ++i) data[i] *= a;
+    return *this;
+  }
+  [[gnu::always_inline]] constexpr auto operator/=(VT a) -> Unroll & {
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t i = 0; i < R * C; ++i) data[i] /= a;
+    return *this;
+  }
+  [[gnu::always_inline]] constexpr auto operator+=(T a) -> Unroll &
+  requires(W != 1)
+  {
+    return (*this) += (typename Unroll<R, C, W, T>::VT{} + a);
+  }
+  [[gnu::always_inline]] constexpr auto operator-=(T a) -> Unroll &
+  requires(W != 1)
+  {
+    return (*this) -= (typename Unroll<R, C, W, T>::VT{} + a);
+  }
+  [[gnu::always_inline]] constexpr auto operator*=(T a) -> Unroll &
+  requires(W != 1)
+  {
+    return (*this) *= (typename Unroll<R, C, W, T>::VT{} + a);
+  }
+  [[gnu::always_inline]] constexpr auto operator/=(T a) -> Unroll &
+  requires(W != 1)
+  {
+    return (*this) /= (typename Unroll<R, C, W, T>::VT{} + a);
   }
 };
 
-template <ptrdiff_t R, ptrdiff_t C, typename T> struct Unroll<R, C, 1, T> {
-  T data[R * C];
-  constexpr auto operator[](ptrdiff_t i) -> T & { return data[i]; }
-  constexpr auto operator[](ptrdiff_t r, ptrdiff_t c) -> T & {
-    return data[r * C + c];
-  }
-};
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto operator+(const Unroll<R, C, W, T> &a,
+                                                const Unroll<R, C, W, T> &b)
+  -> Unroll<R, C, W, T> {
+  Unroll<R, C, W, T> c;
+  POLYMATHFULLUNROLL
+  for (ptrdiff_t i = 0; i < R * C; ++i) c.data[i] = a.data[i] + b.data[i];
+  return c;
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto operator-(const Unroll<R, C, W, T> &a,
+                                                const Unroll<R, C, W, T> &b)
+  -> Unroll<R, C, W, T> {
+  Unroll<R, C, W, T> c;
+  POLYMATHFULLUNROLL
+  for (ptrdiff_t i = 0; i < R * C; ++i) c.data[i] = a.data[i] - b.data[i];
+  return c;
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto operator*(const Unroll<R, C, W, T> &a,
+                                                const Unroll<R, C, W, T> &b)
+  -> Unroll<R, C, W, T> {
+  Unroll<R, C, W, T> c;
+  POLYMATHFULLUNROLL
+  for (ptrdiff_t i = 0; i < R * C; ++i) c.data[i] = a.data[i] * b.data[i];
+  return c;
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto operator/(const Unroll<R, C, W, T> &a,
+                                                const Unroll<R, C, W, T> &b)
+  -> Unroll<R, C, W, T> {
+  Unroll<R, C, W, T> c;
+  POLYMATHFULLUNROLL
+  for (ptrdiff_t i = 0; i < R * C; ++i) c.data[i] = a.data[i] / b.data[i];
+  return c;
+}
+
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto
+operator+(const Unroll<R, C, W, T> &a, typename Unroll<R, C, W, T>::VT b)
+  -> Unroll<R, C, W, T> {
+  Unroll<R, C, W, T> c;
+  POLYMATHFULLUNROLL
+  for (ptrdiff_t i = 0; i < R * C; ++i) c.data[i] = a.data[i] + b;
+  return c;
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto
+operator-(const Unroll<R, C, W, T> &a, typename Unroll<R, C, W, T>::VT b)
+  -> Unroll<R, C, W, T> {
+  Unroll<R, C, W, T> c;
+  POLYMATHFULLUNROLL
+  for (ptrdiff_t i = 0; i < R * C; ++i) c.data[i] = a.data[i] - b;
+  return c;
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto
+operator*(const Unroll<R, C, W, T> &a, typename Unroll<R, C, W, T>::VT b)
+  -> Unroll<R, C, W, T> {
+  Unroll<R, C, W, T> c;
+  POLYMATHFULLUNROLL
+  for (ptrdiff_t i = 0; i < R * C; ++i) c.data[i] = a.data[i] * b;
+  return c;
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto
+operator/(const Unroll<R, C, W, T> &a, typename Unroll<R, C, W, T>::VT b)
+  -> Unroll<R, C, W, T> {
+  Unroll<R, C, W, T> c;
+  POLYMATHFULLUNROLL
+  for (ptrdiff_t i = 0; i < R * C; ++i) c.data[i] = a.data[i] / b;
+  return c;
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto operator+(const Unroll<R, C, W, T> &a,
+                                                T b) -> Unroll<R, C, W, T>
+requires(W != 1)
+{
+  return a + (typename Unroll<R, C, W, T>::VT{} + b);
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto operator-(const Unroll<R, C, W, T> &a,
+                                                T b) -> Unroll<R, C, W, T>
+requires(W != 1)
+{
+  return a - (typename Unroll<R, C, W, T>::VT{} + b);
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto operator*(const Unroll<R, C, W, T> &a,
+                                                T b) -> Unroll<R, C, W, T>
+requires(W != 1)
+{
+  return a * (typename Unroll<R, C, W, T>::VT{} + b);
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto operator/(const Unroll<R, C, W, T> &a,
+                                                T b) -> Unroll<R, C, W, T>
+requires(W != 1)
+{
+  return a / (typename Unroll<R, C, W, T>::VT{} + b);
+}
+
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto
+operator+(typename Unroll<R, C, W, T>::VT a, const Unroll<R, C, W, T> &b)
+  -> Unroll<R, C, W, T> {
+  Unroll<R, C, W, T> c;
+  POLYMATHFULLUNROLL
+  for (ptrdiff_t i = 0; i < R * C; ++i) c.data[i] = a + b.data[i];
+  return c;
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto
+operator-(typename Unroll<R, C, W, T>::VT a, const Unroll<R, C, W, T> &b)
+  -> Unroll<R, C, W, T> {
+  Unroll<R, C, W, T> c;
+  POLYMATHFULLUNROLL
+  for (ptrdiff_t i = 0; i < R * C; ++i) c.data[i] = a - b.data[i];
+  return c;
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto
+operator*(typename Unroll<R, C, W, T>::VT a, const Unroll<R, C, W, T> &b)
+  -> Unroll<R, C, W, T> {
+  Unroll<R, C, W, T> c;
+  POLYMATHFULLUNROLL
+  for (ptrdiff_t i = 0; i < R * C; ++i) c.data[i] = a * b.data[i];
+  return c;
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto
+operator/(typename Unroll<R, C, W, T>::VT a, const Unroll<R, C, W, T> &b)
+  -> Unroll<R, C, W, T> {
+  Unroll<R, C, W, T> c;
+  POLYMATHFULLUNROLL
+  for (ptrdiff_t i = 0; i < R * C; ++i) c.data[i] = a / b.data[i];
+  return c;
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto operator+(T b,
+                                                const Unroll<R, C, W, T> &a)
+  -> Unroll<R, C, W, T>
+requires(W != 1)
+{
+  return (typename Unroll<R, C, W, T>::VT{} + b) + a;
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto operator-(T b,
+                                                const Unroll<R, C, W, T> &a)
+  -> Unroll<R, C, W, T>
+requires(W != 1)
+{
+  return (typename Unroll<R, C, W, T>::VT{} + b) - a;
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto operator*(T b,
+                                                const Unroll<R, C, W, T> &a)
+  -> Unroll<R, C, W, T>
+requires(W != 1)
+{
+  return (typename Unroll<R, C, W, T>::VT{} + b) * a;
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto operator/(T b,
+                                                const Unroll<R, C, W, T> &a)
+  -> Unroll<R, C, W, T>
+requires(W != 1)
+{
+  return (typename Unroll<R, C, W, T>::VT{} + b) / a;
+}
 
 template <typename T>
 constexpr auto load(const T *p, mask::None<1>) -> const T & {
@@ -879,7 +1060,7 @@ constexpr auto load(const T *p, mask::None<1>, int32_t) -> const T & {
 }
 
 template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t N, typename T, ptrdiff_t X,
-          ptrdiff_t NM, typename MT = mask::None<N>>
+          size_t NM, typename MT = mask::None<N>>
 [[gnu::always_inline]] constexpr auto
 loadunroll(const T *ptr, RowStride<X> rowStride, std::array<MT, NM> masks)
   -> Unroll<R, C, N, T> {
@@ -905,7 +1086,7 @@ loadunroll(const T *ptr, RowStride<X> rowStride, std::array<MT, NM> masks)
   return ret;
 }
 template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t N, typename T, ptrdiff_t X,
-          ptrdiff_t NM, typename MT = mask::None<N>>
+          size_t NM, typename MT = mask::None<N>>
 [[gnu::always_inline]] constexpr auto
 loadstrideunroll(const T *ptr, RowStride<X> rowStride, std::array<MT, NM> masks)
   -> Unroll<R, C, N, T> {
@@ -961,15 +1142,15 @@ struct UnrollRef {
       if constexpr (NM == 0) {
         POLYMATHFULLUNROLL
         for (ptrdiff_t c = 0; c < C; ++c)
-          store(p, +c * W, mask::None<W>{}, x[r, c]);
+          store(p + c * W, mask::None<W>{}, x[r, c]);
       } else if constexpr (NM == C) {
         POLYMATHFULLUNROLL
-        for (ptrdiff_t c = 0; c < C; ++c) store(p, +c * W, masks[c], x[r, c]);
+        for (ptrdiff_t c = 0; c < C; ++c) store(p + c * W, masks[c], x[r, c]);
       } else { // NM == 1
         POLYMATHFULLUNROLL
         for (ptrdiff_t c = 0; c < C - 1; ++c)
-          store(p, +c * W, mask::None<W>{}, x[r, c]);
-        store(p, +(C - 1) * W, masks[0], x[r, C - 1]);
+          store(p + c * W, mask::None<W>{}, x[r, c]);
+        store(p + (C - 1) * W, masks[0], x[r, C - 1]);
       }
     }
     return *this;
@@ -1042,7 +1223,7 @@ struct UnrollRef {
     return *this;
   }
   constexpr auto operator=(std::convertible_to<T> auto x) -> UnrollRef & {
-    *this = Vec<W, T>(T(x));
+    *this = Vec<W, T>{} + T(x);
     return *this;
   }
   constexpr auto operator+=(const auto &x) -> UnrollRef & {
@@ -1138,7 +1319,9 @@ template <typename T, ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename M,
 [[gnu::always_inline]] constexpr auto
 ref(const T *p, index::UnrollDims<R, C, W, M, Transposed, X> i)
   -> Unroll<R, C, W, T> {
-  return loadunroll<R, C, W>(p, i.rs, std::array<M, 1>{i.mask});
+  if constexpr (Transposed)
+    return loadstrideunroll<R, C, W>(p, i.rs, std::array<M, 1>{i.mask});
+  else return loadunroll<R, C, W>(p, i.rs, std::array<M, 1>{i.mask});
 }
 template <typename T, ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename M,
           bool Transposed, ptrdiff_t X>

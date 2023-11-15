@@ -162,6 +162,15 @@ struct StridedRange {
     return os << "Length: " << x.len << " (stride: " << x.stride << ")";
   }
 };
+
+template <ptrdiff_t U, ptrdiff_t W, typename M>
+constexpr auto calcOffset(ptrdiff_t len, simd::index::Unroll<U, W, M> i) {
+  if constexpr (std::same_as<M, simd::mask::None<W>>)
+    invariant((i.index + U * W - 1) < len);
+  else invariant(i.index + (U - 1) * W + i.mask.lastUnmasked() - 1 < len);
+  return i.index;
+}
+
 template <class I> constexpr auto calcOffset(StridedRange d, I i) -> ptrdiff_t {
   return d.stride * calcOffset(d.len, i);
 }
@@ -263,15 +272,6 @@ constexpr auto calcNewDim(SquareDims<> d, B r, Colon) {
   auto rowDims = calcNewDim(ptrdiff_t(Row(d)), r);
   return DenseDims(row(rowDims), Col(d));
 }
-
-template <ptrdiff_t U, ptrdiff_t W, typename M>
-constexpr auto calcOffset(ptrdiff_t len, simd::index::Unroll<U, W, M> i) {
-  if constexpr (std::same_as<M, simd::mask::None<W>>)
-    invariant((i.index + U * W - 1) < len);
-  else invariant(i.index + (U - 1) * W + i.mask.lastUnmasked() - 1 < len);
-  return i.index;
-}
-
 template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename M>
 constexpr auto calcNewDim(StridedDims<> d, simd::index::Unroll<R>,
                           simd::index::Unroll<C, W, M> c) {

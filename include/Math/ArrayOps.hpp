@@ -2,6 +2,7 @@
 
 #include "Math/Indexing.hpp"
 #include "Math/Matrix.hpp"
+#include "Math/SIMD.hpp"
 #include "Math/UniformScaling.hpp"
 #include "Utilities/LoopMacros.hpp"
 #include <algorithm>
@@ -47,9 +48,32 @@ template <class T, class S, class P> class ArrayOps {
         for (ptrdiff_t j = 0; j < N; ++j) self[i, j] = Bi;
       }
     } else {
-      ptrdiff_t L = size_();
-      invariant(L, ptrdiff_t(B.size()));
-      if constexpr (std::is_copy_assignable_v<T>) {
+      auto L = size_();
+      invariant(ptrdiff_t(L), ptrdiff_t(B.size()));
+      if constexpr (simd::SIMDSupported<T>) {
+        // We're going for very short SIMD vectors to focus on small sizes
+        if constexpr (StaticInt<decltype(L)>) {
+          constexpr ptrdiff_t SL = ptrdiff_t(L);
+          constexpr std::array<ptrdiff_t, 3> vdr = simd::VectorDivRem<SL, T>();
+          constexpr ptrdiff_t W = vdr[0];
+          constexpr ptrdiff_t fulliter = vdr[1];
+          constexpr ptrdiff_t remainder = vdr[1];
+          if constexpr (remainder > 0) {
+            auto u{simd::index::unrollmask<fulliter + 1, W>(L, 0)};
+            self[u] = B[u];
+          } else {
+            simd::index::Unroll<fulliter, W> u{0};
+            self[u] = B[u];
+          }
+        } else {
+          constexpr ptrdiff_t W = simd::Width<T>;
+          for (ptrdiff_t i = 0;; i += W) {
+            auto u{simd::index::unrollmask<1, W>(L, i)};
+            if (!u) break;
+            self[u] = B[u];
+          }
+        }
+      } else if constexpr (std::is_copy_assignable_v<T>) {
         POLYMATHVECTORIZE
         for (ptrdiff_t i = 0; i < L; ++i) self[i] = B[i];
       } else {

@@ -14,6 +14,7 @@ TEST(SimplexTest, BasicAssertions) {
   // 15 >= 2x + 5y + 3z
   IntMatrix<> A{"[10 3 2 1; 15 2 5 3]"_mat};
   IntMatrix<> B{DenseDims<>{{0}, {4}}};
+  IntMatrix<> D{"[0 0 0 -2 -3 -4; 10 1 0  3  2  1; 15 0 1  2  5  3 ]"_mat};
   OwningArena<> alloc;
   Optional<Simplex *> optS0{Simplex::positiveVariables(&alloc, A)};
   EXPECT_TRUE(optS0.hasValue());
@@ -32,6 +33,7 @@ TEST(SimplexTest, BasicAssertions) {
     C[4] = -3;
     C[5] = -4;
     std::cout << "S.tableau =" << S->getTableau() << "\n";
+    EXPECT_EQ(S->getTableau(), D);
     EXPECT_EQ(S->run(), 20);
   }
 }
