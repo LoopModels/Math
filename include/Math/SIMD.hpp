@@ -112,11 +112,11 @@ template <ptrdiff_t W, typename I = int64_t> struct Vector {
   Vec<W, I> m;
   [[nodiscard]] constexpr auto intmask() const -> int32_t {
     if constexpr (sizeof(I) == 8)
-      if constexpr (W == 2) return _mm_movemask_pd(std::bit_cast<__m128i>(m));
-      else return _mm256_movemask_pd(std::bit_cast<__m256i>(m));
+      if constexpr (W == 2) return _mm_movemask_pd(std::bit_cast<__m128d>(m));
+      else return _mm256_movemask_pd(std::bit_cast<__m256d>(m));
     else if constexpr (sizeof(I) == 4)
-      if constexpr (W == 4) return _mm_movemask_ps(std::bit_cast<__m128i>(m));
-      else return _mm256_movemask_ps(std::bit_cast<__m256i>(m));
+      if constexpr (W == 4) return _mm_movemask_ps(std::bit_cast<__m128>(m));
+      else return _mm256_movemask_ps(std::bit_cast<__m256>(m));
     else if constexpr (W == 16)
       return _mm_movemask_epi8(std::bit_cast<__m128i>(m));
     else return _mm256_movemask_epi8(std::bit_cast<__m256i>(m));
@@ -199,85 +199,91 @@ constexpr auto create(ptrdiff_t i, ptrdiff_t len) -> Bit<W> {
 } // namespace mask
 #endif
 
-[[gnu::always_inline, gnu::artificial]] inline auto load(const double *p,
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto load(const T *p,
                                                          mask::None<8>)
-  -> Vec<8, double> {
-  return std::bit_cast<Vec<8, double>>(_mm512_loadu_pd(p));
+  -> Vec<8, T> {
+  if constexpr (std::same_as<T, double>)
+    return std::bit_cast<Vec<8, double>>(_mm512_loadu_pd(p));
+  else if constexpr (std::same_as<T, int64_t>)
+    return std::bit_cast<Vec<8, int64_t>>(_mm512_loadu_epi64(p));
+  else static_assert(false);
 }
-[[gnu::always_inline, gnu::artificial]] inline auto load(const double *p,
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto load(const T *p,
                                                          mask::Bit<8> i)
-  -> Vec<8, double> {
-  return std::bit_cast<Vec<8, double>>(
-    _mm512_maskz_loadu_pd(uint8_t(i.mask), p));
+  -> Vec<8, T> {
+  if constexpr (std::same_as<T, double>)
+    return std::bit_cast<Vec<8, double>>(
+      _mm512_maskz_loadu_pd(uint8_t(i.mask), p));
+  else if constexpr (std::same_as<T, int64_t>)
+    return std::bit_cast<Vec<8, int64_t>>(
+      _mm512_maskz_loadu_epi64(uint8_t(i.mask), p));
+  else static_assert(false);
 }
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(const double *p, mask::None<8>, Vec<8, double> x) {
-  _mm512_storeu_pd(p + i.i, std::bit_cast<__m512d>(x));
+store(const T *p, mask::None<8>, Vec<8, T> x) {
+  if constexpr (std::same_as<T, double>)
+    _mm512_storeu_pd(p, std::bit_cast<__m512d>(x));
+  else if constexpr (std::same_as<T, int64_t>)
+    _mm512_storeu_epi64(p, std::bit_cast<__m512i>(x));
+  else static_assert(false);
 }
-[[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, mask::Bit<8> i, Vec<8, double> x) {
-  _mm512_mask_storeu_pd(p, uint8_t(i.mask), std::bit_cast<__m512d>(x));
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline void store(T *p, mask::Bit<8> i,
+                                                          Vec<8, T> x) {
+  if constexpr (std::same_as<T, double>)
+    _mm512_mask_storeu_pd(p, uint8_t(i.mask), std::bit_cast<__m512d>(x));
+  else if constexpr (std::same_as<T, int64_t>)
+    _mm512_mask_storeu_epi64(p, uint8_t(i.mask), std::bit_cast<__m512i>(x));
+  else static_assert(false);
 }
 
-[[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
-                                                         mask::None<8>) {
-  return std::bit_cast<Vec<8, int64_t>>(_mm512_loadu_epi64(p));
-}
-[[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
-                                                         mask::Bit<8> i)
-  -> Vec<8, int64_t> {
-  return std::bit_cast<Vec<8, int64_t>>(
-    _mm512_maskz_loadu_epi64(uint8_t(i.mask), p));
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::None<8>, Vec<8, int64_t> x)
-  ->Vec<8, int64_t> {
-  _mm512_storeu_epi64(p, std::bit_cast<__m512i>(x));
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::Bit<8> i, Vec<8, int64_t> x) {
-  _mm512_mask_storeu_epi64(p, uint8_t(i.mask), std::bit_cast<__m512i>(x));
-}
 // strided memory accesses
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const double *p, mask::None<8>, int32_t stride) -> Vec<8, double> {
-  return std::bit_cast<Vec<8, double>>(
-    _mm512_i32gather_pd(vindex<8>(stride), p, 8));
+load(const T *p, mask::None<8>, int32_t stride) -> Vec<8, T> {
+  if constexpr (std::same_as<T, double>)
+    return std::bit_cast<Vec<8, T>>(
+      _mm512_i32gather_pd(vindex<8>(stride), p, 8));
+  else if constexpr (std::same_as<T, int64_t>)
+    return std::bit_cast<Vec<8, int64_t>>(
+      _mm512_i32gather_pd(vindex<8>(stride), p, 8));
+  else static_assert(false);
 }
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const double *p, mask::Bit<8> i, int32_t stride) -> Vec<8, double> {
-  return std::bit_cast<Vec<8, double>>(_mm512_mask_i32gather_pd(
-    mmzero<8, double>(), uint8_t(i.mask), vindex<8>(stride), p, 8));
+load(const T *p, mask::Bit<8> i, int32_t stride) -> Vec<8, T> {
+  if constexpr (std::same_as<T, double>)
+    return std::bit_cast<Vec<8, double>>(_mm512_mask_i32gather_pd(
+      mmzero<8, double>(), uint8_t(i.mask), vindex<8>(stride), p, 8));
+  else if constexpr (std::same_as<T, int64_t>)
+    return std::bit_cast<Vec<8, int64_t>>(_mm512_mask_i32gather_epi64(
+      mmzero<8, int64_t>(), uint8_t(i.mask), vindex<8>(stride), p, 8));
+  else static_assert(false);
 }
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(const double *p, mask::None<8>, Vec<8, double> x, int32_t stride) {
-  _mm512_i32scatter_pd(p, vindex<8>(stride), std::bit_cast<__m512d>(x), 8);
+store(const T *p, mask::None<8>, Vec<8, T> x, int32_t stride) {
+  if constexpr (std::same_as<T, double>)
+    _mm512_i32scatter_pd(p, vindex<8>(stride), std::bit_cast<__m512d>(x), 8);
+  else if constexpr (std::same_as<T, int64_t>)
+    _mm512_i32scatter_epi64(p, vindex<8>(stride), std::bit_cast<__m512i>(x), 8);
+  else static_assert(false);
 }
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, mask::Bit<8> i, Vec<8, double> x, int32_t stride) {
-  _mm512_mask_i32scatter_pd(p, uint8_t(i.mask), vindex<8>(stride),
-                            std::bit_cast<__m512d>(x), 8);
+store(T *p, mask::Bit<8> i, Vec<8, T> x, int32_t stride) {
+  if constexpr (std::same_as<T, double>)
+    _mm512_mask_i32scatter_pd(p, uint8_t(i.mask), vindex<8>(stride),
+                              std::bit_cast<__m512d>(x), 8);
+  else if constexpr (std::same_as<T, int64_t>)
+    _mm512_mask_i32scatter_epi64(p, uint8_t(i.mask), vindex<8>(stride),
+                                 std::bit_cast<__m512i>(x), 8);
+  else static_assert(false);
 }
 
-[[gnu::always_inline, gnu::artificial]] inline auto
-load(const int64_t *p, mask::None<8> i, int32_t stride) -> Vec<8, int64_t> {
-  return std::bit_cast<Vec<8, double>>(
-    _mm512_i32gather_pd(vindex<8>(stride), p, 8));
-}
-[[gnu::always_inline, gnu::artificial]] inline auto
-load(const int64_t *p, mask::Bit<8> i, int32_t stride) -> Vec<8, int64_t> {
-  return std::bit_cast<Vec<8, int64_t>>(_mm512_mask_i32gather_epi64(
-    mmzero<8, int64_t>(), uint8_t(i.mask), vindex<8>(stride), p, 8));
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::None<8> i, Vec<8, int64_t> x, int32_t stride) {
-  _mm512_i32scatter_epi64(p, vindex<8>(stride), std::bit_cast<__m512i>(x), 8);
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::Bit<8> i, Vec<8, int64_t> x, int32_t stride) {
-  _mm512_mask_i32scatter_epi64(p, uint8_t(i.mask), vindex<8>(stride),
-                               std::bit_cast<__m512i>(x), 8);
-}
 #else // no AVX512F
 static constexpr ptrdiff_t REGISTERS = 16;
 #ifdef __AVX__
@@ -289,166 +295,141 @@ static constexpr ptrdiff_t VECTORWIDTH = 16;
 #ifdef __AVX2__
 
 // Non-masked gather/scatter are the same with AVX512VL and AVX2
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const double *p, mask::None<4>, int32_t stride) -> Vec<4, double> {
+load(const T *p, mask::None<4>, int32_t stride) -> Vec<4, T> {
   auto x{vindex<4>(stride)};
-  return std::bit_cast<Vec<4, double>>(_mm256_i32gather_pd(p, x, 8));
+  if constexpr (std::same_as<T, double>)
+    return std::bit_cast<Vec<4, double>>(_mm256_i32gather_pd(p, x, 8));
+  else if constexpr (std::same_as<T, int64_t>)
+    return std::bit_cast<Vec<4, int64_t>>(_mm256_i32gather_pd(p, x, 8));
+  else static_assert(false);
 }
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const double *p, mask::None<2>, int32_t stride) -> Vec<2, double> {
+load(const T *p, mask::None<2>, int32_t stride) -> Vec<2, T> {
   auto x{vindex<2>(stride)};
-  return std::bit_cast<Vec<2, double>>(_mm_i64gather_pd(p, x, 8));
-}
-[[gnu::always_inline, gnu::artificial]] inline auto
-load(const int64_t *p, mask::None<4>, int32_t stride) -> Vec<4, int64_t> {
-  auto x{vindex<4>(stride)};
-  return std::bit_cast<Vec<4, int64_t>>(_mm256_i32gather_pd(p, x, 8));
-}
-[[gnu::always_inline, gnu::artificial]] inline auto
-load(const int64_t *p, mask::None<2>, int32_t stride) -> Vec<2, int64_t> {
-  auto x{vindex<2>(stride)};
-  return std::bit_cast<Vec<2, int64_t>>(_mm_i64gather_pd(p, x, 8));
+  if constexpr (std::same_as<T, double>)
+    return std::bit_cast<Vec<2, double>>(_mm_i64gather_pd(p, x, 8));
+  else if constexpr (std::same_as<T, int64_t>)
+    return std::bit_cast<Vec<2, int64_t>>(_mm_i64gather_pd(p, x, 8));
+  else static_assert(false);
 }
 #endif // AVX2
 
 // Here, we handle masked loads/stores
 #ifdef __AVX512VL__
-[[gnu::always_inline, gnu::artificial]] inline auto load(const double *p,
-                                                         mask::Bit<4> i) {
-  return std::bit_cast<Vec<4, double>>(
-    _mm256_maskz_loadu_pd(uint8_t(i.mask), p));
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto load(const T *p,
+                                                         mask::Bit<4> i)
+  -> Vec<4, T> {
+  if constexpr (std::same_as<T, double>)
+    return std::bit_cast<Vec<4, double>>(
+      _mm256_maskz_loadu_pd(uint8_t(i.mask), p));
+  else if constexpr (std::same_as<T, int64_t>)
+    return std::bit_cast<Vec<4, int64_t>>(
+      _mm256_maskz_loadu_epi64(uint8_t(i.mask), p));
+  else static_assert(false);
 }
-[[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, mask::Bit<4> i, Vec<4, double> x) {
-  _mm256_mask_storeu_pd(p, uint8_t(i.mask), std::bit_cast<__m256d>(x));
-}
-[[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
-                                                         mask::Bit<4> i) {
-  return std::bit_cast<Vec<4, int64_t>>(
-    _mm256_maskz_loadu_epi64(uint8_t(i.mask), p));
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::Bit<4> i, Vec<4, int64_t> x) {
-  _mm256_mask_storeu_epi64(p, uint8_t(i.mask), std::bit_cast<__m256i>(x));
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline void store(T *p, mask::Bit<4> i,
+                                                          Vec<4, T> x) {
+  if constexpr (std::same_as<T, double>)
+    _mm256_mask_storeu_pd(p, uint8_t(i.mask), std::bit_cast<__m256d>(x));
+  else if constexpr (std::same_as<T, int64_t>)
+    _mm256_mask_storeu_epi64(p, uint8_t(i.mask), std::bit_cast<__m256i>(x));
+  else static_assert(false);
 }
 
-[[gnu::always_inline, gnu::artificial]] inline auto load(const double *p,
-                                                         mask::Bit<2> i) {
-  return std::bit_cast<Vec<2, double>>(_mm_maskz_loadu_pd(uint8_t(i.mask), p));
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto load(const T *p,
+                                                         mask::Bit<2> i)
+  -> Vec<2, T> {
+  if constexpr (std::same_as<T, double>)
+    return std::bit_cast<Vec<2, double>>(
+      _mm_maskz_loadu_pd(uint8_t(i.mask), p));
+  else if constexpr (std::same_as<T, int64_t>)
+    return std::bit_cast<Vec<2, int64_t>>(
+      _mm_maskz_loadu_epi64(uint8_t(i.mask), p));
+  else static_assert(false);
 }
-[[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, mask::Bit<2> i, Vec<2, double> x) {
-  _mm_mask_storeu_pd(p, uint8_t(i.mask), std::bit_cast<__128d>(x));
-}
-[[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
-                                                         mask::Bit<2> i) {
-  return std::bit_cast<Vec<2, int64_t>>(
-    _mm_maskz_loadu_epi64(uint8_t(i.mask), p));
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::Bit<2> i, Vec<2, int64_t> x) {
-  _mm_mask_storeu_epi64(p, uint8_t(i.mask), std::bit_cast<__m128i>(x));
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline void store(T *p, mask::Bit<2> i,
+                                                          Vec<2, T> x) {
+  if constexpr (std::same_as<T, double>)
+    _mm_mask_storeu_pd(p, uint8_t(i.mask), std::bit_cast<__128d>(x));
+  else if constexpr (std::same_as<T, int64_t>)
+    _mm_mask_storeu_epi64(p, uint8_t(i.mask), std::bit_cast<__m128i>(x));
+  else static_assert(false);
 }
 // gather/scatter
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const double *p, mask::Bit<4> i, int32_t stride) -> Vec<4, double> {
-  return std::bit_cast<Vec<4, double>>(_mm256_mmask_i32gather_pd(
-    mmzero<4, double>(), uint8_t(i.mask), vindex<4>(stride), p, 8));
+load(const T *p, mask::Bit<4> i, int32_t stride) -> Vec<4, T> {
+  if constexpr (std::same_as<T, double>)
+    return std::bit_cast<Vec<4, double>>(_mm256_mmask_i32gather_pd(
+      mmzero<4, double>(), uint8_t(i.mask), vindex<4>(stride), p, 8));
+  else if constexpr (std::same_as<T, int64_t>)
+    return std::bit_cast<Vec<4, int64_t>>(_mm256_mmask_i32gather_epi64(
+      mmzero<4, int64_t>(), uint8_t(i.mask), vindex<4>(stride), p, 8));
+  else static_assert(false);
 }
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(const double *p, mask::None<4>, Vec<4, double> x, int32_t stride) {
-  _mm256_i32scatter_pd(p, vindex<4>(stride), std::bit_cast<__m256d>(x), 8);
+store(const T *p, mask::None<4>, Vec<4, T> x, int32_t stride) {
+  if constexpr (std::same_as<T, double>)
+    _mm256_i32scatter_pd(p, vindex<4>(stride), std::bit_cast<__m256d>(x), 8);
+  else if constexpr (std::same_as<T, int64_t>)
+    _mm256_i32scatter_epi64(p, vindex<4>(stride), std::bit_cast<__m256i>(x), 8);
+  else static_assert(false);
 }
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, mask::Bit<4> i, Vec<4, double> x, int32_t stride) {
-  _mm256_mask_i32scatter_pd(p, uint8_t(i.mask), vindex<4>(stride),
-                            std::bit_cast<__m256d>(x), 8);
+store(T *p, mask::Bit<4> i, Vec<4, T> x, int32_t stride) {
+  if constexpr (std::same_as<T, double>)
+    _mm256_mask_i32scatter_pd(p, uint8_t(i.mask), vindex<4>(stride),
+                              std::bit_cast<__m256d>(x), 8);
+  else if constexpr (std::same_as<T, int64_t>)
+    _mm256_mask_i32scatter_epi64(p, uint8_t(i.mask), vindex<4>(stride),
+                                 std::bit_cast<__m256i>(x), 8);
+  else static_assert(false);
 }
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const double *p, mask::Bit<2> i, int32_t stride) -> Vec<2, double> {
-  return std::bit_cast<Vec<2, double>>(_mm_mmask_i64gather_pd(
-    mmzero<2, double>(), uint8_t(i.mask), vindex<2>(stride), p, 8));
+load(const T *p, mask::Bit<2> i, int32_t stride) -> Vec<2, T> {
+  if constexpr (std::same_as<T, double>)
+    return std::bit_cast<Vec<2, double>>(_mm_mmask_i64gather_pd(
+      mmzero<2, double>(), uint8_t(i.mask), vindex<2>(stride), p, 8));
+  else if constexpr (std::same_as<T, int64_t>)
+    return std::bit_cast<Vec<2, int64_t>>(_mm_mmask_i64gather_epi64(
+      mmzero<2, int64_t>(), uint8_t(i.mask), vindex<2>(stride), p, 8));
+  else static_assert(false);
 }
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(const double *p, mask::None<2>, Vec<2, double> x, int32_t stride) {
-  _mm_i64scatter_pd(p, vindex<2>(stride), std::bit_cast<__m128d>(x), 8);
+store(const T *p, mask::None<2>, Vec<2, T> x, int32_t stride) {
+  if constexpr (std::same_as<T, double>)
+    _mm_i64scatter_pd(p, vindex<2>(stride), std::bit_cast<__m128d>(x), 8);
+  else if constexpr (std::same_as<T, int64_t>)
+    _mm_i64scatter_epi64(p, vindex<2>(stride), std::bit_cast<__m128i>(x), 8);
+  else static_assert(false);
 }
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, mask::Bit<2> i, Vec<2, double> x, int32_t stride) {
-  _mm_mask_i64scatter_pd(p, uint8_t(i.mask), vindex<2>(stride),
-                         std::bit_cast<__m128d>(x), 8);
-}
-
-[[gnu::always_inline, gnu::artificial]] inline auto
-load(const int64_t *p, mask::Bit<4> i, int32_t stride) -> Vec<4, int64_t> {
-  return std::bit_cast<Vec<4, int64_t>>(_mm256_mmask_i32gather_epi64(
-    mmzero<4, int64_t>(), uint8_t(i.mask), vindex<4>(stride), p, 8));
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::None<4>, Vec<4, int64_t> x, int32_t stride) {
-  _mm256_i32scatter_epi64(p, vindex<4>(stride), std::bit_cast<__m256i>(x), 8);
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::Bit<4> i, Vec<4, int64_t> x, int32_t stride) {
-  _mm256_mask_i32scatter_epi64(p, uint8_t(i.mask), vindex<4>(stride),
-                               std::bit_cast<__m256i>(x), 8);
-}
-[[gnu::always_inline, gnu::artificial]] inline auto
-load(const int64_t *p, mask::Bit<2> i, int32_t stride) -> Vec<2, int64_t> {
-  return std::bit_cast<Vec<2, int64_t>>(_mm_mmask_i64gather_epi64(
-    mmzero<2, int64_t>(), uint8_t(i.mask), vindex<2>(stride), p, 8));
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::None<2>, Vec<2, int64_t> x, int32_t stride) {
-  _mm_i64scatter_epi64(p, vindex<2>(stride), std::bit_cast<__m128i>(x), 8);
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::Bit<2> i, Vec<2, int64_t> x, int32_t stride) {
-  _mm_mask_i64scatter_epi64(p, uint8_t(i.mask), vindex<2>(stride),
-                            std::bit_cast<__m128i>(x), 8);
-}
-
-[[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
-                                                         mask::None<4>) {
-  return std::bit_cast<Vec<4, int64_t>>(_mm256_loadu_epi64(p));
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::None<4>, Vec<4, int64_t> x) {
-  _mm256_storeu_epi64(p, std::bit_cast<__m256i>(x));
-}
-[[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
-                                                         mask::None<2>) {
-  return std::bit_cast<Vec<2, int64_t>>(_mm_loadu_epi64(p));
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::None<2>, Vec<2, int64_t> x) {
-  _mm_storeu_epi64(p, std::bit_cast<__m128i>(x));
+store(T *p, mask::Bit<2> i, Vec<2, T> x, int32_t stride) {
+  if constexpr (std::same_as<T, double>)
+    _mm_mask_i64scatter_pd(p, uint8_t(i.mask), vindex<2>(stride),
+                           std::bit_cast<__m128d>(x), 8);
+  else if constexpr (std::same_as<T, int64_t>)
+    _mm_mask_i64scatter_epi64(p, uint8_t(i.mask), vindex<2>(stride),
+                              std::bit_cast<__m128i>(x), 8);
+  else static_assert(false);
 }
 
 #else // No AVX512VL
 
 // We need [gather, scatter, load, store] * [unmasked, masked]
 
-#ifdef __AVX__
-// we need 256 bit fallback scatters
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline void
-store(T *p, mask::None<4>, Vec<4, T> x, int32_t stride) {
-  p[0] = x[0];
-  p[stride] = x[1];
-  p[2 * stride] = x[2];
-  p[3 * stride] = x[3];
-}
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline void
-store(T *p, mask::Vector<4> i, Vec<4, T> x, int32_t stride) {
-  if (i.m[0] != 0) p[0] = x[0];
-  if (i.m[1] != 0) p[stride] = x[1];
-  if (i.m[2] != 0) p[2 * stride] = x[2];
-  if (i.m[3] != 0) p[3 * stride] = x[3];
-}
-
-#endif // AVX
 // 128 bit fallback scatters
 template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
@@ -466,34 +447,34 @@ store(T *p, mask::Vector<2> i, Vec<2, T> x, int32_t stride) {
 
 #ifdef __AVX2__
 // masked gathers
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const double *p, mask::Vector<4> m, int32_t stride) -> Vec<4, double> {
-  constexpr __m256d z = mmzero<4, double>();
+load(const T *p, mask::Vector<4> m, int32_t stride) -> Vec<4, T> {
   __m128i x = vindex<4>(stride);
   __m256i mask = __m256i(m);
-  return std::bit_cast<Vec<4, double>>(
-    _mm256_mask_i32gather_pd(z, p, x, mask, 8));
+  if constexpr (std::same_as<T, double>) {
+    constexpr __m256d z = mmzero<4, double>();
+    return std::bit_cast<Vec<4, double>>(
+      _mm256_mask_i32gather_pd(z, p, x, mask, 8));
+  } else if constexpr (std::same_as<T, int64_t>) {
+    constexpr __m256i z = mmzero<4, int64_t>();
+    return std::bit_cast<Vec<4, int64_t>>(
+      _mm256_mask_i32gather_epi64(z, p, x, mask, 8));
+  } else static_assert(false);
 }
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
-load(const double *p, mask::Vector<2> m, int32_t stride) -> Vec<2, double> {
-  constexpr __m128d z = mmzero<2, double>();
+load(const T *p, mask::Vector<2> m, int32_t stride) -> Vec<2, T> {
   __m128i x = vindex<2>(stride), mask = __m128i(m);
-  return std::bit_cast<Vec<2, double>>(_mm_mask_i64gather_pd(z, p, x, mask, 8));
-}
-[[gnu::always_inline, gnu::artificial]] inline auto
-load(const int64_t *p, mask::Vector<4> m, int32_t stride) -> Vec<4, int64_t> {
-  constexpr __m256i z = mmzero<4, int64_t>();
-  __m128i x = vindex<4>(stride);
-  __m256i mask = __m256i(m);
-  return std::bit_cast<Vec<4, int64_t>>(
-    _mm256_mask_i32gather_epi64(z, p, x, mask, 8));
-}
-[[gnu::always_inline, gnu::artificial]] inline auto
-load(const int64_t *p, mask::Vector<2> m, int32_t stride) -> Vec<2, int64_t> {
-  constexpr __m128i z = mmzero<2, int64_t>();
-  __m128i x = vindex<2>(stride), mask = __m128i(m);
-  return std::bit_cast<Vec<2, int64_t>>(
-    _mm_mask_i64gather_epi64(z, p, x, mask, 8));
+  if constexpr (std::same_as<T, double>) {
+    constexpr __m128d z = mmzero<2, double>();
+    return std::bit_cast<Vec<2, double>>(
+      _mm_mask_i64gather_pd(z, p, x, mask, 8));
+  } else if constexpr (std::same_as<T, int64_t>) {
+    constexpr __m128i z = mmzero<2, int64_t>();
+    return std::bit_cast<Vec<2, int64_t>>(
+      _mm_mask_i64gather_epi64(z, p, x, mask, 8));
+  } else static_assert(false);
 }
 
 #else          // no AVX2
@@ -531,52 +512,64 @@ load(const T *p, mask::Vector<4> i, int32_t stride) -> Vec<4, T> {
 #endif // AVX
 #endif // no AVX2
 #ifdef __AVX__
-[[gnu::always_inline, gnu::artificial]] inline auto load(const double *p,
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto load(const T *p,
                                                          mask::Vector<4> i)
-  -> Vec<4, double> {
-  return std::bit_cast<Vec<4, double>>(_mm256_maskload_pd(p, i));
+  -> Vec<4, T> {
+  if constexpr (std::same_as<T, double>)
+    return std::bit_cast<Vec<4, double>>(_mm256_maskload_pd(p, i));
+  else if constexpr (std::same_as<T, int64_t>)
+    return std::bit_cast<Vec<4, int64_t>>(
+      _mm256_maskload_epi64((const long long *)p, i));
+  else static_assert(false);
 }
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, mask::Vector<4> i, Vec<4, double> x) {
-  _mm256_maskstore_pd(p, i, std::bit_cast<__m256d>(x));
-}
-[[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
-                                                         mask::Vector<4> i)
-  -> Vec<4, int64_t> {
-  return std::bit_cast<Vec<4, int64_t>>(
-    _mm256_maskload_epi64((const long long *)p, i));
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::Vector<4> i, Vec<4, int64_t> x) {
-  _mm256_maskstore_epi64((long long *)p, i, std::bit_cast<__m256i>(x));
-}
-[[gnu::always_inline, gnu::artificial]] inline auto load(const double *p,
-                                                         mask::Vector<2> i)
-  -> Vec<2, double> {
-  return std::bit_cast<Vec<2, double>>(_mm_maskload_pd(p, i));
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, mask::Vector<2> i, Vec<2, double> x) {
-  _mm_maskstore_pd(p, i, std::bit_cast<__m128d>(x));
-}
-[[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
-                                                         mask::Vector<2> i)
-  -> Vec<2, int64_t> {
-  return std::bit_cast<Vec<2, int64_t>>(
-    _mm_maskload_epi64((const long long *)p, i));
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::Vector<2> i, Vec<2, int64_t> x) {
-  _mm_maskstore_epi64((long long *)p, i, std::bit_cast<__m128i>(x));
+store(T *p, mask::Vector<4> i, Vec<4, T> x) {
+  if constexpr (std::same_as<T, double>)
+    _mm256_maskstore_pd(p, i, std::bit_cast<__m256d>(x));
+  else if constexpr (std::same_as<T, int64_t>)
+    _mm256_maskstore_epi64((long long *)p, i, std::bit_cast<__m256i>(x));
+  else static_assert(false);
 }
 
-[[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
-                                                         mask::None<4>) {
-  return std::bit_cast<Vec<4, int64_t>>(_mm256_loadu_si256((const __m256i *)p));
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto load(const T *p,
+                                                         mask::Vector<2> i)
+  -> Vec<2, T> {
+  if constexpr (std::same_as<T, double>)
+    return std::bit_cast<Vec<2, double>>(_mm_maskload_pd(p, i));
+  else if constexpr (std::same_as<T, int64_t>)
+    return std::bit_cast<Vec<2, int64_t>>(
+      _mm_maskload_epi64((const long long *)p, i));
+  else static_assert(false);
 }
+template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::None<4>, Vec<4, int64_t> x) {
-  _mm256_storeu_si256((__m256i *)p, std::bit_cast<__m256i>(x));
+store(T *p, mask::Vector<2> i, Vec<2, T> x) {
+  if constexpr (std::same_as<T, double>)
+    _mm_maskstore_pd(p, i, std::bit_cast<__m128d>(x));
+  else if constexpr (std::same_as<T, int64_t>)
+    _mm_maskstore_epi64((long long *)p, i, std::bit_cast<__m128i>(x));
+  else static_assert(false);
+}
+
+// we need 256 bit fallback scatters
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline void
+store(T *p, mask::None<4>, Vec<4, T> x, int32_t stride) {
+  p[0] = x[0];
+  p[stride] = x[1];
+  p[2 * stride] = x[2];
+  p[3 * stride] = x[3];
+}
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline void
+store(T *p, mask::Vector<4> i, Vec<4, T> x, int32_t stride) {
+  if (i.m[0] != 0) p[0] = x[0];
+  if (i.m[1] != 0) p[stride] = x[1];
+  if (i.m[2] != 0) p[2 * stride] = x[2];
+  if (i.m[3] != 0) p[3 * stride] = x[3];
 }
 #else // No AVX
 template <typename T>
@@ -596,14 +589,33 @@ store(T *p, mask::Vector<2> i, Vec<2, T> x) {
 #endif // No AVX
 #endif // No AVX512VL
 #ifdef __AVX__
-[[gnu::always_inline, gnu::artificial]] inline auto load(const double *p,
-                                                         mask::None<4>) {
-  return std::bit_cast<Vec<4, double>>(_mm256_loadu_pd(p));
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto load(const T *p,
+                                                         mask::None<4>)
+  -> Vec<4, T> {
+  if constexpr (std::same_as<T, double>)
+    return std::bit_cast<Vec<4, double>>(_mm256_loadu_pd(p));
+  else if constexpr (std::same_as<T, int64_t>)
+#ifdef __AVX512VL__
+    return std::bit_cast<Vec<4, int64_t>>(_mm256_loadu_epi64(p));
+#else
+    return std::bit_cast<Vec<4, int64_t>>(
+      _mm256_loadu_si256((const __m256i *)p));
+#endif
+  else static_assert(false);
 }
-
-[[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, mask::None<4>, Vec<4, double> x) {
-  _mm256_storeu_pd(p, std::bit_cast<__m256d>(x));
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline void store(T *p, mask::None<4>,
+                                                          Vec<4, T> x) {
+  if constexpr (std::same_as<T, double>)
+    _mm256_storeu_pd(p, std::bit_cast<__m256d>(x));
+  else if constexpr (std::same_as<T, int64_t>)
+#ifdef __AVX512VL__
+    _mm256_storeu_epi64(p, std::bit_cast<__m256i>(x));
+#else
+    _mm256_storeu_si256((__m256i *)p, std::bit_cast<__m256i>(x));
+#endif
+  else static_assert(false);
 }
 
 // // non-power-of-2 memory ops
@@ -638,25 +650,35 @@ store(double *p, mask::None<4>, Vec<4, double> x) {
 // }
 #endif // AVX
 
-[[gnu::always_inline, gnu::artificial]] inline auto load(const double *p,
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto load(const T *p,
                                                          mask::None<2>)
-  -> Vec<2, double> {
-  return std::bit_cast<Vec<2, double>>(_mm_loadu_pd(p));
+  -> Vec<2, T> {
+  if constexpr (std::same_as<T, double>)
+    return std::bit_cast<Vec<2, double>>(_mm_loadu_pd(p));
+  else if constexpr (std::same_as<T, int64_t>)
+#ifdef __AVX512VL__
+    return std::bit_cast<Vec<2, int64_t>>(_mm_loadu_epi64(p));
+#else
+    return std::bit_cast<Vec<2, int64_t>>(_mm_loadu_si128((const __m128i *)p));
+#endif
+  else static_assert(false);
 }
 
-[[gnu::always_inline, gnu::artificial]] inline void
-store(double *p, mask::None<2>, Vec<2, double> x) {
-  _mm_storeu_pd(p, std::bit_cast<__m128d>(x));
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline void store(T *p, mask::None<2>,
+                                                          Vec<2, T> x) {
+  if constexpr (std::same_as<T, double>)
+    _mm_storeu_pd(p, std::bit_cast<__m128d>(x));
+  else if constexpr (std::same_as<T, int64_t>)
+#ifdef __AVX512VL__
+    _mm_storeu_epi64(p, std::bit_cast<__m128i>(x));
+#else
+    _mm_storeu_si128((__m128i *)p, std::bit_cast<__m128i>(x));
+#endif
+  else static_assert(false);
 }
 
-[[gnu::always_inline, gnu::artificial]] inline auto load(const int64_t *p,
-                                                         mask::None<2>) {
-  return std::bit_cast<Vec<2, int64_t>>(_mm_loadu_si128((const __m128i *)p));
-}
-[[gnu::always_inline, gnu::artificial]] inline void
-store(int64_t *p, mask::None<2>, Vec<2, int64_t> x) {
-  _mm_storeu_si128((__m128i *)p, std::bit_cast<__m128i>(x));
-}
 #else // not __x86_64__
 static constexpr ptrdiff_t REGISTERS = 32;
 static constexpr ptrdiff_t VECTORWIDTH = 16;
@@ -684,7 +706,7 @@ constexpr auto create(ptrdiff_t i, ptrdiff_t len) -> Vector<W> {
   return {range<W, int64_t>() + i < len};
 }
 } // namespace mask
-template <ptrdiff_t W, typename T>
+template <typename T, ptrdiff_t W>
 [[gnu::always_inline, gnu::artificial]] inline auto load(const T *p,
                                                          mask::None<W>)
   -> Vec<W, T> {
@@ -693,14 +715,14 @@ template <ptrdiff_t W, typename T>
   for (ptrdiff_t w = 0; w < W; ++w) ret[w] = p[w];
   return ret;
 }
-template <ptrdiff_t W, typename T>
+template <typename T, ptrdiff_t W>
 [[gnu::always_inline, gnu::artificial]] inline void store(T *p, mask::None<W>,
                                                           Vec<W, T> x) {
   POLYMATHFULLUNROLL
   for (ptrdiff_t w = 0; w < W; ++w) p[w] = x[w];
 }
 
-template <ptrdiff_t W, typename T>
+template <typename T, ptrdiff_t W>
 [[gnu::always_inline, gnu::artificial]] inline auto load(const T *p,
                                                          mask::Vector<W> i)
   -> Vec<W, T> {
@@ -709,7 +731,7 @@ template <ptrdiff_t W, typename T>
   for (ptrdiff_t w = 0; w < W; ++w) ret[w] = (i.m[w] != 0) ? p[w] : T{};
   return ret;
 }
-template <ptrdiff_t W, typename T>
+template <typename T, ptrdiff_t W>
 [[gnu::always_inline, gnu::artificial]] inline void
 store(T *p, mask::Vector<W> i, Vec<W, T> x) {
   POLYMATHFULLUNROLL
@@ -717,7 +739,7 @@ store(T *p, mask::Vector<W> i, Vec<W, T> x) {
     if (i.m[w] != 0) p[w] = x[w];
 }
 
-template <ptrdiff_t W, typename T>
+template <typename T, ptrdiff_t W>
 [[gnu::always_inline, gnu::artificial]] inline auto
 load(const T *p, mask::None<W>, int32_t stride) -> Vec<W, T> {
   Vec<W, T> ret;
@@ -725,14 +747,14 @@ load(const T *p, mask::None<W>, int32_t stride) -> Vec<W, T> {
   for (ptrdiff_t w = 0; w < W; ++w) ret[w] = p[w * stride];
   return ret;
 }
-template <ptrdiff_t W, typename T>
+template <typename T, ptrdiff_t W>
 [[gnu::always_inline, gnu::artificial]] inline void
 store(T *p, mask::None<W>, Vec<W, T> x, int32_t stride) {
   POLYMATHFULLUNROLL
   for (ptrdiff_t w = 0; w < W; ++w) p[w * stride] = x[w];
 }
 
-template <ptrdiff_t W, typename T>
+template <typename T, ptrdiff_t W>
 [[gnu::always_inline, gnu::artificial]] inline auto
 load(const T *p, mask::Vector<W> i, int32_t stride) -> Vec<W, T> {
   Vec<W, T> ret;
@@ -741,7 +763,7 @@ load(const T *p, mask::Vector<W> i, int32_t stride) -> Vec<W, T> {
     ret[w] = (i.m[w] != 0) ? p[w * stride] : T{};
   return ret;
 }
-template <ptrdiff_t W, typename T>
+template <typename T, ptrdiff_t W>
 [[gnu::always_inline, gnu::artificial]] inline void
 store(T *p, mask::Vector<W> i, Vec<W, T> x, int32_t stride) {
   POLYMATHFULLUNROLL
@@ -798,6 +820,7 @@ static constexpr bool issimd<UnrollDims<R, C, W, M, Transposed, X>> = true;
 template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t N, typename T> struct Unroll {
   static constexpr ptrdiff_t W = ptrdiff_t(std::bit_ceil(size_t(N)));
   using VT = std::conditional_t<W == 1, T, Vec<W, T>>;
+  static_assert(R * C > 0);
   VT data[R * C];
   constexpr auto operator[](ptrdiff_t i) -> VT & { return data[i]; }
   constexpr auto operator[](ptrdiff_t r, ptrdiff_t c) -> VT & {
@@ -1142,15 +1165,16 @@ struct UnrollRef {
       if constexpr (NM == 0) {
         POLYMATHFULLUNROLL
         for (ptrdiff_t c = 0; c < C; ++c)
-          store(p + c * W, mask::None<W>{}, x[r, c]);
+          store<T>(p + c * W, mask::None<W>{}, x[r, c]);
       } else if constexpr (NM == C) {
         POLYMATHFULLUNROLL
-        for (ptrdiff_t c = 0; c < C; ++c) store(p + c * W, masks[c], x[r, c]);
+        for (ptrdiff_t c = 0; c < C; ++c)
+          store<T>(p + c * W, masks[c], x[r, c]);
       } else { // NM == 1
         POLYMATHFULLUNROLL
         for (ptrdiff_t c = 0; c < C - 1; ++c)
-          store(p + c * W, mask::None<W>{}, x[r, c]);
-        store(p + (C - 1) * W, masks[0], x[r, C - 1]);
+          store<T>(p + c * W, mask::None<W>{}, x[r, c]);
+        store<T>(p + (C - 1) * W, masks[0], x[r, C - 1]);
       }
     }
     return *this;
@@ -1164,15 +1188,16 @@ struct UnrollRef {
     for (ptrdiff_t r = 0; r < R; ++r, p += rs) {
       if constexpr (NM == 0) {
         POLYMATHFULLUNROLL
-        for (ptrdiff_t c = 0; c < C; ++c) store(p + c * W, mask::None<W>{}, v);
+        for (ptrdiff_t c = 0; c < C; ++c)
+          store<T>(p + c * W, mask::None<W>{}, v);
       } else if constexpr (NM == C) {
         POLYMATHFULLUNROLL
-        for (ptrdiff_t c = 0; c < C; ++c) store(p + c * W, masks[c], v);
+        for (ptrdiff_t c = 0; c < C; ++c) store<T>(p + c * W, masks[c], v);
       } else { // NM == 1
         POLYMATHFULLUNROLL
         for (ptrdiff_t c = 0; c < C - 1; ++c)
-          store(p + c * W, mask::None<W>{}, v);
-        store(p + (C - 1) * W, masks[0], v);
+          store<T>(p + c * W, mask::None<W>{}, v);
+        store<T>(p + (C - 1) * W, masks[0], v);
       }
     }
     return *this;
@@ -1186,16 +1211,16 @@ struct UnrollRef {
       if constexpr (NM == 0) {
         POLYMATHFULLUNROLL
         for (ptrdiff_t c = 0; c < C; ++c)
-          store(p + c * W * s, mask::None<W>{}, x[0, c], s);
+          store<T>(p + c * W * s, mask::None<W>{}, x[0, c], s);
       } else if constexpr (NM == C) {
         POLYMATHFULLUNROLL
         for (ptrdiff_t c = 0; c < C; ++c)
-          store(p + c * W * s, masks[c], x[0, c], s);
+          store<T>(p + c * W * s, masks[c], x[0, c], s);
       } else {
         POLYMATHFULLUNROLL
         for (ptrdiff_t c = 0; c < C - 1; ++c)
-          store(p + c * W * s, mask::None<W>{}, x[0, c], s);
-        store(p + (C - 1) * W * s, masks[0], x[0, C - 1], s);
+          store<T>(p + c * W * s, mask::None<W>{}, x[0, c], s);
+        store<T>(p + (C - 1) * W * s, masks[0], x[0, C - 1], s);
       }
     }
     return *this;
@@ -1209,15 +1234,16 @@ struct UnrollRef {
       if constexpr (NM == 0) {
         POLYMATHFULLUNROLL
         for (ptrdiff_t c = 0; c < C; ++c)
-          store(p + c * W * s, mask::None<W>{}, v, s);
+          store<T>(p + c * W * s, mask::None<W>{}, v, s);
       } else if constexpr (NM == C) {
         POLYMATHFULLUNROLL
-        for (ptrdiff_t c = 0; c < C; ++c) store(p + c * W * s, masks[c], v, s);
+        for (ptrdiff_t c = 0; c < C; ++c)
+          store<T>(p + c * W * s, masks[c], v, s);
       } else {
         POLYMATHFULLUNROLL
         for (ptrdiff_t c = 0; c < C - 1; ++c)
-          store(p + c * W * s, mask::None<W>{}, v, s);
-        store(p + (C - 1) * W * s, masks[0], v, s);
+          store<T>(p + c * W * s, mask::None<W>{}, v, s);
+        store<T>(p + (C - 1) * W * s, masks[0], v, s);
       }
     }
     return *this;

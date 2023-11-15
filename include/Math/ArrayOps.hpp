@@ -57,7 +57,7 @@ template <class T, class S, class P> class ArrayOps {
           constexpr std::array<ptrdiff_t, 3> vdr = simd::VectorDivRem<SL, T>();
           constexpr ptrdiff_t W = vdr[0];
           constexpr ptrdiff_t fulliter = vdr[1];
-          constexpr ptrdiff_t remainder = vdr[1];
+          constexpr ptrdiff_t remainder = vdr[2];
           if constexpr (remainder > 0) {
             auto u{simd::index::unrollmask<fulliter + 1, W>(L, 0)};
             self[u] = B[u];
