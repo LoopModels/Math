@@ -2,8 +2,8 @@
 
 #include "Math/Indexing.hpp"
 #include "Math/Matrix.hpp"
-#include "Math/SIMD.hpp"
 #include "Math/UniformScaling.hpp"
+#include "SIMD/Unroll.hpp"
 #include "Utilities/LoopMacros.hpp"
 #include <algorithm>
 #include <cstring>
@@ -181,7 +181,7 @@ template <class T, class S, class P> class ArrayOps {
   }
   constexpr void scopyTo(const AbstractMatrix auto &B) {
     static_assert(MatrixDimension<S>);
-    ptrdiff_t M = nr(), N = nc();
+    ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc());
     invariant(M, ptrdiff_t(B.numRow()));
     invariant(N, ptrdiff_t(B.numCol()));
     P &self{Self()};
@@ -214,7 +214,7 @@ template <class T, class S, class P> class ArrayOps {
       POLYMATHVECTORIZE
       for (ptrdiff_t c = 0; c < L; ++c) self[c] = b;
     } else {
-      ptrdiff_t M = nr(), N = nc(), X = rs();
+      ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc()), X = ptrdiff_t(rs());
       T *p = data_();
       POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r, p += X) std::fill_n(p, N, T(b));
@@ -228,7 +228,7 @@ template <class T, class S, class P> class ArrayOps {
       POLYMATHIVDEP
       for (ptrdiff_t c = 0, L = size_(); c < L; ++c) self[c] = b;
     } else {
-      ptrdiff_t M = nr(), N = nc(), X = rs();
+      ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc()), X = ptrdiff_t(rs());
       T *p = data_();
       POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r, p += X) std::fill_n(p, N, T(b));
@@ -238,7 +238,7 @@ template <class T, class S, class P> class ArrayOps {
   void vadd(const AbstractMatrix auto &B) {
     static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     static_assert(MatrixDimension<S>);
-    ptrdiff_t M = nr(), N = nc();
+    ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc());
     invariant(M, ptrdiff_t(B.numRow()));
     invariant(N, ptrdiff_t(B.numCol()));
     P &self{Self()};
@@ -250,7 +250,7 @@ template <class T, class S, class P> class ArrayOps {
   }
   constexpr void sadd(const AbstractMatrix auto &B) {
     static_assert(MatrixDimension<S>);
-    ptrdiff_t M = nr(), N = nc();
+    ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc());
     invariant(M, ptrdiff_t(B.numRow()));
     invariant(N, ptrdiff_t(B.numCol()));
     P &self{Self()};
@@ -264,7 +264,7 @@ template <class T, class S, class P> class ArrayOps {
   void vsub(const AbstractMatrix auto &B) {
     static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     static_assert(MatrixDimension<S>);
-    ptrdiff_t M = nr(), N = nc();
+    ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc());
     invariant(M, ptrdiff_t(B.numRow()));
     invariant(N, ptrdiff_t(B.numCol()));
     P &self{Self()};
@@ -276,7 +276,7 @@ template <class T, class S, class P> class ArrayOps {
   }
   constexpr void ssub(const AbstractMatrix auto &B) {
     static_assert(MatrixDimension<S>);
-    ptrdiff_t M = nr(), N = nc();
+    ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc());
     invariant(M, ptrdiff_t(B.numRow()));
     invariant(N, ptrdiff_t(B.numCol()));
     P &self{Self()};
@@ -308,7 +308,7 @@ template <class T, class S, class P> class ArrayOps {
   constexpr void sadd(const AbstractVector auto &B) {
     P &self{Self()};
     if constexpr (MatrixDimension<S>) {
-      ptrdiff_t M = nr(), N = nc();
+      ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc());
       invariant(M, ptrdiff_t(B.size()));
       POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
@@ -327,7 +327,7 @@ template <class T, class S, class P> class ArrayOps {
     static_assert(sizeof(utils::eltype_t<decltype(b)>) <= 8);
     P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
-      ptrdiff_t M = nr(), N = nc();
+      ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc());
       POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHVECTORIZE
@@ -341,7 +341,7 @@ template <class T, class S, class P> class ArrayOps {
   template <std::convertible_to<T> Y> constexpr void sadd(Y b) {
     P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
-      ptrdiff_t M = nr(), N = nc();
+      ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc());
       POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHIVDEP
@@ -356,7 +356,7 @@ template <class T, class S, class P> class ArrayOps {
     static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     P &self{Self()};
     if constexpr (MatrixDimension<S>) {
-      ptrdiff_t M = nr(), N = nc();
+      ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc());
       invariant(M, ptrdiff_t(B.size()));
       POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
@@ -374,7 +374,7 @@ template <class T, class S, class P> class ArrayOps {
   constexpr void ssub(const AbstractVector auto &B) {
     P &self{Self()};
     if constexpr (MatrixDimension<S>) {
-      ptrdiff_t M = nr(), N = nc();
+      ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc());
       invariant(M, ptrdiff_t(B.size()));
       POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
@@ -393,7 +393,7 @@ template <class T, class S, class P> class ArrayOps {
     static_assert(sizeof(utils::eltype_t<decltype(b)>) <= 8);
     P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
-      ptrdiff_t M = nr(), N = nc();
+      ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc());
       POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHVECTORIZE
@@ -408,7 +408,7 @@ template <class T, class S, class P> class ArrayOps {
   template <std::convertible_to<T> Y> constexpr void smul(Y b) {
     P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
-      ptrdiff_t M = nr(), N = nc();
+      ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc());
       POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHIVDEP
@@ -423,7 +423,7 @@ template <class T, class S, class P> class ArrayOps {
     static_assert(sizeof(utils::eltype_t<decltype(b)>) <= 8);
     P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
-      ptrdiff_t M = nr(), N = nc();
+      ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc());
       POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHVECTORIZE
@@ -438,7 +438,7 @@ template <class T, class S, class P> class ArrayOps {
   template <std::convertible_to<T> Y> constexpr void sdiv(Y b) {
     P &self{Self()};
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
-      ptrdiff_t M = nr(), N = nc();
+      ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc());
       POLYMATHNOVECTORIZE
       for (ptrdiff_t r = 0; r < M; ++r) {
         POLYMATHIVDEP

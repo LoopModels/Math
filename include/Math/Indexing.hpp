@@ -2,7 +2,7 @@
 #include "Math/AxisTypes.hpp"
 #include "Math/Iterators.hpp"
 #include "Math/MatrixDimensions.hpp"
-#include "Math/SIMD.hpp"
+#include "SIMD/Indexing.hpp"
 #include <cstddef>
 
 namespace poly::math {
@@ -146,13 +146,6 @@ constexpr auto calcOffset(ptrdiff_t, Colon) -> ptrdiff_t { return 0; }
 constexpr auto calcOffset(SquareDims<>, ptrdiff_t i) -> ptrdiff_t { return i; }
 constexpr auto calcOffset(DenseDims<>, ptrdiff_t i) -> ptrdiff_t { return i; }
 
-template <class R, class C>
-[[nodiscard]] inline constexpr auto calcOffset(StridedDims<> d, R r, C c)
-  -> ptrdiff_t {
-  return ptrdiff_t(stride(d)) * calcOffset(ptrdiff_t(Row<>(d)), r) +
-         calcOffset(ptrdiff_t(Col<>(d)), c);
-}
-
 struct StridedRange {
   [[no_unique_address]] ptrdiff_t len;
   [[no_unique_address]] ptrdiff_t stride;
@@ -174,6 +167,14 @@ constexpr auto calcOffset(ptrdiff_t len, simd::index::Unroll<U, W, M> i) {
 template <class I> constexpr auto calcOffset(StridedRange d, I i) -> ptrdiff_t {
   return d.stride * calcOffset(d.len, i);
 }
+
+template <class R, class C>
+[[nodiscard]] inline constexpr auto calcOffset(StridedDims<> d, R r, C c)
+  -> ptrdiff_t {
+  return ptrdiff_t(stride(d)) * calcOffset(ptrdiff_t(Row<>(d)), r) +
+         calcOffset(ptrdiff_t(Col<>(d)), c);
+}
+
 // constexpr auto is_integral_const(auto) -> bool { return false; }
 // template <typename T, T V>
 // constexpr auto is_integral_const(std::integral_constant<T, V>) -> bool {

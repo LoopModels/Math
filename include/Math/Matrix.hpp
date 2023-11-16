@@ -109,12 +109,14 @@ template <typename A> struct Transpose {
   using value_type = utils::eltype_t<A>;
   static constexpr bool has_reduction_loop = HasInnerReduction<A>;
   [[no_unique_address]] A a;
-  constexpr auto operator[](ptrdiff_t i) const -> value_type
+  constexpr auto operator[](auto i) const
   requires(AbstractVector<A>)
   {
     return a[i];
   }
-  constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) const -> value_type {
+  constexpr auto operator[](auto i, auto j) const
+  requires(AbstractMatrix<A>)
+  {
     return a[j, i];
   }
   [[nodiscard]] constexpr auto numRow() const {
