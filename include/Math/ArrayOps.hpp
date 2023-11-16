@@ -23,6 +23,10 @@ template <ptrdiff_t R> consteval auto unrollf() -> std::array<ptrdiff_t, 2> {
   return {4, R % 4};
 }
 
+template <typename T>
+concept IsOne =
+  std::same_as<std::remove_cvref_t<T>, std::integral_constant<ptrdiff_t, 1>>;
+
 template <typename T> class SmallSparseMatrix;
 template <class T, class S, class P> class ArrayOps {
 
@@ -73,36 +77,6 @@ template <class T, class S, class P> class ArrayOps {
       }
     }
   }
-  template <typename Op> void vcopyTo(const AbstractVector auto &B, Op op) {
-    static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
-    P &self{Self()};
-    if constexpr (MatrixDimension<S>) {
-      ptrdiff_t M = nr(), N = nc();
-      invariant(M, ptrdiff_t(B.size()));
-      POLYMATHNOVECTORIZE
-      for (ptrdiff_t i = 0; i < M; ++i) {
-        T Bi = B[i];
-        POLYMATHVECTORIZE
-        for (ptrdiff_t j = 0; j < N; ++j) utils::assign(self[i, j], Bi, op);
-      }
-    } else {
-      auto L = size_();
-      invariant(ptrdiff_t(L), ptrdiff_t(B.size()));
-      if constexpr (simd::SIMDSupported<T>) {
-        vcopyToSIMD(self, B, L, utils::NoRowIndex{}, op);
-      } else if constexpr (!std::is_copy_assignable_v<T> &&
-                           std::same_as<Op, utils::CopyAssign>) {
-        // MutArray is trivially copyable and move-assignable
-        // we require triviality to avoid silently being slow.
-        // we should fix it if hitting another case.
-        POLYMATHVECTORIZE
-        for (ptrdiff_t i = 0; i < L; ++i) self[i] = auto{B[i]};
-      } else {
-        POLYMATHVECTORIZE
-        for (ptrdiff_t i = 0; i < L; ++i) utils::assign(self[i], B[i], op);
-      }
-    }
-  }
   template <typename Op>
   constexpr void scopyTo(const AbstractVector auto &B, Op op) {
     P &self{Self()};
@@ -131,21 +105,24 @@ template <class T, class S, class P> class ArrayOps {
       }
     }
   }
-  template <typename Op> void vcopyTo(const AbstractMatrix auto &B, Op op) {
+  template <typename Op> void vcopyTo(const auto &B, Op op) {
     static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     static_assert(MatrixDimension<S>);
-    auto M = nr();
-    auto N = nc();
+    P &self{Self()};
+    auto [M, N] = shape(self);
     invariant(ptrdiff_t(M), ptrdiff_t(B.numRow()));
     invariant(N, ptrdiff_t(B.numCol()));
-    P &self{Self()};
     if constexpr (std::same_as<Op, utils::CopyAssign> && DenseLayout<S> &&
                   DenseTensor<std::remove_cvref_t<decltype(B)>>) {
       if constexpr (std::is_trivially_copyable_v<T>)
         std::memcpy(data_(), M * N * sizeof(T), B.begin());
       else std::copy_n(B.begin(), M * N, data_());
     } else if constexpr (simd::SIMDSupported<T>) {
-      if constexpr (StaticInt<decltype(M)>) {
+      if constexpr (IsOne<decltype(M)>)
+        vcopyToSIMD(self, B, N, utils::NoRowIndex{}, op);
+      else if constexpr (IsOne<decltype(N)>)
+        vcopyToSIMD(self, B, M, utils::NoRowIndex{}, op);
+      else if constexpr (StaticInt<decltype(M)>) {
         constexpr std::array<ptrdiff_t, 2> UIR = unrollf<ptrdiff_t(M)>();
         constexpr ptrdiff_t U = UIR[0];
         if constexpr (U != 0)
@@ -165,17 +142,33 @@ template <class T, class S, class P> class ArrayOps {
         default: return vcopyToSIMD(self, B, N, simd::index::Unroll<3>{r}, op);
         }
       }
+    } else if constexpr (AbstractVector<P>) {
+      if constexpr (!std::is_copy_assignable_v<T> &&
+                    std::same_as<Op, utils::CopyAssign>) {
+        POLYMATHVECTORIZE
+        for (ptrdiff_t j = 0; j < N; ++j)
+          if constexpr (std::convertible_to<decltype(B), T>) self[j] = auto{B};
+          else self[j] = auto{B[j]};
+      } else {
+        POLYMATHVECTORIZE
+        for (ptrdiff_t j = 0; j < N; ++j)
+          utils::assign(self, B, utils::NoRowIndex{}, j, op);
+      }
     } else {
       POLYMATHNOVECTORIZE
       for (ptrdiff_t i = 0; i < M; ++i) {
         if constexpr (!std::is_copy_assignable_v<T> &&
                       std::same_as<Op, utils::CopyAssign>) {
           POLYMATHVECTORIZE
-          for (ptrdiff_t j = 0; j < N; ++j) self[i, j] = auto{B[i, j]};
+          for (ptrdiff_t j = 0; j < N; ++j)
+            if constexpr (std::convertible_to<decltype(B), T>)
+              self[i, j] = auto{B};
+            else if constexpr (RowVector<decltype(B)>) self[i, j] = auto{B[j]};
+            else if constexpr (ColVector<decltype(B)>) self[i, j] = auto{B[i]};
+            else self[i, j] = auto{B[i, j]};
         } else {
           POLYMATHVECTORIZE
-          for (ptrdiff_t j = 0; j < N; ++j)
-            utils::assign(self[i, j], B[i, j], op);
+          for (ptrdiff_t j = 0; j < N; ++j) utils::assign(self, B, i, j, op);
         }
       }
     }
@@ -209,20 +202,6 @@ template <class T, class S, class P> class ArrayOps {
   }
 
   template <std::convertible_to<T> Y, typename Op>
-  void vcopyTo(const Y &b, Op op) {
-    static_assert(sizeof(utils::eltype_t<decltype(b)>) <= 8);
-    P &self{Self()};
-    if constexpr (DenseLayout<S> || std::same_as<S, StridedRange>) {
-      vcopyToSIMD(self, T(b), size_(), utils::NoRowIndex{}, op);
-    } else {
-      for (ptrdiff_t m = 0, M = ptrdiff_t(nr()); m < M; ++m) {}
-      ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc()), X = ptrdiff_t(rs());
-      T *p = data_();
-      POLYMATHNOVECTORIZE
-      for (ptrdiff_t r = 0; r < M; ++r, p += X) std::fill_n(p, N, T(b));
-    }
-  }
-  template <std::convertible_to<T> Y, typename Op>
   constexpr void scopyTo(const Y &b, Op op) {
     P &self{Self()};
     if constexpr (DenseLayout<S> || std::same_as<S, StridedRange>) {
@@ -238,6 +217,7 @@ template <class T, class S, class P> class ArrayOps {
         for (ptrdiff_t c = 0; c < N; ++c) utils::assign(self[r, c], bt, op);
     }
   }
+
 public:
   template <std::convertible_to<T> Y>
   [[gnu::flatten]] constexpr auto operator<<(const UniformScaling<Y> &B)

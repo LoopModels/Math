@@ -182,11 +182,26 @@ struct ElementwiseBinaryOp {
   {
     return op(get<common>(a, i), get<common>(b, i));
   }
-  constexpr auto operator[](auto i, auto j) const
-  requires CartesianIndexableOrConvertible<A, common> &&
-           CartesianIndexableOrConvertible<B, common>
-  {
-    return op(get<common>(a, i, j), get<common>(b, i, j));
+  constexpr auto operator[](auto i, auto j) const {
+    if constexpr (CartesianIndexableOrConvertible<A, common>) {
+      if constexpr (CartesianIndexableOrConvertible<B, common>)
+        return op(get<common>(a, i, j), get<common>(b, i, j));
+      else if constexpr (RowVector<B>)
+        return op(get<common>(a, i, j), get<common>(b, j));
+      else return op(get<common>(a, i, j), get<common>(b, i));
+    } else if constexpr (RowVector<A>) {
+      if constexpr (CartesianIndexableOrConvertible<B, common>)
+        return op(get<common>(a, j), get<common>(b, i, j));
+      else if constexpr (RowVector<B>)
+        return op(get<common>(a, j), get<common>(b, j));
+      else return op(get<common>(a, j), get<common>(b, i));
+    } else {
+      if constexpr (CartesianIndexableOrConvertible<B, common>)
+        return op(get<common>(a, i), get<common>(b, i, j));
+      else if constexpr (RowVector<B>)
+        return op(get<common>(a, i), get<common>(b, j));
+      else return op(get<common>(a, i), get<common>(b, i));
+    }
   }
 
   [[nodiscard]] constexpr auto numRow() const
@@ -646,11 +661,11 @@ constexpr auto operator*(const AbstractTensor auto &a,
   auto AA{a.view()};
   auto BB{b.view()};
   invariant(ptrdiff_t(numCols(AA)), ptrdiff_t(numRows(BB)));
-  if constexpr ((RowVector<decltype(AA)> && RowVector<decltype(BB)>) ||
-                (ColVector<decltype(AA)> && ColVector<decltype(BB)>))
-    return ElementwiseBinaryOp(std::multiplies<>{}, AA, BB);
-  else if constexpr (RowVector<decltype(AA)> && ColVector<decltype(BB)>)
+  if constexpr (RowVector<decltype(AA)> && ColVector<decltype(BB)>)
     return dot(AA, BB.t());
+  else if constexpr (AbstractVector<decltype(AA)> &&
+                     AbstractVector<decltype(BB)>)
+    return ElementwiseBinaryOp(std::multiplies<>{}, AA, BB);
   else return MatMatMul<decltype(AA), decltype(BB)>{.a = AA, .b = BB};
 }
 template <AbstractVector M, utils::ElementOf<M> S>

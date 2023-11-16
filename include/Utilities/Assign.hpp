@@ -1,6 +1,7 @@
 #pragma once
 #ifndef POLY_UTILITIES_Assign_hpp_INCLUDED
 #define POLY_UTILITIES_Assign_hpp_INCLUDED
+#include <Math/Matrix.hpp>
 #include <Utilities/TypePromotion.hpp>
 #include <functional>
 namespace poly::utils {
@@ -21,28 +22,32 @@ template <typename D, typename S, typename Op>
 template <typename D, typename S, typename R, typename C, typename Op>
 [[gnu::always_inline]] constexpr void assign(D &d, const S &s, R r, C c,
                                              Op op) {
+  constexpr bool norowind = std::same_as<R, NoRowIndex>;
   if constexpr (std::convertible_to<S, utils::eltype_t<D>>)
-    if constexpr (std::same_as<R, NoRowIndex>) assign(d[c], s, op);
+    if constexpr (norowind) assign(d[c], s, op);
     else assign(d[r, c], s, op);
-  // else if constexpr (std::same_as<R, NoRowIndex>) assign(d[c], s[c], op);
-  // else assign(d[r, c], s[r, c], op);
+  else if constexpr (math::RowVector<S>)
+    if constexpr (norowind) assign(d[c], s[c], op);
+    else assign(d[r, c], s[c], op);
+  else if constexpr (math::ColVector<S>)
+    if constexpr (norowind) assign(d[c], s[c], op);
+    else assign(d[r, c], s[r], op);
   else if constexpr (std::same_as<Op, CopyAssign>)
-    if constexpr (std::same_as<R, NoRowIndex>) d[c] = s[c];
+    if constexpr (norowind) d[c] = s[c];
     else d[r, c] = s[r, c];
   else if constexpr (std::same_as<Op, std::plus<>>)
-    if constexpr (std::same_as<R, NoRowIndex>) d[c] += s[c];
+    if constexpr (norowind) d[c] += s[c];
     else d[r, c] += s[r, c];
   else if constexpr (std::same_as<Op, std::minus<>>)
-    if constexpr (std::same_as<R, NoRowIndex>) d[c] -= s[c];
+    if constexpr (norowind) d[c] -= s[c];
     else d[r, c] -= s[r, c];
   else if constexpr (std::same_as<Op, std::multiplies<>>)
-    if constexpr (std::same_as<R, NoRowIndex>) d[c] *= s[c];
+    if constexpr (norowind) d[c] *= s[c];
     else d[r, c] *= s[r, c];
   else if constexpr (std::same_as<Op, std::divides<>>)
-    if constexpr (std::same_as<R, NoRowIndex>) d[c] /= s[c];
+    if constexpr (norowind) d[c] /= s[c];
     else d[r, c] /= s[r, c];
-  else if constexpr (std::same_as<R, NoRowIndex>)
-    d[c] = op(const_cast<const D &>(d)[c], s[c]);
+  else if constexpr (norowind) d[c] = op(const_cast<const D &>(d)[c], s[c]);
   else d[r, c] = op(const_cast<const D &>(d)[r, c], s[r, c]);
 }
 

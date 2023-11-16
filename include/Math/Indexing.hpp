@@ -287,22 +287,33 @@ constexpr auto calcNewDim(StridedDims<> d, simd::index::Unroll<C, W, M> r,
 template <ptrdiff_t C, ptrdiff_t W, typename M>
 constexpr auto calcNewDim(StridedDims<> d, ptrdiff_t,
                           simd::index::Unroll<C, W, M> c) {
-  return simd::index::UnrollDims<1, C, W, M>{c.mask, RowStride(d)};
+  if constexpr (W == 1)
+    return simd::index::UnrollDims<C, 1, 1, M>{c.mask, RowStride(d)};
+  else return simd::index::UnrollDims<1, C, W, M>{c.mask, RowStride(d)};
 }
 template <ptrdiff_t R, ptrdiff_t W, typename M>
 constexpr auto calcNewDim(StridedDims<> d, simd::index::Unroll<R, W, M> r,
                           ptrdiff_t) {
-  return simd::index::UnrollDims<1, R, W, M, true>{r.mask, RowStride(d)};
+  if constexpr (W == 1)
+    return simd::index::UnrollDims<R, 1, 1, M, true>{r.mask, RowStride(d)};
+  else return simd::index::UnrollDims<1, R, W, M, true>{r.mask, RowStride(d)};
 }
 
 template <ptrdiff_t U, ptrdiff_t W, typename M>
 constexpr auto calcNewDim(ptrdiff_t, simd::index::Unroll<U, W, M> i) {
-  return simd::index::UnrollDims<1, U, W, M, false, 1>{i.mask, RowStride<1>{}};
+  if constexpr (W == 1)
+    return simd::index::UnrollDims<U, 1, 1, M, false, 1>{i.mask,
+                                                         RowStride<1>{}};
+  else
+    return simd::index::UnrollDims<1, U, W, M, false, 1>{i.mask,
+                                                         RowStride<1>{}};
 }
 
 template <ptrdiff_t U, ptrdiff_t W, typename M>
 constexpr auto calcNewDim(StridedRange x, simd::index::Unroll<U, W, M> i) {
-  return simd::index::UnrollDims<1, U, W, M, true, -1>{i.mask, stride(x)};
+  if constexpr (W == 1)
+    return simd::index::UnrollDims<U, 1, 1, M, true, -1>{i.mask, stride(x)};
+  else return simd::index::UnrollDims<1, U, W, M, true, -1>{i.mask, stride(x)};
 }
 
 } // namespace poly::math
