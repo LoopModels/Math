@@ -36,6 +36,8 @@ concept DefinesShape = requires(T t) {
 
 template <typename T>
 concept ShapelessSize = DefinesSize<T> && (!DefinesShape<T>);
+template <typename T>
+concept PrimitiveScalar = std::integral<T> || std::floating_point<T>;
 
 constexpr auto numRows(const DefinesShape auto &A) { return A.numRow(); }
 constexpr auto numCols(const DefinesShape auto &A) { return A.numCol(); }

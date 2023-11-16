@@ -77,34 +77,6 @@ template <class T, class S, class P> class ArrayOps {
       }
     }
   }
-  template <typename Op>
-  constexpr void scopyTo(const AbstractVector auto &B, Op op) {
-    P &self{Self()};
-    if constexpr (MatrixDimension<S>) {
-      ptrdiff_t M = nr(), N = nc();
-      invariant(M, ptrdiff_t(B.size()));
-      POLYMATHNOVECTORIZE
-      for (ptrdiff_t i = 0; i < M; ++i) {
-        T Bi = B[i];
-        POLYMATHIVDEP
-        for (ptrdiff_t j = 0; j < N; ++j) utils::assign(self[i, j], Bi, op);
-      }
-    } else {
-      ptrdiff_t L = size_();
-      invariant(L, ptrdiff_t(B.size()));
-      if constexpr (!std::is_copy_assignable_v<T> &&
-                    std::same_as<Op, utils::CopyAssign>) {
-        // MutArray is trivially copyable and move-assignable
-        // we require triviality to avoid silently being slow.
-        // we should fix it if hitting another case.
-        POLYMATHIVDEP
-        for (ptrdiff_t i = 0; i < L; ++i) self[i] = auto{B[i]};
-      } else {
-        POLYMATHIVDEP
-        for (ptrdiff_t i = 0; i < L; ++i) utils::assign(self[i], B[i], op);
-      }
-    }
-  }
   template <typename Op> void vcopyTo(const auto &B, Op op) {
     static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     static_assert(MatrixDimension<S>);
@@ -173,48 +145,47 @@ template <class T, class S, class P> class ArrayOps {
       }
     }
   }
-  template <typename Op>
-  constexpr void scopyTo(const AbstractMatrix auto &B, Op op) {
+  template <typename Op> constexpr void scopyTo(const auto &B, Op op) {
+    static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     static_assert(MatrixDimension<S>);
-    ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc());
-    invariant(M, ptrdiff_t(B.numRow()));
-    invariant(N, ptrdiff_t(B.numCol()));
     P &self{Self()};
+    auto [M, N] = shape(self);
+    invariant(ptrdiff_t(M), ptrdiff_t(B.numRow()));
+    invariant(N, ptrdiff_t(B.numCol()));
     if constexpr (std::same_as<Op, utils::CopyAssign> && DenseLayout<S> &&
                   DenseTensor<std::remove_cvref_t<decltype(B)>>) {
       if constexpr (std::is_trivially_copyable_v<T>)
         std::memcpy(data_(), M * N * sizeof(T), B.begin());
       else std::copy_n(B.begin(), M * N, data_());
+    } else if constexpr (AbstractVector<P>) {
+      if constexpr (!std::is_copy_assignable_v<T> &&
+                    std::same_as<Op, utils::CopyAssign>) {
+        POLYMATHIVDEP
+        for (ptrdiff_t j = 0; j < N; ++j)
+          if constexpr (std::convertible_to<decltype(B), T>) self[j] = auto{B};
+          else self[j] = auto{B[j]};
+      } else {
+        POLYMATHIVDEP
+        for (ptrdiff_t j = 0; j < N; ++j)
+          utils::assign(self, B, utils::NoRowIndex{}, j, op);
+      }
     } else {
       POLYMATHNOVECTORIZE
       for (ptrdiff_t i = 0; i < M; ++i) {
         if constexpr (!std::is_copy_assignable_v<T> &&
                       std::same_as<Op, utils::CopyAssign>) {
           POLYMATHIVDEP
-          for (ptrdiff_t j = 0; j < N; ++j) self[i, j] = auto{B[i, j]};
+          for (ptrdiff_t j = 0; j < N; ++j)
+            if constexpr (std::convertible_to<decltype(B), T>)
+              self[i, j] = auto{B};
+            else if constexpr (RowVector<decltype(B)>) self[i, j] = auto{B[j]};
+            else if constexpr (ColVector<decltype(B)>) self[i, j] = auto{B[i]};
+            else self[i, j] = auto{B[i, j]};
         } else {
           POLYMATHIVDEP
-          for (ptrdiff_t j = 0; j < N; ++j)
-            utils::assign(self[i, j], B[i, j], op);
+          for (ptrdiff_t j = 0; j < N; ++j) utils::assign(self, B, i, j, op);
         }
       }
-    }
-  }
-
-  template <std::convertible_to<T> Y, typename Op>
-  constexpr void scopyTo(const Y &b, Op op) {
-    P &self{Self()};
-    if constexpr (DenseLayout<S> || std::same_as<S, StridedRange>) {
-      POLYMATHIVDEP
-      for (ptrdiff_t c = 0, L = size_(); c < L; ++c)
-        utils::assign(self[c], b, op);
-    } else {
-      ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc()), X = ptrdiff_t(rs());
-      T bt = T(b);
-      T *p = data_();
-      POLYMATHNOVECTORIZE
-      for (ptrdiff_t r = 0; r < M; ++r, p += X)
-        for (ptrdiff_t c = 0; c < N; ++c) utils::assign(self[r, c], bt, op);
     }
   }
 
