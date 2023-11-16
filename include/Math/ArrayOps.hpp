@@ -189,6 +189,17 @@ template <class T, class S, class P> class ArrayOps {
     }
   }
 
+  template <typename Op> constexpr void copyTo(const auto &B, Op op) {
+    if consteval {
+      scopyTo(B, op);
+    } else {
+      if constexpr ((sizeof(T) <= sizeof(double)) &&
+                    (!HasInnerReduction<std::remove_cvref_t<decltype(B)>>))
+        vcopyTo(B, op);
+      else scopyTo(B, op);
+    }
+  }
+
 public:
   template <std::convertible_to<T> Y>
   [[gnu::flatten]] constexpr auto operator<<(const UniformScaling<Y> &B)
@@ -202,59 +213,24 @@ public:
     -> P &;
 
   [[gnu::flatten]] constexpr auto operator<<(const auto &B) -> P & {
-    if consteval {
-      scopyTo(B);
-    } else {
-      if constexpr ((sizeof(T) <= sizeof(double)) &&
-                    (!HasInnerReduction<std::remove_cvref_t<decltype(B)>>))
-        vcopyTo(B);
-      else scopyTo(B);
-    }
+    copyTo(B, utils::CopyAssign{});
     return Self();
   }
 
   [[gnu::flatten]] constexpr auto operator+=(const auto &B) -> P & {
-    if consteval {
-      sadd(B);
-    } else {
-      if constexpr ((sizeof(T) <= sizeof(double)) &&
-                    (!HasInnerReduction<std::remove_cvref_t<decltype(B)>>))
-        vadd(B);
-      else sadd(B);
-    }
+    copyTo(B, std::plus<>{});
     return Self();
   }
   [[gnu::flatten]] constexpr auto operator-=(const auto &B) -> P & {
-    if consteval {
-      ssub(B);
-    } else {
-      if constexpr ((sizeof(T) <= sizeof(double)) &&
-                    (!HasInnerReduction<std::remove_cvref_t<decltype(B)>>))
-        vsub(B);
-      else ssub(B);
-    }
+    copyTo(B, std::minus<>{});
     return Self();
   }
   [[gnu::flatten]] constexpr auto operator*=(const auto &B) -> P & {
-    if consteval {
-      smul(B);
-    } else {
-      if constexpr ((sizeof(T) <= sizeof(double)) &&
-                    (!HasInnerReduction<std::remove_cvref_t<decltype(B)>>))
-        vmul(B);
-      else smul(B);
-    }
+    copyTo(B, std::multiplies<>{});
     return Self();
   }
   [[gnu::flatten]] constexpr auto operator/=(const auto &B) -> P & {
-    if consteval {
-      sdiv(B);
-    } else {
-      if constexpr ((sizeof(T) <= sizeof(double)) &&
-                    (!HasInnerReduction<std::remove_cvref_t<decltype(B)>>))
-        vdiv(B);
-      else sdiv(B);
-    }
+    copyTo(B, std::divides<>{});
     return Self();
   }
 };
