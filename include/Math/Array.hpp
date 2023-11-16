@@ -1881,5 +1881,6 @@ inline auto operator<<(std::ostream &os, Array<T, DenseDims<R, C>> A)
 
 static_assert(std::same_as<const int64_t &,
                            decltype(std::declval<PtrMatrix<int64_t>>()[0, 0])>);
+static_assert(std::is_trivially_copyable_v<MutArray<int64_t, ptrdiff_t>>);
 
 } // namespace poly::math
