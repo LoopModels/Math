@@ -185,6 +185,11 @@ public:
     inCanonicalForm = false;
 #endif
     auto C{getConstraints()};
+#ifndef NDEBUG
+    for (ptrdiff_t r = 0, R = ptrdiff_t(numRows(C)); r < R; ++r)
+      for (ptrdiff_t c = 0, N = ptrdiff_t(numCols(C)); c < N; ++c)
+        invariant(C[r, c] != std::numeric_limits<int64_t>::min());
+#endif
     NormalForm::solveSystemSkip(C);
     truncateConstraints(ptrdiff_t(NormalForm::numNonZeroRows(C)));
   }

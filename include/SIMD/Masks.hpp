@@ -44,23 +44,23 @@ template <ptrdiff_t W> struct None {
 template <ptrdiff_t W> struct Bit {
   uint64_t mask;
   template <std::unsigned_integral U> explicit constexpr operator U() {
-    return U(m);
+    return U(mask);
   }
-  explicit constexpr operator bool() const { return m; }
+  explicit constexpr operator bool() const { return mask; }
   [[nodiscard]] constexpr auto lastUnmasked() const -> ptrdiff_t {
     // could make this `countr_ones` if we decide to only
     // support leading masks
     uint64_t m = mask & ((uint64_t(1) << W) - uint64_t(1));
-    reutrn 64 - ptrdiff_t(std::countl_zeros(m));
+    return 64 - ptrdiff_t(std::countl_zero(m));
   }
 };
 template <ptrdiff_t W> constexpr auto operator&(Bit<W> a, Bit<W> b) -> Bit<W> {
   return {a.mask & b.mask};
 }
-template <ptrdiff_t W> constexpr auto operator&(None<W> a, Bit<W> b) -> Bit<W> {
+template <ptrdiff_t W> constexpr auto operator&(None<W>, Bit<W> b) -> Bit<W> {
   return b;
 }
-template <ptrdiff_t W> constexpr auto operator&(Bit<W> a, None<W> b) -> Bit<W> {
+template <ptrdiff_t W> constexpr auto operator&(Bit<W> a, None<W>) -> Bit<W> {
   return a;
 }
 #endif // AVX512F
@@ -69,7 +69,7 @@ template <ptrdiff_t W> constexpr auto operator&(Bit<W> a, None<W> b) -> Bit<W> {
 // Out: mask for the final iteration. Zero indicates no masked iter.
 template <ptrdiff_t W> constexpr auto create(ptrdiff_t i) -> Bit<W> {
   static_assert(std::popcount(size_t(W)) == 1);
-  invariant(i >= 0);
+  utils::invariant(i >= 0);
   return {_bzhi_u64(0xffffffffffffffff, uint64_t(i) & uint64_t(W - 1))};
 };
 // In: index::Vector where `i.i` is for the current iteration, and total loop
@@ -77,9 +77,10 @@ template <ptrdiff_t W> constexpr auto create(ptrdiff_t i) -> Bit<W> {
 template <ptrdiff_t W>
 constexpr auto create(ptrdiff_t i, ptrdiff_t len) -> Bit<W> {
   static_assert(std::popcount(size_t(W)) == 1);
-  // invariant(len >= i);
-  ptrdiff_t srem = len - i;
-  return {_bzhi_u64(0xffffffffffffffff, uint64_t(srem))};
+  uint64_t x;
+  if (__builtin_sub_overflow(len, i, &x)) x = 0;
+  else x = std::min(x, uint64_t(255));
+  return {_bzhi_u64(0xffffffffffffffff, x)};
 };
 #else // ifdef __AVX512VL__
 

@@ -460,7 +460,9 @@ constexpr void zeroColumn(MutPtrMatrix<int64_t> A, Col<> c, Row<> r) {
   const Row M = A.numRow();
   for (ptrdiff_t j = 0; j < r; ++j) {
     int64_t Arc = A[r, c];
+    invariant(Arc != std::numeric_limits<int64_t>::min());
     if (int64_t Ajc = A[j, c]) {
+      invariant(Ajc != std::numeric_limits<int64_t>::min());
       int64_t g = gcd(Arc, Ajc);
       A[j, _] << (Arc / g) * A[j, _] - (Ajc / g) * A[r, _];
     }

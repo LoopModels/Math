@@ -126,24 +126,26 @@ template <class T, class S, class P> class ArrayOps {
         }
       }
     } else if constexpr (AbstractVector<P>) {
+      ptrdiff_t L = IsOne<decltype(N)> ? M : N;
       if constexpr (!std::is_copy_assignable_v<T> &&
                     std::same_as<Op, utils::CopyAssign>) {
         POLYMATHVECTORIZE
-        for (ptrdiff_t j = 0; j < N; ++j)
+        for (ptrdiff_t j = 0; j < L; ++j)
           if constexpr (std::convertible_to<decltype(B), T>) self[j] = auto{B};
           else self[j] = auto{B[j]};
       } else {
         POLYMATHVECTORIZE
-        for (ptrdiff_t j = 0; j < N; ++j)
+        for (ptrdiff_t j = 0; j < L; ++j)
           utils::assign(self, B, utils::NoRowIndex{}, j, op);
       }
     } else {
+      ptrdiff_t R = ptrdiff_t(M), C = ptrdiff_t(N);
       POLYMATHNOVECTORIZE
-      for (ptrdiff_t i = 0; i < M; ++i) {
+      for (ptrdiff_t i = 0; i < R; ++i) {
         if constexpr (!std::is_copy_assignable_v<T> &&
                       std::same_as<Op, utils::CopyAssign>) {
           POLYMATHVECTORIZE
-          for (ptrdiff_t j = 0; j < N; ++j)
+          for (ptrdiff_t j = 0; j < C; ++j)
             if constexpr (std::convertible_to<decltype(B), T>)
               self[i, j] = auto{B};
             else if constexpr (RowVector<decltype(B)>) self[i, j] = auto{B[j]};
@@ -151,7 +153,7 @@ template <class T, class S, class P> class ArrayOps {
             else self[i, j] = auto{B[i, j]};
         } else {
           POLYMATHVECTORIZE
-          for (ptrdiff_t j = 0; j < N; ++j) utils::assign(self, B, i, j, op);
+          for (ptrdiff_t j = 0; j < C; ++j) utils::assign(self, B, i, j, op);
         }
       }
     }

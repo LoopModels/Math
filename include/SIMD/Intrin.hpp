@@ -27,7 +27,11 @@ concept SIMDSupported = std::same_as<T, int64_t> || std::same_as<T, double>;
 #ifdef __x86_64__
 
 // TODO: make `consteval` when clang supports it
+#ifdef __clang__
+template <ptrdiff_t W, typename T> constexpr auto mmzero() {
+#else
 template <ptrdiff_t W, typename T> consteval auto mmzero() {
+#endif
   // Extend if/when supporting more types
   static_assert(std::popcount(size_t(W)) == 1 && W <= 8);
   constexpr Vec<W, T> z{};
@@ -78,8 +82,8 @@ template <typename T>
   else static_assert(false);
 }
 template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline void
-store(const T *p, mask::None<8>, Vec<8, T> x) {
+[[gnu::always_inline, gnu::artificial]] inline void store(T *p, mask::None<8>,
+                                                          Vec<8, T> x) {
   if constexpr (std::same_as<T, double>)
     _mm512_storeu_pd(p, std::bit_cast<__m512d>(x));
   else if constexpr (std::same_as<T, int64_t>)
@@ -111,17 +115,18 @@ load(const T *p, mask::None<8>, int32_t stride) -> Vec<8, T> {
 template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
 load(const T *p, mask::Bit<8> i, int32_t stride) -> Vec<8, T> {
+  auto src = mmzero<8, T>();
   if constexpr (std::same_as<T, double>)
-    return std::bit_cast<Vec<8, double>>(_mm512_mask_i32gather_pd(
-      mmzero<8, double>(), uint8_t(i.mask), vindex<8>(stride), p, 8));
+    return std::bit_cast<Vec<8, double>>(
+      _mm512_mask_i32gather_pd(src, uint8_t(i.mask), vindex<8>(stride), p, 8));
   else if constexpr (std::same_as<T, int64_t>)
     return std::bit_cast<Vec<8, int64_t>>(_mm512_mask_i32gather_epi64(
-      mmzero<8, int64_t>(), uint8_t(i.mask), vindex<8>(stride), p, 8));
+      src, uint8_t(i.mask), vindex<8>(stride), p, 8));
   else static_assert(false);
 }
 template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(const T *p, mask::None<8>, Vec<8, T> x, int32_t stride) {
+store(T *p, mask::None<8>, Vec<8, T> x, int32_t stride) {
   if constexpr (std::same_as<T, double>)
     _mm512_i32scatter_pd(p, vindex<8>(stride), std::bit_cast<__m512d>(x), 8);
   else if constexpr (std::same_as<T, int64_t>)
@@ -213,7 +218,7 @@ template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void store(T *p, mask::Bit<2> i,
                                                           Vec<2, T> x) {
   if constexpr (std::same_as<T, double>)
-    _mm_mask_storeu_pd(p, uint8_t(i.mask), std::bit_cast<__128d>(x));
+    _mm_mask_storeu_pd(p, uint8_t(i.mask), std::bit_cast<__m128d>(x));
   else if constexpr (std::same_as<T, int64_t>)
     _mm_mask_storeu_epi64(p, uint8_t(i.mask), std::bit_cast<__m128i>(x));
   else static_assert(false);
@@ -222,17 +227,18 @@ template <typename T>
 template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
 load(const T *p, mask::Bit<4> i, int32_t stride) -> Vec<4, T> {
+  auto src{mmzero<4, T>()};
   if constexpr (std::same_as<T, double>)
-    return std::bit_cast<Vec<4, double>>(_mm256_mmask_i32gather_pd(
-      mmzero<4, double>(), uint8_t(i.mask), vindex<4>(stride), p, 8));
+    return std::bit_cast<Vec<4, double>>(
+      _mm256_mmask_i32gather_pd(src, uint8_t(i.mask), vindex<4>(stride), p, 8));
   else if constexpr (std::same_as<T, int64_t>)
     return std::bit_cast<Vec<4, int64_t>>(_mm256_mmask_i32gather_epi64(
-      mmzero<4, int64_t>(), uint8_t(i.mask), vindex<4>(stride), p, 8));
+      src, uint8_t(i.mask), vindex<4>(stride), p, 8));
   else static_assert(false);
 }
 template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(const T *p, mask::None<4>, Vec<4, T> x, int32_t stride) {
+store(T *p, mask::None<4>, Vec<4, T> x, int32_t stride) {
   if constexpr (std::same_as<T, double>)
     _mm256_i32scatter_pd(p, vindex<4>(stride), std::bit_cast<__m256d>(x), 8);
   else if constexpr (std::same_as<T, int64_t>)
@@ -253,17 +259,18 @@ store(T *p, mask::Bit<4> i, Vec<4, T> x, int32_t stride) {
 template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto
 load(const T *p, mask::Bit<2> i, int32_t stride) -> Vec<2, T> {
+  auto src{mmzero<2, T>()};
   if constexpr (std::same_as<T, double>)
-    return std::bit_cast<Vec<2, double>>(_mm_mmask_i64gather_pd(
-      mmzero<2, double>(), uint8_t(i.mask), vindex<2>(stride), p, 8));
+    return std::bit_cast<Vec<2, double>>(
+      _mm_mmask_i64gather_pd(src, uint8_t(i.mask), vindex<2>(stride), p, 8));
   else if constexpr (std::same_as<T, int64_t>)
-    return std::bit_cast<Vec<2, int64_t>>(_mm_mmask_i64gather_epi64(
-      mmzero<2, int64_t>(), uint8_t(i.mask), vindex<2>(stride), p, 8));
+    return std::bit_cast<Vec<2, int64_t>>(
+      _mm_mmask_i64gather_epi64(src, uint8_t(i.mask), vindex<2>(stride), p, 8));
   else static_assert(false);
 }
 template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void
-store(const T *p, mask::None<2>, Vec<2, T> x, int32_t stride) {
+store(T *p, mask::None<2>, Vec<2, T> x, int32_t stride) {
   if constexpr (std::same_as<T, double>)
     _mm_i64scatter_pd(p, vindex<2>(stride), std::bit_cast<__m128d>(x), 8);
   else if constexpr (std::same_as<T, int64_t>)

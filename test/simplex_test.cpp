@@ -118,7 +118,14 @@ auto simplexFromTableau(Arena<> *alloc, IntMatrix<> &tableau)
   ptrdiff_t numCon = ptrdiff_t(tableau.numRow()) - 1;
   ptrdiff_t numVar = ptrdiff_t(tableau.numCol()) - 1;
   Simplex *simp{Simplex::create(alloc, numCon, numVar)};
+  for (ptrdiff_t r = 0, R = ptrdiff_t(numRows(tableau)); r < R; ++r)
+    for (ptrdiff_t c = 0, N = ptrdiff_t(numCols(tableau)); c < N; ++c)
+      invariant(tableau[r, c] != std::numeric_limits<int64_t>::min());
   simp->getTableau() << tableau;
+  auto C{simp->getConstraints()};
+  for (ptrdiff_t r = 0, R = ptrdiff_t(numRows(C)); r < R; ++r)
+    for (ptrdiff_t c = 0, N = ptrdiff_t(numCols(C)); c < N; ++c)
+      invariant(C[r, c] != std::numeric_limits<int64_t>::min());
   return simp;
 }
 
@@ -1346,7 +1353,7 @@ TEST(LexMinSimplexTest2, BasicAssertions) {
   }
 }
 
-TEST(Infesaible, BasicAssertions) {
+TEST(Infeasible, BasicAssertions) {
   IntMatrix<> C{DenseDims<>{{220}, {383}}, 0};
   C[0, 0] = -1;
   C[0, 1] = 1;
