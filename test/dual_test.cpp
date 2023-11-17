@@ -199,7 +199,7 @@ TEST(ExpMatTest, BasicAssertions) {
   B[3, 1] = 0.4472989810307132;
   B[3, 2] = -0.11106692926404803;
   B[3, 3] = 0.3930685232252409;
-  EXPECT_TRUE(norm2(B - expm(A)) < 1e-10);
+  EXPECT_LE(norm2(B - expm(A)), 1e-10);
 
   SquareMatrix<Dual<double, 2>, L> Ad(4);
   Ad[0, 0] = Dual<double, 2>{
