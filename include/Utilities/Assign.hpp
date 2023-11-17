@@ -10,7 +10,7 @@ struct CopyAssign {};
 struct NoRowIndex {};
 
 template <typename D, typename S, typename Op>
-[[gnu::always_inline]] constexpr void assign(D &d, const S &s, Op op) {
+[[gnu::always_inline]] constexpr void assign(D &&d, const S &s, Op op) {
   if constexpr (std::same_as<Op, CopyAssign>) d = s;
   else if constexpr (std::same_as<Op, std::plus<>>) d += s;
   else if constexpr (std::same_as<Op, std::minus<>>) d -= s;

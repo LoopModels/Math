@@ -4,10 +4,16 @@
 #include "SIMD/Intrin.hpp"
 #include <functional>
 namespace poly::simd {
+// template <typename T, ptrdiff_t W, typename S>
+// [[gnu::always_inline]] constexpr auto vcvt(Vec<W, S> v) {
+//   if constexpr (std::same_as<T, S>) return v;
+//   else if constexpr (W == 1) return T(v);
+//   else return __builtin_convertvector(v, Vec<W, T>);
+// }
 // Vector goes across cols
 template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t N, typename T> struct Unroll {
   static constexpr ptrdiff_t W = ptrdiff_t(std::bit_ceil(size_t(N)));
-  using VT = std::conditional_t<W == 1, T, Vec<W, T>>;
+  using VT = Vec<W, T>;
   static_assert(R * C > 0);
   VT data[R * C];
   constexpr auto operator[](ptrdiff_t i) -> VT & { return data[i]; }
@@ -18,7 +24,17 @@ template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t N, typename T> struct Unroll {
   constexpr auto operator[](ptrdiff_t r, ptrdiff_t c) const -> VT {
     return data[r * C + c];
   }
-
+  template <typename U>
+  [[gnu::always_inline]] constexpr operator Unroll<R, C, N, U>() const
+  requires(!std::same_as<T, U>)
+  {
+    Unroll<R, C, N, U> x;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t i = 0; i < R * C; ++i)
+      if constexpr (W == 1) x.data[i] = U(data[i]);
+      else x.data[i] = __builtin_convertvector(data[i], Vec<W, U>);
+    return x;
+  }
   [[gnu::always_inline]] constexpr auto operator-() {
     Unroll a;
     for (ptrdiff_t i = 0; i < R * C; ++i) a.data[i] = -data[i];
@@ -68,126 +84,133 @@ template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t N, typename T> struct Unroll {
     for (ptrdiff_t i = 0; i < R * C; ++i) data[i] /= a;
     return *this;
   }
-  [[gnu::always_inline]] constexpr auto operator+=(T a) -> Unroll &
+  [[gnu::always_inline]] constexpr auto
+  operator+=(std::convertible_to<T> auto a) -> Unroll &
   requires(W != 1)
   {
-    return (*this) += (typename Unroll<R, C, W, T>::VT{} + a);
+    return (*this) += (typename Unroll<R, C, W, T>::VT{} + T(a));
   }
-  [[gnu::always_inline]] constexpr auto operator-=(T a) -> Unroll &
+  [[gnu::always_inline]] constexpr auto
+  operator-=(std::convertible_to<T> auto a) -> Unroll &
   requires(W != 1)
   {
-    return (*this) -= (typename Unroll<R, C, W, T>::VT{} + a);
+    return (*this) -= (typename Unroll<R, C, W, T>::VT{} + T(a));
   }
-  [[gnu::always_inline]] constexpr auto operator*=(T a) -> Unroll &
+  [[gnu::always_inline]] constexpr auto
+  operator*=(std::convertible_to<T> auto a) -> Unroll &
   requires(W != 1)
   {
-    return (*this) *= (typename Unroll<R, C, W, T>::VT{} + a);
+    return (*this) *= (typename Unroll<R, C, W, T>::VT{} + T(a));
   }
-  [[gnu::always_inline]] constexpr auto operator/=(T a) -> Unroll &
+  [[gnu::always_inline]] constexpr auto
+  operator/=(std::convertible_to<T> auto a) -> Unroll &
   requires(W != 1)
   {
-    return (*this) /= (typename Unroll<R, C, W, T>::VT{} + a);
+    return (*this) /= (typename Unroll<R, C, W, T>::VT{} + T(a));
   }
 };
 
-template <ptrdiff_t R0, ptrdiff_t C0, ptrdiff_t W0, ptrdiff_t R1, ptrdiff_t C1,
-          ptrdiff_t W1, typename T, typename Op>
-[[gnu::always_inline]] constexpr auto
-applyop(const Unroll<R0, C0, W0, T> &a, const Unroll<R1, C1, W1, T> &b, Op op) {
+template <ptrdiff_t R0, ptrdiff_t C0, ptrdiff_t W0, typename T0, ptrdiff_t R1,
+          ptrdiff_t C1, ptrdiff_t W1, typename T1, typename Op>
+[[gnu::always_inline]] constexpr auto applyop(const Unroll<R0, C0, W0, T0> &a,
+                                              const Unroll<R1, C1, W1, T1> &b,
+                                              Op op) {
   // Possibilities:
   // 1. All match
   // 2. We had separate unrolls across rows and columns, and some arrays
   // were indexed by one or two of them.
   // In the latter case, we could have arrays indexed by rows, cols, or both.
-  if constexpr (W0 == W1) {
+  if constexpr (!std::same_as<T0, T1>) {
+    using T = std::common_type_t<T0, T1>;
+    return applyop(Unroll<R0, C0, W0, T>(a), Unroll<R1, C1, W1, T>(b), op);
+  } else if constexpr (W0 == W1) {
     // both were indexed by cols, and `C`s should also match
     // or neither were, and they should still match.
     static_assert(C0 == C1);
     if constexpr (R0 == R1) {
       // Both have the same index across rows
-      if constexpr (C0 == C1) {
-        Unroll<R0, C0, W0, T> c;
-        POLYMATHFULLUNROLL
-        for (ptrdiff_t i = 0; i < R0 * C0; ++i)
-          c.data[i] = op(a.data[i], b.data[i]);
-        return c;
-      }
+      Unroll<R0, C0, W0, T0> c;
+      POLYMATHFULLUNROLL
+      for (ptrdiff_t i = 0; i < R0 * C0; ++i)
+        c.data[i] = op(a.data[i], b.data[i]);
+      return c;
     } else if constexpr (R0 == 1) {
       // `a` was indexed across cols only
-      Unroll<R1, C0, W0, T> z;
+      Unroll<R1, C0, W0, T0> z;
       POLYMATHFULLUNROLL
       for (ptrdiff_t r = 0; r < R1; ++r) {
         POLYMATHFULLUNROLL
-        for (ptrdiff_t c = 0; c < C0; ++c)
-          z.data[r, c] = op(a.data[c], b.data[r, c]);
+        for (ptrdiff_t c = 0; c < C0; ++c) z[r, c] = op(a.data[c], b[r, c]);
       }
       return z;
     } else {
       static_assert(R1 == 1);
       // `b` was indexed across cols only
-      Unroll<R0, C0, W0, T> z;
+      Unroll<R0, C0, W0, T0> z;
       POLYMATHFULLUNROLL
       for (ptrdiff_t r = 0; r < R0; ++r) {
         POLYMATHFULLUNROLL
-        for (ptrdiff_t c = 0; c < C0; ++c)
-          z.data[r, c] = op(a.data[r, c], b.data[c]);
+        for (ptrdiff_t c = 0; c < C0; ++c) z[r, c] = op(a[r, c], b.data[c]);
       }
       return z;
     }
   } else if constexpr (W0 == 1) {
-    static_assert(C0 == 1);
+    static_assert(R0 == 1 || C0 == 1);
+    constexpr ptrdiff_t R = R0 == 1 ? C0 : R0;
     // `a` was indexed by row only
-    Unroll<R0, C1, W1, T> z;
-    static_assert(R1 == R0 || R1 == 1);
+    Unroll<R, C1, W1, T0> z;
+    static_assert(R1 == R || R1 == 1);
     POLYMATHFULLUNROLL
-    for (ptrdiff_t r = 0; r < R0; ++r) {
+    for (ptrdiff_t r = 0; r < R; ++r) {
       POLYMATHFULLUNROLL
       for (ptrdiff_t c = 0; c < C1; ++c)
-        if constexpr (R0 == R1) z.data[r, c] = op(a.data[r], b.data[r, c]);
-        else z.data[r, c] = op(a.data[r], b.data[c]);
+        if constexpr (R == R1) z[r, c] = op(a.data[r], b[r, c]);
+        else z[r, c] = op(a.data[r], b.data[c]);
     }
     return z;
   } else {
-    static_assert(W1 == 1 && C1 == 1);
+    static_assert(W1 == 1);
+    static_assert(R1 == 1 || C1 == 1);
+    constexpr ptrdiff_t R = R1 == 1 ? C1 : R1;
     // `b` was indexed by row only
-    Unroll<R1, C0, W0, T> z;
-    static_assert(R0 == R1 || R0 == 1);
+    Unroll<R, C0, W0, T0> z;
+    static_assert(R0 == R || R0 == 1);
     POLYMATHFULLUNROLL
-    for (ptrdiff_t r = 0; r < R1; ++r) {
+    for (ptrdiff_t r = 0; r < R; ++r) {
       POLYMATHFULLUNROLL
       for (ptrdiff_t c = 0; c < C0; ++c)
-        if constexpr (R0 == R1) z.data[r, c] = op(a.data[r, c], b.data[r]);
-        else z.data[r, c] = op(a.data[c], b.data[r]);
+        if constexpr (R0 == R) z[r, c] = op(a[r, c], b.data[r]);
+        else z[r, c] = op(a.data[c], b.data[r]);
     }
     return z;
   }
 }
 
-template <ptrdiff_t R0, ptrdiff_t C0, ptrdiff_t W0, ptrdiff_t R1, ptrdiff_t C1,
-          ptrdiff_t W1, typename T>
+template <ptrdiff_t R0, ptrdiff_t C0, ptrdiff_t W0, typename T0, ptrdiff_t R1,
+          ptrdiff_t C1, ptrdiff_t W1, typename T1>
 [[gnu::always_inline]] constexpr auto
-operator+(const Unroll<R0, C0, W0, T> &a, const Unroll<R1, C1, W1, T> &b) {
+operator+(const Unroll<R0, C0, W0, T0> &a, const Unroll<R1, C1, W1, T1> &b) {
   return applyop(a, b, std::plus<>{});
 }
 
-template <ptrdiff_t R0, ptrdiff_t C0, ptrdiff_t W0, ptrdiff_t R1, ptrdiff_t C1,
-          ptrdiff_t W1, typename T>
+template <ptrdiff_t R0, ptrdiff_t C0, ptrdiff_t W0, typename T0, ptrdiff_t R1,
+          ptrdiff_t C1, ptrdiff_t W1, typename T1>
 [[gnu::always_inline]] constexpr auto
-operator-(const Unroll<R0, C0, W0, T> &a, const Unroll<R1, C1, W1, T> &b) {
+operator-(const Unroll<R0, C0, W0, T0> &a, const Unroll<R1, C1, W1, T1> &b) {
   return applyop(a, b, std::minus<>{});
 }
 
-template <ptrdiff_t R0, ptrdiff_t C0, ptrdiff_t W0, ptrdiff_t R1, ptrdiff_t C1,
-          ptrdiff_t W1, typename T>
+template <ptrdiff_t R0, ptrdiff_t C0, ptrdiff_t W0, typename T0, ptrdiff_t R1,
+          ptrdiff_t C1, ptrdiff_t W1, typename T1>
 [[gnu::always_inline]] constexpr auto
-operator*(const Unroll<R0, C0, W0, T> &a, const Unroll<R1, C1, W1, T> &b) {
+operator*(const Unroll<R0, C0, W0, T0> &a, const Unroll<R1, C1, W1, T1> &b) {
   return applyop(a, b, std::multiplies<>{});
 }
 
-template <ptrdiff_t R0, ptrdiff_t C0, ptrdiff_t W0, ptrdiff_t R1, ptrdiff_t C1,
-          ptrdiff_t W1, typename T>
+template <ptrdiff_t R0, ptrdiff_t C0, ptrdiff_t W0, typename T0, ptrdiff_t R1,
+          ptrdiff_t C1, ptrdiff_t W1, typename T1>
 [[gnu::always_inline]] constexpr auto
-operator/(const Unroll<R0, C0, W0, T> &a, const Unroll<R1, C1, W1, T> &b) {
+operator/(const Unroll<R0, C0, W0, T0> &a, const Unroll<R1, C1, W1, T1> &b) {
   return applyop(a, b, std::divides<>{});
 }
 
@@ -229,31 +252,35 @@ operator/(const Unroll<R, C, W, T> &a, typename Unroll<R, C, W, T>::VT b)
 }
 template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
 [[gnu::always_inline]] constexpr auto operator+(const Unroll<R, C, W, T> &a,
-                                                T b) -> Unroll<R, C, W, T>
+                                                std::convertible_to<T> auto b)
+  -> Unroll<R, C, W, T>
 requires(W != 1)
 {
-  return a + (typename Unroll<R, C, W, T>::VT{} + b);
+  return a + (typename Unroll<R, C, W, T>::VT{} + T(b));
 }
 template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
 [[gnu::always_inline]] constexpr auto operator-(const Unroll<R, C, W, T> &a,
-                                                T b) -> Unroll<R, C, W, T>
+                                                std::convertible_to<T> auto b)
+  -> Unroll<R, C, W, T>
 requires(W != 1)
 {
-  return a - (typename Unroll<R, C, W, T>::VT{} + b);
+  return a - (typename Unroll<R, C, W, T>::VT{} + T(b));
 }
 template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
 [[gnu::always_inline]] constexpr auto operator*(const Unroll<R, C, W, T> &a,
-                                                T b) -> Unroll<R, C, W, T>
+                                                std::convertible_to<T> auto b)
+  -> Unroll<R, C, W, T>
 requires(W != 1)
 {
-  return a * (typename Unroll<R, C, W, T>::VT{} + b);
+  return a * (typename Unroll<R, C, W, T>::VT{} + T(b));
 }
 template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>
 [[gnu::always_inline]] constexpr auto operator/(const Unroll<R, C, W, T> &a,
-                                                T b) -> Unroll<R, C, W, T>
+                                                std::convertible_to<T> auto b)
+  -> Unroll<R, C, W, T>
 requires(W != 1)
 {
-  return a / (typename Unroll<R, C, W, T>::VT{} + b);
+  return a / (typename Unroll<R, C, W, T>::VT{} + T(b));
 }
 
 template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename T>

@@ -19,7 +19,8 @@
 #elif defined (__clang__)
 #define POLYMATHVECTORIZE _Pragma("omp simd")\
  _Pragma("clang loop vectorize(enable) interleave_count(2) vectorize_predicate(enable)")
-#define POLYMATHIVDEP _Pragma("clang loop vectorize(disable)")
+#define POLYMATHIVDEP 
+// _Pragma("clang loop vectorize(disable)")
 #define POLYMATHNOUNROLL _Pragma("nounroll")
 #define POLYMATHFULLUNROLL _Pragma("unroll")
 #define POLYMATHNOVECTORIZE _Pragma("clang loop vectorize(disable)")

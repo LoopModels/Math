@@ -23,6 +23,14 @@ template <ptrdiff_t R> consteval auto unrollf() -> std::array<ptrdiff_t, 2> {
   return {4, R % 4};
 }
 
+template <typename D, typename S>
+constexpr void fastCopy(D *d, const S *s, size_t N) {
+  if (!N) return;
+  if constexpr (std::same_as<D, S> && std::is_trivially_copyable_v<D>)
+    std::memcpy(d, s, N * sizeof(D));
+  else std::copy_n(s, N, d);
+}
+
 template <typename T>
 concept IsOne =
   std::same_as<std::remove_cvref_t<T>, std::integral_constant<ptrdiff_t, 1>>;
@@ -79,15 +87,18 @@ template <class T, class S, class P> class ArrayOps {
   }
   template <typename Op> void vcopyTo(const auto &B, Op op) {
     static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
-    static_assert(MatrixDimension<S>);
     P &self{Self()};
     auto [M, N] = shape(self);
-    invariant(ptrdiff_t(M), ptrdiff_t(B.numRow()));
-    invariant(N, ptrdiff_t(B.numCol()));
+    if constexpr (!std::convertible_to<decltype(B), T>) {
+      if constexpr (!IsOne<decltype(numRows(B))>)
+        invariant(ptrdiff_t(M), ptrdiff_t(numRows(B)));
+      if constexpr (!IsOne<decltype(numCols(B))>)
+        invariant(ptrdiff_t(N), ptrdiff_t(numCols(B)));
+    }
     if constexpr (std::same_as<Op, utils::CopyAssign> && DenseLayout<S> &&
                   DenseTensor<std::remove_cvref_t<decltype(B)>>) {
       if constexpr (std::is_trivially_copyable_v<T>)
-        std::memcpy(data_(), M * N * sizeof(T), B.begin());
+        std::memcpy(data_(), B.begin(), M * N * sizeof(T));
       else std::copy_n(B.begin(), M * N, data_());
     } else if constexpr (simd::SIMDSupported<T>) {
       if constexpr (IsOne<decltype(M)>)
@@ -146,17 +157,17 @@ template <class T, class S, class P> class ArrayOps {
     }
   }
   template <typename Op> constexpr void scopyTo(const auto &B, Op op) {
-    static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
-    static_assert(MatrixDimension<S>);
     P &self{Self()};
     auto [M, N] = shape(self);
-    invariant(ptrdiff_t(M), ptrdiff_t(B.numRow()));
-    invariant(N, ptrdiff_t(B.numCol()));
+    if constexpr (!std::convertible_to<decltype(B), T>) {
+      if constexpr (!IsOne<decltype(numRows(B))>)
+        invariant(ptrdiff_t(M), ptrdiff_t(numRows(B)));
+      if constexpr (!IsOne<decltype(numCols(B))>)
+        invariant(ptrdiff_t(N), ptrdiff_t(numCols(B)));
+    }
     if constexpr (std::same_as<Op, utils::CopyAssign> && DenseLayout<S> &&
                   DenseTensor<std::remove_cvref_t<decltype(B)>>) {
-      if constexpr (std::is_trivially_copyable_v<T>)
-        std::memcpy(data_(), M * N * sizeof(T), B.begin());
-      else std::copy_n(B.begin(), M * N, data_());
+      fastCopy(data_(), B.begin(), M * N);
     } else if constexpr (AbstractVector<P>) {
       if constexpr (!std::is_copy_assignable_v<T> &&
                     std::same_as<Op, utils::CopyAssign>) {
@@ -165,7 +176,7 @@ template <class T, class S, class P> class ArrayOps {
           if constexpr (std::convertible_to<decltype(B), T>) self[j] = auto{B};
           else self[j] = auto{B[j]};
       } else {
-        POLYMATHIVDEP
+        // POLYMATHIVDEP
         for (ptrdiff_t j = 0; j < N; ++j)
           utils::assign(self, B, utils::NoRowIndex{}, j, op);
       }
@@ -193,9 +204,7 @@ template <class T, class S, class P> class ArrayOps {
     if consteval {
       scopyTo(B, op);
     } else {
-      if constexpr ((sizeof(T) <= sizeof(double)) &&
-                    (!HasInnerReduction<std::remove_cvref_t<decltype(B)>>))
-        vcopyTo(B, op);
+      if constexpr (sizeof(T) <= sizeof(double)) vcopyTo(B, op);
       else scopyTo(B, op);
     }
   }

@@ -95,11 +95,13 @@ template <typename T, typename S, typename I>
 // for (row/col)vectors, we drop the row/col, essentially broadcasting
 template <typename T, typename S, typename R, typename C>
 [[gnu::flatten, gnu::always_inline]] constexpr auto index(const T *ptr, S shape,
-                                                          R r, C c) noexcept
+                                                          R wr, C wc) noexcept
   -> decltype(auto) {
   if constexpr (MatrixDimension<S>) {
-    auto offset = calcOffset(shape, unwrapRow(r), unwrapCol(c));
-    auto newDim = calcNewDim(shape, unwrapRow(r), unwrapCol(c));
+    auto r = unwrapRow(wr);
+    auto c = unwrapCol(wc);
+    auto offset = calcOffset(shape, r, c);
+    auto newDim = calcNewDim(shape, r, c);
     if constexpr (std::same_as<decltype(newDim), Empty>)
       // 3.a.i. Vector indexing, contig, no mask
       // 3.a.ii. Vector indexing, contig, mask
@@ -110,8 +112,8 @@ template <typename T, typename S, typename R, typename C>
       return simd::ref(ptr + offset, newDim);
     else return Array<T, decltype(newDim)>{ptr + offset, newDim};
   } else if constexpr (std::same_as<S, StridedRange>)
-    return index(ptr, shape, r);
-  else return index(ptr, shape, c);
+    return index(ptr, shape, unwrapRow(wr));
+  else return index(ptr, shape, unwrapCol(wc));
 }
 
 template <typename T, typename S, typename I>

@@ -84,12 +84,12 @@ TEST(SparseIndexingTest, BasicAssertions) {
   // At << A.t();
   // Bt << B.t();
   C2 += At.t() * Bt.t();
-  EXPECT_TRUE(C * 2 == C2);
-  EXPECT_TRUE(C == At.t() * B);
-  EXPECT_TRUE(C == A * Bt.t());
-  EXPECT_TRUE(C == At.t() * Bt.t());
+  EXPECT_EQ(C * 2, C2);
+  EXPECT_EQ(C, At.t() * B);
+  EXPECT_EQ(C, A * Bt.t());
+  EXPECT_EQ(C, At.t() * Bt.t());
   C2 -= A * Bt.t();
-  EXPECT_TRUE(C == C2);
+  EXPECT_EQ(C, C2);
   int64_t i = 0;
   IntMatrix<> D{C};
   std::cout << "C=" << C << "\n";

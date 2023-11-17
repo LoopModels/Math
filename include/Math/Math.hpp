@@ -65,6 +65,7 @@ template <typename Op, typename A, typename B>
 concept BinaryFuncOfElts =
   std::is_invocable_v<Op, indextype_t<A, B>, indextype_t<B, A>>;
 
+// TODO: make this part of ArrayOps!!!
 [[gnu::flatten]] constexpr auto operator==(const AbstractMatrix auto &A,
                                            const AbstractMatrix auto &B)
   -> bool {
@@ -128,6 +129,7 @@ template <typename S, LinearlyIndexable<S> V>
 }
 template <typename S, CartesianIndexable<S> V>
 [[gnu::always_inline]] constexpr auto get(const V &v, auto i, auto j) {
+
   return v[i, j];
 }
 
@@ -366,14 +368,12 @@ template <AbstractTensor A, AbstractTensor B> struct MatMatMul {
   // Matrix * Matrix
   [[no_unique_address]] A a;
   [[no_unique_address]] B b;
-  [[gnu::always_inline]] constexpr auto operator[](ptrdiff_t i,
-                                                   ptrdiff_t j) const
-    -> value_type
+  [[gnu::always_inline]] constexpr auto operator[](auto i, auto j) const
   requires(ismatrix)
   {
     static_assert(AbstractMatrix<B>, "B should be an AbstractMatrix");
     invariant(ptrdiff_t(a.numCol()) > 0);
-    value_type s{};
+    decltype(a[i, 0] * b[0, j] + a[i, 1] * b[1, j]) s{};
     POLYMATHNOVECTORIZE
     for (ptrdiff_t k = 0; k < ptrdiff_t(a.numCol()); ++k)
       s += a[i, k] * b[k, j];
@@ -396,28 +396,29 @@ template <AbstractTensor A, AbstractTensor B> struct MatMatMul {
   // implementation strategy.
   //
   //
-  [[gnu::always_inline]] constexpr auto operator[](ptrdiff_t i) const
-    -> value_type
+  [[gnu::always_inline]] constexpr auto operator[](auto i) const
   requires(!ismatrix)
   {
-    value_type s = 0;
     if constexpr (RowVector<A>) {
       invariant(a.size() == b.numRow());
       invariant(a.size() > 0);
+      decltype(a[0] * b[0, i] + a[1] * b[1, i]) s{};
       POLYMATHNOVECTORIZE
       for (ptrdiff_t k = 0; k < a.numCol(); ++k) {
         POLYMATHFAST
         s += a[k] * b[k, i];
       }
+      return s;
     } else { // ColVector<B>
       invariant(a.numCol() == b.size());
       invariant(b.size() > 0);
+      decltype(a[i, 0] * b[0] + a[i, 1] * b[1]) s{};
       for (ptrdiff_t k = 0; k < a.numCol(); ++k) {
         POLYMATHFAST
         s += a[i, k] * b[k];
       }
+      return s;
     }
-    return s;
   }
   [[nodiscard]] constexpr auto numRow() const
   requires(ismatrix)

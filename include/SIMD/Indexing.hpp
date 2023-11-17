@@ -28,9 +28,19 @@ template <ptrdiff_t U, ptrdiff_t W>
 //   return Unroll<R,C,W,M,X>{index,mask,rs};
 // }
 
+/// UnrollDims<R,C,W,M,Transposed=false>
+/// Transposed means that the `W` dim indexes across the stride
+/// !Tranposed means that the `W` dim is contiguous.
+/// Note that `UnrollDims<R,C,1,mask::None<1>,false>` is thus morally
+/// equivalent to `UnrollDims<C,R,1,mask::None<1>,true>`
+///
 template <ptrdiff_t R, ptrdiff_t C = 1, ptrdiff_t W = 1,
           typename M = mask::None<W>, bool Transposed = false, ptrdiff_t X = -1>
 struct UnrollDims {
+  static_assert(W != 1 || std::same_as<M, mask::None<1>>,
+                "Only mask vector dims");
+  static_assert(W != 1 || !Transposed,
+                "Canonicalize scalar with Tranpose=false");
   [[no_unique_address]] M mask;
   [[no_unique_address]] math::RowStride<X> rs;
 };

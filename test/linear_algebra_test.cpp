@@ -38,12 +38,12 @@ TEST(LinearAlgebraTest, BasicAssertions) {
   auto copyB = B;
   EXPECT_FALSE(LUF.ldivrat(copyB));
   std::cout << "LUF.ldiv(B) = \n" << copyB << "\n";
-  EXPECT_TRUE(copyB == identity);
+  EXPECT_EQ(copyB, identity);
   std::cout << "I = " << identity << "\n";
 
   EXPECT_FALSE(LUF.rdivrat(B));
   std::cout << "LUF.rdiv(B) = \n" << B << "\n";
-  EXPECT_TRUE(B == identity);
+  EXPECT_EQ(B, identity);
 }
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
