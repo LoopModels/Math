@@ -613,7 +613,8 @@ store(T *p, mask::Vector<W> i, Vec<W, T> x, int32_t stride) {
 #endif
 
 template <typename T>
-static constexpr ptrdiff_t Width = VECTORWIDTH / sizeof(T);
+static constexpr ptrdiff_t Width =
+  SIMDSupported<T> ? VECTORWIDTH / sizeof(T) : 1;
 
 // returns { vector_size, num_vectors, remainder }
 template <ptrdiff_t L, typename T>

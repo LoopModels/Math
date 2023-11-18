@@ -112,6 +112,167 @@
 },
 
 {
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_STATIC_DEFINE -I/home/chriselrod/Documents/progwork/cxx/Math/benchmark/../include -isystem /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -O3 -DNDEBUG -std=gnu++23 -fvisibility=hidden -fvisibility-inlines-hidden -ferror-limit=2 -fcolor-diagnostics -march=native -mprefer-vector-width=512 -fno-exceptions -fno-rtti -fstrict-aliasing -fno-plt -fstrict-overflow -fomit-frame-pointer -fno-signed-zeros -fassociative-math -ffinite-math-only -funsafe-math-optimizations -fno-trapping-math -Wall -Wshadow -Wextra -save-temps -fopenmp-simd -masm=intel -o CMakeFiles/MathBenchmarks.dir/expm_benchmark.cpp.o -c /home/chriselrod/Documents/progwork/cxx/Math/benchmark/expm_benchmark.cpp",
+  "file": "/home/chriselrod/Documents/progwork/cxx/Math/benchmark/expm_benchmark.cpp",
+  "output": "CMakeFiles/MathBenchmarks.dir/expm_benchmark.cpp.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_STATIC_DEFINE -I/home/chriselrod/Documents/progwork/cxx/Math/benchmark/../include -isystem /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -O3 -DNDEBUG -std=gnu++23 -fvisibility=hidden -fvisibility-inlines-hidden -ferror-limit=2 -fcolor-diagnostics -march=native -mprefer-vector-width=512 -fno-exceptions -fno-rtti -fstrict-aliasing -fno-plt -fstrict-overflow -fomit-frame-pointer -fno-signed-zeros -fassociative-math -ffinite-math-only -funsafe-math-optimizations -fno-trapping-math -Wall -Wshadow -Wextra -save-temps -fopenmp-simd -masm=intel -o CMakeFiles/MathBenchmarks.dir/simplex_benchmark.cpp.o -c /home/chriselrod/Documents/progwork/cxx/Math/benchmark/simplex_benchmark.cpp",
+  "file": "/home/chriselrod/Documents/progwork/cxx/Math/benchmark/simplex_benchmark.cpp",
+  "output": "CMakeFiles/MathBenchmarks.dir/simplex_benchmark.cpp.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_STATIC_DEFINE -I/home/chriselrod/Documents/progwork/cxx/Math/benchmark/../include -isystem /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -O3 -DNDEBUG -std=gnu++23 -fvisibility=hidden -fvisibility-inlines-hidden -ferror-limit=2 -fcolor-diagnostics -march=native -mprefer-vector-width=512 -fno-exceptions -fno-rtti -fstrict-aliasing -fno-plt -fstrict-overflow -fomit-frame-pointer -fno-signed-zeros -fassociative-math -ffinite-math-only -funsafe-math-optimizations -fno-trapping-math -Wall -Wshadow -Wextra -save-temps -fopenmp-simd -masm=intel -o CMakeFiles/MathBenchmarks.dir/tensor_benchmark.cpp.o -c /home/chriselrod/Documents/progwork/cxx/Math/benchmark/tensor_benchmark.cpp",
+  "file": "/home/chriselrod/Documents/progwork/cxx/Math/benchmark/tensor_benchmark.cpp",
+  "output": "CMakeFiles/MathBenchmarks.dir/tensor_benchmark.cpp.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/benchmark.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/benchmark.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/benchmark_api_internal.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark_api_internal.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark_api_internal.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/benchmark_api_internal.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/benchmark_name.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark_name.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark_name.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/benchmark_name.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/benchmark_register.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark_register.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark_register.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/benchmark_register.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/benchmark_runner.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark_runner.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark_runner.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/benchmark_runner.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/check.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/check.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/check.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/check.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/colorprint.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/colorprint.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/colorprint.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/colorprint.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/commandlineflags.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/commandlineflags.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/commandlineflags.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/commandlineflags.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/complexity.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/complexity.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/complexity.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/complexity.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/console_reporter.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/console_reporter.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/console_reporter.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/console_reporter.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/counter.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/counter.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/counter.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/counter.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/csv_reporter.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/csv_reporter.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/csv_reporter.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/csv_reporter.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/json_reporter.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/json_reporter.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/json_reporter.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/json_reporter.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/perf_counters.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/perf_counters.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/perf_counters.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/perf_counters.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/reporter.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/reporter.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/reporter.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/reporter.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/statistics.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/statistics.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/statistics.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/statistics.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/string_util.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/string_util.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/string_util.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/string_util.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/sysinfo.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/sysinfo.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/sysinfo.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/sysinfo.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark.dir/timers.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/timers.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/timers.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark.dir/timers.cc.o"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -isystem /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -o CMakeFiles/benchmark_main.dir/benchmark_main.cc.o -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark_main.cc",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark_main.cc",
+  "output": "_deps/benchmark-build/src/CMakeFiles/benchmark_main.dir/benchmark_main.cc.o"
+},
+
+{
   "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan",
   "command": "/usr/local/bin/clang++ -DUSING_MIMALLOC -I/home/chriselrod/Documents/progwork/cxx/Math/include -I/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/_deps/math-build/PackageProjectInclude -isystem /usr/local/include/mimalloc-2.1 -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/include -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest -g -std=gnu++23 -fno-exceptions -fno-rtti -Wall -Wpedantic -Wextra -Wshadow -Werror -ferror-limit=8 -fcolor-diagnostics -D_GLIBCXX_ASSERTIONS -O0 -g --coverage -Winvalid-pch -Xclang -include-pch -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx.pch -Xclang -include -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx -c /home/chriselrod/Documents/progwork/cxx/Math/include/Containers/BitSets.hpp",
   "file": "/home/chriselrod/Documents/progwork/cxx/Math/include/Containers/BitSets.hpp"
@@ -136,8 +297,8 @@
 },
 
 {
-  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan",
-  "command": "/usr/local/bin/clang++ -DUSING_MIMALLOC -I/home/chriselrod/Documents/progwork/cxx/Math/include -I/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/_deps/math-build/PackageProjectInclude -isystem /usr/local/include/mimalloc-2.1 -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/include -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest -g -std=gnu++23 -fno-exceptions -fno-rtti -Wall -Wpedantic -Wextra -Wshadow -Werror -ferror-limit=8 -fcolor-diagnostics -D_GLIBCXX_ASSERTIONS -O0 -g --coverage -Winvalid-pch -Xclang -include-pch -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx.pch -Xclang -include -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx -c /home/chriselrod/Documents/progwork/cxx/Math/include/Utilities/Invariant.hpp",
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_STATIC_DEFINE -I/home/chriselrod/Documents/progwork/cxx/Math/benchmark/../include -isystem /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -O3 -DNDEBUG -std=gnu++23 -fvisibility=hidden -fvisibility-inlines-hidden -ferror-limit=2 -fcolor-diagnostics -march=native -mprefer-vector-width=512 -fno-exceptions -fno-rtti -fstrict-aliasing -fno-plt -fstrict-overflow -fomit-frame-pointer -fno-signed-zeros -fassociative-math -ffinite-math-only -funsafe-math-optimizations -fno-trapping-math -Wall -Wshadow -Wextra -save-temps -fopenmp-simd -masm=intel -c /home/chriselrod/Documents/progwork/cxx/Math/include/Utilities/Invariant.hpp",
   "file": "/home/chriselrod/Documents/progwork/cxx/Math/include/Utilities/Invariant.hpp"
 },
 
@@ -185,8 +346,20 @@
 
 {
   "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan",
-  "command": "/usr/local/bin/clang++ -DUSING_MIMALLOC -I/home/chriselrod/Documents/progwork/cxx/Math/include -I/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/_deps/math-build/PackageProjectInclude -isystem /usr/local/include/mimalloc-2.1 -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/include -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest -g -std=gnu++23 -fno-exceptions -fno-rtti -Wall -Wpedantic -Wextra -Wshadow -Werror -ferror-limit=8 -fcolor-diagnostics -D_GLIBCXX_ASSERTIONS -O0 -g --coverage -Winvalid-pch -Xclang -include-pch -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx.pch -Xclang -include -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx -c /home/chriselrod/Documents/progwork/cxx/Math/include/Math/SIMD.hpp",
-  "file": "/home/chriselrod/Documents/progwork/cxx/Math/include/Math/SIMD.hpp"
+  "command": "/usr/local/bin/clang++ -DUSING_MIMALLOC -I/home/chriselrod/Documents/progwork/cxx/Math/include -I/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/_deps/math-build/PackageProjectInclude -isystem /usr/local/include/mimalloc-2.1 -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/include -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest -g -std=gnu++23 -fno-exceptions -fno-rtti -Wall -Wpedantic -Wextra -Wshadow -Werror -ferror-limit=8 -fcolor-diagnostics -D_GLIBCXX_ASSERTIONS -O0 -g --coverage -Winvalid-pch -Xclang -include-pch -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx.pch -Xclang -include -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx -c /home/chriselrod/Documents/progwork/cxx/Math/include/SIMD/Indexing.hpp",
+  "file": "/home/chriselrod/Documents/progwork/cxx/Math/include/SIMD/Indexing.hpp"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan",
+  "command": "/usr/local/bin/clang++ -DUSING_MIMALLOC -I/home/chriselrod/Documents/progwork/cxx/Math/include -I/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/_deps/math-build/PackageProjectInclude -isystem /usr/local/include/mimalloc-2.1 -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/include -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest -g -std=gnu++23 -fno-exceptions -fno-rtti -Wall -Wpedantic -Wextra -Wshadow -Werror -ferror-limit=8 -fcolor-diagnostics -D_GLIBCXX_ASSERTIONS -O0 -g --coverage -Winvalid-pch -Xclang -include-pch -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx.pch -Xclang -include -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx -c /home/chriselrod/Documents/progwork/cxx/Math/include/SIMD/Masks.hpp",
+  "file": "/home/chriselrod/Documents/progwork/cxx/Math/include/SIMD/Masks.hpp"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan",
+  "command": "/usr/local/bin/clang++ -DUSING_MIMALLOC -I/home/chriselrod/Documents/progwork/cxx/Math/include -I/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/_deps/math-build/PackageProjectInclude -isystem /usr/local/include/mimalloc-2.1 -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/include -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest -g -std=gnu++23 -fno-exceptions -fno-rtti -Wall -Wpedantic -Wextra -Wshadow -Werror -ferror-limit=8 -fcolor-diagnostics -D_GLIBCXX_ASSERTIONS -O0 -g --coverage -Winvalid-pch -Xclang -include-pch -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx.pch -Xclang -include -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx -c /home/chriselrod/Documents/progwork/cxx/Math/include/SIMD/Vec.hpp",
+  "file": "/home/chriselrod/Documents/progwork/cxx/Math/include/SIMD/Vec.hpp"
 },
 
 {
@@ -209,8 +382,26 @@
 
 {
   "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan",
+  "command": "/usr/local/bin/clang++ -DUSING_MIMALLOC -I/home/chriselrod/Documents/progwork/cxx/Math/include -I/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/_deps/math-build/PackageProjectInclude -isystem /usr/local/include/mimalloc-2.1 -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/include -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest -g -std=gnu++23 -fno-exceptions -fno-rtti -Wall -Wpedantic -Wextra -Wshadow -Werror -ferror-limit=8 -fcolor-diagnostics -D_GLIBCXX_ASSERTIONS -O0 -g --coverage -Winvalid-pch -Xclang -include-pch -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx.pch -Xclang -include -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx -c /home/chriselrod/Documents/progwork/cxx/Math/include/SIMD/Unroll.hpp",
+  "file": "/home/chriselrod/Documents/progwork/cxx/Math/include/SIMD/Unroll.hpp"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan",
+  "command": "/usr/local/bin/clang++ -DUSING_MIMALLOC -I/home/chriselrod/Documents/progwork/cxx/Math/include -I/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/_deps/math-build/PackageProjectInclude -isystem /usr/local/include/mimalloc-2.1 -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/include -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest -g -std=gnu++23 -fno-exceptions -fno-rtti -Wall -Wpedantic -Wextra -Wshadow -Werror -ferror-limit=8 -fcolor-diagnostics -D_GLIBCXX_ASSERTIONS -O0 -g --coverage -Winvalid-pch -Xclang -include-pch -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx.pch -Xclang -include -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx -c /home/chriselrod/Documents/progwork/cxx/Math/include/SIMD/Intrin.hpp",
+  "file": "/home/chriselrod/Documents/progwork/cxx/Math/include/SIMD/Intrin.hpp"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan",
   "command": "/usr/local/bin/clang++ -DUSING_MIMALLOC -I/home/chriselrod/Documents/progwork/cxx/Math/include -I/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/_deps/math-build/PackageProjectInclude -isystem /usr/local/include/mimalloc-2.1 -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/include -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest -g -std=gnu++23 -fno-exceptions -fno-rtti -Wall -Wpedantic -Wextra -Wshadow -Werror -ferror-limit=8 -fcolor-diagnostics -D_GLIBCXX_ASSERTIONS -O0 -g --coverage -Winvalid-pch -Xclang -include-pch -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx.pch -Xclang -include -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx -c /home/chriselrod/Documents/progwork/cxx/Math/include/Utilities/LoopMacros.hpp",
   "file": "/home/chriselrod/Documents/progwork/cxx/Math/include/Utilities/LoopMacros.hpp"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan",
+  "command": "/usr/local/bin/clang++ -DUSING_MIMALLOC -I/home/chriselrod/Documents/progwork/cxx/Math/include -I/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/_deps/math-build/PackageProjectInclude -isystem /usr/local/include/mimalloc-2.1 -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/include -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest -g -std=gnu++23 -fno-exceptions -fno-rtti -Wall -Wpedantic -Wextra -Wshadow -Werror -ferror-limit=8 -fcolor-diagnostics -D_GLIBCXX_ASSERTIONS -O0 -g --coverage -Winvalid-pch -Xclang -include-pch -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx.pch -Xclang -include -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx -c /home/chriselrod/Documents/progwork/cxx/Math/include/Utilities/Assign.hpp",
+  "file": "/home/chriselrod/Documents/progwork/cxx/Math/include/Utilities/Assign.hpp"
 },
 
 {
@@ -229,6 +420,12 @@
   "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan",
   "command": "/usr/local/bin/clang++ -DUSING_MIMALLOC -I/home/chriselrod/Documents/progwork/cxx/Math/include -I/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/_deps/math-build/PackageProjectInclude -isystem /usr/local/include/mimalloc-2.1 -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/include -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest -g -std=gnu++23 -fno-exceptions -fno-rtti -Wall -Wpedantic -Wextra -Wshadow -Werror -ferror-limit=8 -fcolor-diagnostics -D_GLIBCXX_ASSERTIONS -O0 -g --coverage -Winvalid-pch -Xclang -include-pch -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx.pch -Xclang -include -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx -c /home/chriselrod/Documents/progwork/cxx/Math/include/Utilities/Optional.hpp",
   "file": "/home/chriselrod/Documents/progwork/cxx/Math/include/Utilities/Optional.hpp"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan",
+  "command": "/usr/local/bin/clang++ -DUSING_MIMALLOC -I/home/chriselrod/Documents/progwork/cxx/Math/include -I/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/_deps/math-build/PackageProjectInclude -isystem /usr/local/include/mimalloc-2.1 -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/include -isystem /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest -g -std=gnu++23 -fno-exceptions -fno-rtti -Wall -Wpedantic -Wextra -Wshadow -Werror -ferror-limit=8 -fcolor-diagnostics -D_GLIBCXX_ASSERTIONS -O0 -g --coverage -Winvalid-pch -Xclang -include-pch -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx.pch -Xclang -include -Xclang /home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/CMakeFiles/MathTests.dir/cmake_pch.hxx -c /home/chriselrod/Documents/progwork/cxx/Math/include/Utilities/TypeCompression.hpp",
+  "file": "/home/chriselrod/Documents/progwork/cxx/Math/include/Utilities/TypeCompression.hpp"
 },
 
 {
@@ -565,5 +762,143 @@
   "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/nosan/_deps/googletest-build/googletest",
   "command": "/usr/local/bin/clang++ -I/home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/include -I/home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest -g -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wshadow -Wconversion -DGTEST_HAS_PTHREAD=1 -fexceptions -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Wchar-subscripts -Winline -Wredundant-decls -c /home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/src/gtest.cc",
   "file": "/home/chriselrod/.cache/CPM/googletest/96129d89f45386492ae46d6bb8c027bc3df5f949/googletest/src/gtest.cc"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_STATIC_DEFINE -I/home/chriselrod/Documents/progwork/cxx/Math/benchmark/../include -isystem /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -O3 -DNDEBUG -std=gnu++23 -fvisibility=hidden -fvisibility-inlines-hidden -ferror-limit=2 -fcolor-diagnostics -march=native -mprefer-vector-width=512 -fno-exceptions -fno-rtti -fstrict-aliasing -fno-plt -fstrict-overflow -fomit-frame-pointer -fno-signed-zeros -fassociative-math -ffinite-math-only -funsafe-math-optimizations -fno-trapping-math -Wall -Wshadow -Wextra -save-temps -fopenmp-simd -masm=intel -c /home/chriselrod/Documents/progwork/cxx/Math/benchmark/include/randdual.hpp",
+  "file": "/home/chriselrod/Documents/progwork/cxx/Math/benchmark/include/randdual.hpp"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include/benchmark/benchmark.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include/benchmark/benchmark.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include/benchmark/export.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include/benchmark/export.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark_api_internal.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark_api_internal.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/commandlineflags.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/commandlineflags.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark_runner.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark_runner.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/internal_macros.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/internal_macros.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/perf_counters.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/perf_counters.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/check.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/check.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/log.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/log.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/mutex.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/mutex.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/thread_manager.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/thread_manager.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/colorprint.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/colorprint.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/complexity.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/complexity.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/counter.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/counter.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/re.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/re.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/statistics.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/statistics.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/string_util.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/string_util.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/thread_timer.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/thread_timer.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/timers.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/timers.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark_register.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/benchmark_register.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/arraysize.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/arraysize.h"
+},
+
+{
+  "directory": "/home/chriselrod/Documents/progwork/cxx/Math/buildclang/bench/_deps/benchmark-build/src",
+  "command": "/usr/local/bin/clang++ -DBENCHMARK_HAS_PTHREAD_AFFINITY -DBENCHMARK_STATIC_DEFINE -DHAVE_POSIX_REGEX -DHAVE_PTHREAD_AFFINITY -DHAVE_STD_REGEX -DHAVE_STEADY_CLOCK -DHAVE_THREAD_SAFETY_ATTRIBUTES -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/include -I/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src -Wall -Wextra -Wshadow -Wfloat-equal -Wold-style-cast -Wsuggest-override -pedantic -pedantic-errors -Wshorten-64-to-32 -fstrict-aliasing -Wno-deprecated-declarations -fno-exceptions -Wstrict-aliasing -Wthread-safety -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -c /home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/cycleclock.h",
+  "file": "/home/chriselrod/.cache/CPM/benchmark/6ab6f9ea5fa3003095935f1af4b6b363c23ce9d7/src/cycleclock.h"
 }
 ]

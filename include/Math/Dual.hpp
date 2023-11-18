@@ -46,12 +46,41 @@ public:
   }
   [[gnu::always_inline]] constexpr auto operator*(const Dual &other) const
     -> Dual {
+    // Dual res;
+    // res.val = val * other.val;
+    // res.partials << val * other.partials + other.val * partials;
+    // return res;
     return {val * other.val, val * other.partials + other.val * partials};
   }
   [[gnu::always_inline]] constexpr auto operator/(const Dual &other) const
     -> Dual {
     return {val / other.val, (other.val * partials - val * other.partials) /
                                (other.val * other.val)};
+  }
+  [[gnu::always_inline]] constexpr auto
+  operator+(const T &other) const & -> Dual
+  requires(!std::same_as<T, double>)
+  {
+    return {val + other, partials};
+  }
+  [[gnu::always_inline]] constexpr auto operator-(const T &other) const -> Dual
+  requires(!std::same_as<T, double>)
+  {
+    return {val - other.val, partials - other.partials};
+  }
+  [[gnu::always_inline]] constexpr auto operator*(const T &other) const -> Dual
+  requires(!std::same_as<T, double>)
+  {
+    // Dual res;
+    // res.val = val * other.val;
+    // res.partials << val * other.partials + other.val * partials;
+    // return res;
+    return {val * other, other * partials};
+  }
+  [[gnu::always_inline]] constexpr auto operator/(const T &other) const -> Dual
+  requires(!std::same_as<T, double>)
+  {
+    return {val / other, partials / other};
   }
   [[gnu::always_inline]] constexpr auto operator+=(const Dual &other)
     -> Dual & {
@@ -139,43 +168,81 @@ public:
 template <class T, ptrdiff_t N> Dual(T, SVector<T, N>) -> Dual<T, N>;
 
 template <class T, ptrdiff_t N>
-[[gnu::always_inline]] constexpr auto operator+(double other, Dual<T, N> x)
+[[gnu::always_inline]] constexpr auto operator+(const T &a, const Dual<T, N> &b)
+  -> Dual<T, N>
+requires(!std::same_as<T, double>)
+{
+  return {a + b.val, b.partials};
+}
+template <class T, ptrdiff_t N>
+[[gnu::always_inline]] constexpr auto operator-(const T &a, const Dual<T, N> &b)
+  -> Dual<T, N>
+requires(!std::same_as<T, double>)
+{
+  return {a - b.val, -b.partials};
+}
+template <class T, ptrdiff_t N>
+[[gnu::always_inline]] constexpr auto operator*(const T &a, const Dual<T, N> &b)
+  -> Dual<T, N>
+requires(!std::same_as<T, double>)
+{
+  // Dual res;
+  // res.val = val * other.val;
+  // res.partials << val * other.partials + other.val * partials;
+  // return res;
+  return {a * b.val, a * b.partials};
+}
+template <class T, ptrdiff_t N>
+[[gnu::always_inline]] constexpr auto operator/(const T &a, const Dual<T, N> &b)
+  -> Dual<T, N>
+requires(!std::same_as<T, double>)
+{
+  return {a / b.val, (-a * b.partials) / (b.val * b.val)};
+}
+template <class T, ptrdiff_t N>
+[[gnu::always_inline]] constexpr auto operator+(double other,
+                                                const Dual<T, N> &x)
   -> Dual<T, N> {
   return {x.value() + other, x.gradient()};
 }
 template <class T, ptrdiff_t N>
-[[gnu::always_inline]] constexpr auto operator-(double other, Dual<T, N> x)
+[[gnu::always_inline]] constexpr auto operator-(double other,
+                                                const Dual<T, N> &x)
   -> Dual<T, N> {
   return {x.value() - other, -x.gradient()};
 }
 template <class T, ptrdiff_t N>
-[[gnu::always_inline]] constexpr auto operator*(double other, Dual<T, N> x)
+[[gnu::always_inline]] constexpr auto operator*(double other,
+                                                const Dual<T, N> &x)
   -> Dual<T, N> {
   return {x.value() * other, other * x.gradient()};
 }
 template <class T, ptrdiff_t N>
-[[gnu::always_inline]] constexpr auto operator/(double other, Dual<T, N> x)
+[[gnu::always_inline]] constexpr auto operator/(double other,
+                                                const Dual<T, N> &x)
   -> Dual<T, N> {
   return {other / x.value(), -other * x.gradient() / (x.value() * x.value())};
 }
-template <class T, ptrdiff_t N> constexpr auto exp(Dual<T, N> x) -> Dual<T, N> {
+template <class T, ptrdiff_t N>
+constexpr auto exp(const Dual<T, N> &x) -> Dual<T, N> {
   T expx = exp(x.value());
   return {expx, expx * x.gradient()};
 }
 template <class T, ptrdiff_t N>
-constexpr auto sigmoid(Dual<T, N> x) -> Dual<T, N> {
+constexpr auto sigmoid(const Dual<T, N> &x) -> Dual<T, N> {
   T s = sigmoid(x.value());
   return {s, (s - s * s) * x.gradient()};
 }
 template <class T, ptrdiff_t N>
-constexpr auto softplus(Dual<T, N> x) -> Dual<T, N> {
+constexpr auto softplus(const Dual<T, N> &x) -> Dual<T, N> {
   return {softplus(x.value()), sigmoid(x.value()) * x.gradient()};
 }
-template <class T, ptrdiff_t N> constexpr auto log(Dual<T, N> x) -> Dual<T, N> {
+template <class T, ptrdiff_t N>
+constexpr auto log(const Dual<T, N> &x) -> Dual<T, N> {
   return {log2(x.value()), x.gradient() / x.value()};
 }
 template <class T, ptrdiff_t N>
-constexpr auto log2(Dual<T, N> x) -> Dual<T, N> {
+constexpr auto log2(const Dual<T, N> &x) -> Dual<T, N> {
   constexpr double log2 = 0.6931471805599453; // log(2);
   return {log2(x.value()), x.gradient() / (log2 * x.value())};
 }

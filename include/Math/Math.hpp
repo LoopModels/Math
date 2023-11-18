@@ -755,16 +755,6 @@ static_assert(AbstractMatrix<MatMatMul<PtrMatrix<int64_t>, PtrMatrix<int64_t>>>,
               "MatMul is not an AbstractMatrix!");
 static_assert(AbstractMatrix<Transpose<PtrMatrix<int64_t>>>);
 
-template <AbstractVector V>
-constexpr auto operator*(const Transpose<V> &at, const AbstractVector auto &b) {
-  utils::promote_eltype_t<V, decltype(b)> s{};
-  auto a = at.t();
-  ptrdiff_t l = a.size();
-  invariant(l == b.size());
-  for (ptrdiff_t i = 0; i < l; ++i) s += a[i] * b[i];
-  return s;
-}
-
 static_assert(
   AbstractVector<decltype(-std::declval<StridedVector<int64_t>>())>);
 static_assert(

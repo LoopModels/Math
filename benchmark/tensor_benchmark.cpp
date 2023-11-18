@@ -41,14 +41,6 @@ static void BM_dual8x2BmApI(benchmark::State &state) {
 }
 BENCHMARK(BM_dual8x2BmApI)->DenseRange(2, 10, 1);
 
-static void BM_dual8x2prod(benchmark::State &state) {
-  std::mt19937_64 rng0;
-  using D = Dual<Dual<double, 8>, 2>;
-  D a = URand<D>{}(rng0), b = URand<D>{}(rng0), c;
-  for (auto _ : state) benchmark::DoNotOptimize(c = a * b);
-}
-BENCHMARK(BM_dual8x2prod);
-
 void BtimesAplusdI(
   poly::math::MutSquarePtrMatrix<std::array<std::array<double, 9>, 3>> C,
   poly::math::MutSquarePtrMatrix<std::array<std::array<double, 9>, 3>> A,

@@ -8,14 +8,142 @@ namespace poly::math {
 static_assert(
   AbstractSimilar<PtrVector<int64_t>, std::integral_constant<unsigned int, 4>>);
 
+template <typename T, ptrdiff_t L>
+consteval auto paddedSize() -> std::array<ptrdiff_t, 2> {
+
+  constexpr ptrdiff_t WF = poly::simd::Width<T>();
+  constexpr ptrdiff_t W = L < WF ? ptrdiff_t(std::bit_ceil(uint64_t(L))) : WF;
+  constexpr ptrdiff_t N = ((L + W - 1) / W);
+  return {N, W};
+}
+
+template <typename T, ptrdiff_t M, ptrdiff_t N> struct SIMDArray {
+  static_assert(simd::SIMDSupported<T>);
+  static constexpr ptrdiff_t W = N < poly::simd::Width<T>()
+                                   ? ptrdiff_t(std::bit_ceil(uint64_t(N)))
+                                   : poly::simd::Width<T>();
+  static constexpr ptrdiff_t L = (N + W - 1) / W;
+  std::array<std::array<simd::Vec<W, T>, L>, M> data;
+  static constexpr auto numRow() -> Row<M> { return {}; }
+  static constexpr auto numCol() -> Col<N> { return {}; }
+  [[nodiscard]] static constexpr auto size() noexcept
+    -> std::integral_constant<ptrdiff_t, M * N> {
+    return {};
+  }
+  inline auto operator[](ptrdiff_t i, ptrdiff_t j) -> T & {
+    return reinterpret_cast<T *>(data[i].data())[j];
+  }
+  inline auto operator[](ptrdiff_t i, ptrdiff_t j) const -> T {
+    return reinterpret_cast<T *>(data[i].data())[j];
+  }
+  template <ptrdiff_t U, typename Mask>
+  [[gnu::always_inline]] inline auto
+  operator[](ptrdiff_t i, simd::index::Unroll<U, W, Mask> j) const
+    -> simd::Unroll<1, U, W, T> {
+    return (*this)[simd::index::Unroll<1>{i}, j];
+  }
+  template <ptrdiff_t R = 1>
+  [[gnu::always_inline]] static constexpr void checkinds(ptrdiff_t i,
+                                                         ptrdiff_t j) {
+    invariant(i >= 0);
+    invariant(i + (R - 1) < M);
+    invariant(j >= 0);
+    invariant(j < N);
+    invariant((j % W) == 0);
+  }
+  template <ptrdiff_t R, ptrdiff_t C, typename Mask>
+  [[gnu::always_inline]] inline auto
+  operator[](simd::index::Unroll<R> i, simd::index::Unroll<C, W, Mask> j) const
+    -> simd::Unroll<R, C, W, T> {
+    checkinds<R>(i.index, j.index);
+    simd::Unroll<R, C, W, T> ret;
+    ptrdiff_t k = j.index / W;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t r = 0; r < R; ++r) {
+      POLYMATHFULLUNROLL
+      for (ptrdiff_t u = 0; u < C; ++u)
+        ret.data[r, u] = data[i.index + r][k + u];
+    }
+    return ret;
+  }
+  template <ptrdiff_t R, ptrdiff_t C> struct Ref {
+    SIMDArray *parent;
+    ptrdiff_t i, j;
+    constexpr auto operator=(simd::Unroll<R, C, W, T> x) -> Ref & {
+      checkinds<R>(i, j);
+      ptrdiff_t k = j / W;
+      POLYMATHFULLUNROLL
+      for (ptrdiff_t r = 0; r < R; ++r) {
+        POLYMATHFULLUNROLL
+        for (ptrdiff_t u = 0; u < C; ++u) parent->data[i + r][k + u] = x[r, u];
+      }
+      return *this;
+    }
+    constexpr auto operator=(simd::Vec<W, T> x) -> Ref & {
+      checkinds<R>(i, j);
+      ptrdiff_t k = j / W;
+      POLYMATHFULLUNROLL
+      for (ptrdiff_t r = 0; r < R; ++r) {
+        POLYMATHFULLUNROLL
+        for (ptrdiff_t u = 0; u < C; ++u) parent->data[i + r][k + u] = x;
+      }
+      return *this;
+    }
+    constexpr auto operator=(std::convertible_to<T> auto x) -> Ref & {
+      *this = simd::Vec<W, T>{} + T(x);
+      return *this;
+    }
+    constexpr operator simd::Unroll<R, C, W, T>() {
+      return (*const_cast<const SIMDArray *>(
+        parent))[simd::index::Unroll<R>{i}, simd::index::Unroll<C, W>{j}];
+    }
+    constexpr auto operator+=(const auto &x) -> Ref & {
+      return (*this) = Unroll<R, C, N, T>(*this) + x;
+    }
+    constexpr auto operator-=(const auto &x) -> Ref & {
+      return (*this) = Unroll<R, C, N, T>(*this) - x;
+    }
+    constexpr auto operator*=(const auto &x) -> Ref & {
+      return (*this) = Unroll<R, C, N, T>(*this) * x;
+    }
+    constexpr auto operator/=(const auto &x) -> Ref & {
+      return (*this) = Unroll<R, C, N, T>(*this) / x;
+    }
+  };
+  template <ptrdiff_t U, typename Mask>
+  [[gnu::always_inline]] inline auto
+  operator[](ptrdiff_t i, simd::index::Unroll<U, W, Mask> j) -> Ref<1, U> {
+    return Ref<1, U>{this, i, j.index};
+  }
+  template <ptrdiff_t R, ptrdiff_t C, typename Mask>
+  [[gnu::always_inline]] inline auto
+  operator[](simd::index::Unroll<R> i, simd::index::Unroll<C, W, Mask> j)
+    -> Ref<R, C> {
+    return Ref<R, C>{this, i.index, j.index};
+  }
+  [[gnu::always_inline]] constexpr auto operator[](auto i) -> decltype(auto)
+  requires((N == 1) || (M == 1))
+  {
+    if constexpr (M == 1) return (*this)[0, i];
+    else return (*this)[i, 0];
+  }
+  [[gnu::always_inline]] constexpr auto operator[](auto i) const
+    -> decltype(auto)
+  requires((N == 1) || (M == 1))
+  {
+    if constexpr (M == 1) return (*this)[0, i];
+    else return (*this)[i, 0];
+  }
+};
+
 template <class T, ptrdiff_t M, ptrdiff_t N>
 struct StaticArray : public ArrayOps<T, DenseDims<M, N>, StaticArray<T, M, N>> {
   static constexpr ptrdiff_t capacity = M * N;
   T memory_[capacity]; // NOLINT(modernize-avoid-c-arrays)
 
-  using value_type = T;
-  using reference = T &;
-  using const_reference = const T &;
+  using value_type = utils::uncompressed_t<T>;
+  using reference = decltype(ref((T *)nullptr, 0));
+  using const_reference = decltype(ref((const T *)nullptr, 0));
   using size_type = ptrdiff_t;
   using difference_type = ptrdiff_t;
   using iterator = T *;
@@ -116,8 +244,9 @@ struct StaticArray : public ArrayOps<T, DenseDims<M, N>, StaticArray<T, M, N>> {
     return {};
   }
   [[nodiscard]] static constexpr auto empty() -> bool { return capacity == 0; }
-  [[nodiscard]] static constexpr auto size() noexcept {
-    return std::integral_constant<ptrdiff_t, M * N>{};
+  [[nodiscard]] static constexpr auto size() noexcept
+    -> std::integral_constant<ptrdiff_t, M * N> {
+    return {};
   }
   [[nodiscard]] static constexpr auto dim() noexcept -> S { return S{}; }
   [[nodiscard]] constexpr auto t() const { return Transpose{*this}; }
@@ -138,7 +267,7 @@ struct StaticArray : public ArrayOps<T, DenseDims<M, N>, StaticArray<T, M, N>> {
   [[nodiscard]] constexpr auto view() const noexcept -> Array<T, S> {
     auto ptr = data();
     invariant(ptr != nullptr);
-    return Array<T, S>{const_cast<T *>(ptr), S{}};
+    return Array<T, S>{ptr, S{}};
   }
 
   [[nodiscard]] constexpr auto begin() noexcept {
@@ -183,6 +312,38 @@ struct StaticArray : public ArrayOps<T, DenseDims<M, N>, StaticArray<T, M, N>> {
   template <std::size_t I>
   [[nodiscard]] constexpr auto get() const -> const T & {
     return memory_[I];
+  }
+
+  static constexpr auto decompress(const StaticArray *p) -> PaddedType {
+    constexpr ptrdiff_t W =
+      math::simd::vecWidth<T, std::integral_constant<ptrdiff_t, len>>();
+    constexpr ptrdiff_t P = ((len + W - 1) / W) * W;
+    if constexpr (P != len) {
+      PaddedType result; // NRVO
+      ptrdiff_t i = 0, n = W;
+      const auto &A{*p};
+      POLYMATHVECTORIZE
+      for (; n <= len; i = n, n += W) {
+        auto j = simd::unroll<W, 1>(i);
+        result[j] = A[j];
+      }
+      result[simd::unroll<W, 1>(i)] = A[simd::unroll<W, 1>(i, len)];
+      return result;
+    } else return *p; // RVO
+  }
+  static constexpr void compress(StaticArray *p, const PaddedType &rhs) {
+    constexpr ptrdiff_t W =
+      math::simd::vecWidth<T, std::integral_constant<ptrdiff_t, len>>();
+    if constexpr (W != 1) {
+      ptrdiff_t i = 0, n = W;
+      auto &A{*p};
+      POLYMATHVECTORIZE
+      for (; n <= len; i = n, n += W) {
+        auto j = simd::unroll<W, 1>(i);
+        A[j] = rhs[j];
+      }
+      if (i < len) A[simd::unroll<W, 1>(i, len)] = rhs[simd::unroll<W, 1>(i)];
+    } else *p << rhs;
   }
 };
 
