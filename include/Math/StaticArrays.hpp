@@ -260,9 +260,12 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Align>,
 };
 
 template <simd::SIMDSupported T, ptrdiff_t M, ptrdiff_t N>
-struct StaticArray<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>
-  : ArrayOps<T, StaticDims<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>,
-             StaticArray<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>> {
+struct StaticArray<T, M, N, size_t(VecLen<N, T>) * sizeof(T)>
+  : ArrayOps<T, StaticDims<T, M, N, size_t(VecLen<N, T>) * sizeof(T)>,
+             StaticArray<T, M, N, size_t(VecLen<N, T>) * sizeof(T)>> {
+  // struct StaticArray<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>
+  //   : ArrayOps<T, StaticDims<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>,
+  //              StaticArray<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>> {
 
   using value_type = T;
   using reference = T &;
@@ -301,7 +304,10 @@ struct StaticArray<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>
       (*this) << *list.begin();
       return;
     }
-    std::memcpy(data, list.begin(), list.size() * sizeof(T));
+    invariant(list.size() <= L * W);
+    size_t count = list.size() * sizeof(T);
+    std::memcpy(data, list.begin(), count);
+    std::memset((char *)data + count, 0, (L * W - list.size()) * sizeof(T));
   }
   template <AbstractSimilar<S> V> constexpr StaticArray(const V &b) noexcept {
     (*this) << b;
@@ -398,16 +404,16 @@ struct StaticArray<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>
         parent))[simd::index::Unroll<R>{i}, simd::index::Unroll<C, W>{j}];
     }
     constexpr auto operator+=(const auto &x) -> Ref & {
-      return (*this) = simd::Unroll<R, C, N, T>(*this) + x;
+      return (*this) = simd::Unroll<R, C, W, T>(*this) + x;
     }
     constexpr auto operator-=(const auto &x) -> Ref & {
-      return (*this) = simd::Unroll<R, C, N, T>(*this) - x;
+      return (*this) = simd::Unroll<R, C, W, T>(*this) - x;
     }
     constexpr auto operator*=(const auto &x) -> Ref & {
-      return (*this) = simd::Unroll<R, C, N, T>(*this) * x;
+      return (*this) = simd::Unroll<R, C, W, T>(*this) * x;
     }
     constexpr auto operator/=(const auto &x) -> Ref & {
-      return (*this) = simd::Unroll<R, C, N, T>(*this) / x;
+      return (*this) = simd::Unroll<R, C, W, T>(*this) / x;
     }
   };
   template <ptrdiff_t U, typename Mask>

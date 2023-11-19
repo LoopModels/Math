@@ -34,6 +34,41 @@ constexpr void fastCopy(D *d, const S *s, size_t N) {
 template <typename T>
 concept IsOne =
   std::same_as<std::remove_cvref_t<T>, std::integral_constant<ptrdiff_t, 1>>;
+// inputs must be `ptrdiff_t` or `std::integral_constant<ptrdiff_t,value>`
+template <typename X, typename Y>
+[[gnu::always_inline]] constexpr auto check_sizes(X x, Y y) {
+  if constexpr (std::same_as<ptrdiff_t, X>) {
+    if constexpr (std::same_as<ptrdiff_t, Y>) {
+      invariant(x, y);
+      return x;
+    } else {
+      constexpr ptrdiff_t L = y;
+      invariant(x, L);
+      return std::integral_constant<ptrdiff_t, L>{};
+    }
+  } else if constexpr (std::same_as<ptrdiff_t, Y>) {
+    constexpr ptrdiff_t L = x;
+    invariant(L, y);
+    return std::integral_constant<ptrdiff_t, L>{};
+  } else {
+    static_assert(x == y);
+    return std::integral_constant<ptrdiff_t, ptrdiff_t(x)>{};
+  }
+}
+template <typename A, typename B>
+[[gnu::always_inline]] constexpr auto promote_shape(const A &a, const B &b) {
+  auto sa = shape(a);
+  if constexpr (!std::convertible_to<B, utils::eltype_t<A>>) {
+    auto M = unwrapRow(numRows(b));
+    auto N = unwrapCol(numCols(b));
+    if constexpr (IsOne<decltype(M)>)
+      if constexpr (IsOne<decltype(N)>) return sa;
+      else return CartesianIndex(sa.row, check_sizes(sa.col, N));
+    else if constexpr (IsOne<decltype(N)>)
+      return CartesianIndex(check_sizes(sa.row, M), sa.col);
+    else return CartesianIndex(check_sizes(sa.row, M), check_sizes(sa.col, N));
+  } else return sa;
+}
 
 template <typename T> class SmallSparseMatrix;
 template <class T, class S, class P> class ArrayOps {
@@ -85,16 +120,11 @@ template <class T, class S, class P> class ArrayOps {
       }
     }
   }
+
   template <typename Op> void vcopyTo(const auto &B, Op op) {
     static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     P &self{Self()};
-    auto [M, N] = shape(self);
-    if constexpr (!std::convertible_to<decltype(B), T>) {
-      if constexpr (!IsOne<decltype(numRows(B))>)
-        invariant(ptrdiff_t(M), ptrdiff_t(numRows(B)));
-      if constexpr (!IsOne<decltype(numCols(B))>)
-        invariant(ptrdiff_t(N), ptrdiff_t(numCols(B)));
-    }
+    auto [M, N] = promote_shape(self, B);
     if constexpr (std::same_as<Op, utils::CopyAssign> && DenseLayout<S> &&
                   DenseTensor<std::remove_cvref_t<decltype(B)>>) {
       if constexpr (std::is_trivially_copyable_v<T>)
@@ -160,13 +190,7 @@ template <class T, class S, class P> class ArrayOps {
   }
   template <typename Op> constexpr void scopyTo(const auto &B, Op op) {
     P &self{Self()};
-    auto [M, N] = shape(self);
-    if constexpr (!std::convertible_to<decltype(B), T>) {
-      if constexpr (!IsOne<decltype(numRows(B))>)
-        invariant(ptrdiff_t(M), ptrdiff_t(numRows(B)));
-      if constexpr (!IsOne<decltype(numCols(B))>)
-        invariant(ptrdiff_t(N), ptrdiff_t(numCols(B)));
-    }
+    auto [M, N] = promote_shape(self, B);
     if constexpr (std::same_as<Op, utils::CopyAssign> && DenseLayout<S> &&
                   DenseTensor<std::remove_cvref_t<decltype(B)>>) {
       fastCopy(data_(), B.begin(), M * N);

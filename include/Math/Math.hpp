@@ -78,6 +78,7 @@ concept BinaryFuncOfElts =
   return true;
 }
 
+
 template <typename Op, typename A> struct Elementwise {
   using value_type =
     decltype(std::declval<Op>()(std::declval<utils::eltype_t<A>>()));
@@ -211,11 +212,9 @@ struct ElementwiseBinaryOp {
   {
     if constexpr (AbstractMatrix<A> && AbstractMatrix<B>) {
       if constexpr (HasConcreteSize<A>)
-        if constexpr (HasConcreteSize<B>) {
-          const Row N = a.numRow();
-          invariant(N, b.numRow());
-          return N;
-        } else return a.numRow();
+        if constexpr (HasConcreteSize<B>)
+          return row(check_sizes(unwrapRow(a.numRow()), unwrapRow(b.numRow())));
+        else return a.numRow();
       else if constexpr (HasConcreteSize<B>) return b.numRow();
       else return Row<>{0};
     } else if constexpr (AbstractMatrix<A>) return a.numRow();
@@ -226,11 +225,9 @@ struct ElementwiseBinaryOp {
   {
     if constexpr (AbstractMatrix<A> && AbstractMatrix<B>) {
       if constexpr (HasConcreteSize<A>)
-        if constexpr (HasConcreteSize<B>) {
-          const Col N = a.numCol();
-          invariant(N, b.numCol());
-          return N;
-        } else return a.numCol();
+        if constexpr (HasConcreteSize<B>)
+          return col(check_sizes(unwrapCol(a.numCol()), unwrapCol(b.numCol())));
+        else return a.numCol();
       else if constexpr (HasConcreteSize<B>) return b.numCol();
       else return Col<>{0};
     } else if constexpr (AbstractMatrix<A>) return a.numCol();
@@ -238,11 +235,9 @@ struct ElementwiseBinaryOp {
   }
   [[nodiscard]] constexpr auto size() const {
     if constexpr (ismatrix) return unwrapRow(numRow()) * unwrapCol(numCol());
-    else if constexpr (AbstractVector<A> && AbstractVector<B>) {
-      const ptrdiff_t N = a.size();
-      invariant(N == b.size());
-      return N;
-    } else if constexpr (AbstractVector<A>) return a.size();
+    else if constexpr (AbstractVector<A> && AbstractVector<B>)
+      return check_sizes(a.size(), b.size());
+    else if constexpr (AbstractVector<A>) return a.size();
     else return b.size();
   }
   [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
@@ -258,27 +253,43 @@ template <TrivialTensor C, Trivial A, Trivial B> struct AbstractSelect {
   [[nodiscard]] constexpr auto numRow() const
   requires(!isvector)
   {
-    Row m = c.numRow();
-    if constexpr (AbstractMatrix<A>) invariant(m, a.numRow());
-    if constexpr (AbstractMatrix<B>) invariant(m, b.numRow());
-    return m;
+    auto n = unwrapRow(c.numRow());
+    if constexpr (AbstractMatrix<A>) {
+      auto nn = check_sizes(n, unwrapRow(a.numRow()));
+      if constexpr (AbstractMatrix<B>)
+        return row(check_sizes(nn, unwrapRow(b.numRow())));
+      else return row(nn);
+    } else if (AbstractMatrix<B>)
+      return row(check_sizes(n, unwrapRow(b.numRow())));
+    else return row(n);
   }
   [[nodiscard]] constexpr auto numCol() const
   requires(!isvector)
   {
-    Col n = c.numCol();
-    if constexpr (AbstractMatrix<A>) invariant(n, a.numCol());
-    if constexpr (AbstractMatrix<B>) invariant(n, b.numCol());
-    return n;
+    auto n = unwrapCol(c.numCol());
+    if constexpr (AbstractMatrix<A>) {
+      auto nn = check_sizes(n, unwrapCol(a.numCol()));
+      if constexpr (AbstractMatrix<B>)
+        return col(check_sizes(nn, unwrapCol(b.numCol())));
+      else return col(nn);
+    } else if (AbstractMatrix<B>)
+      return col(check_sizes(n, unwrapCol(b.numCol())));
+    else return col(n);
   }
   [[nodiscard]] constexpr auto size() const {
     if constexpr (!isvector) {
       return unwrapRow(numRow()) * unwrapCol(numCol());
     } else {
-      ptrdiff_t N = c.size();
-      if constexpr (AbstractVector<A>) invariant(ptrdiff_t(a.size()), N);
-      if constexpr (AbstractVector<B>) invariant(ptrdiff_t(b.size()), N);
-      return N;
+      auto N = c.size();
+      if constexpr (AbstractVector<A>) {
+        auto M = check_sizes(N, a.size());
+        if constexpr (AbstractVector<B>) return check_sizes(M, b.size());
+        else return M;
+      } else if constexpr (AbstractVector<B>) {
+        return check_sizes(N, b.size());
+      } else {
+        return N;
+      }
     }
   }
   [[nodiscard]] constexpr auto view() const -> auto & { return *this; };

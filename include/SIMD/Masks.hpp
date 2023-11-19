@@ -49,7 +49,7 @@ template <ptrdiff_t W> struct Bit {
   }
   explicit constexpr operator bool() const { return mask; }
   [[nodiscard]] constexpr auto firstMasked() const -> ptrdiff_t {
-    return countr_zeros(mask);
+    return std::countr_zero(mask);
   }
   [[nodiscard]] constexpr auto lastUnmasked() const -> ptrdiff_t {
     // could make this `countr_ones` if we decide to only
