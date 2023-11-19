@@ -13,43 +13,45 @@ namespace poly::utils {
 /// compilers to be able to optimize these loads and stores, they'd have need to
 /// track provenance using these masks to see that they don't alias, and be able
 /// to actually eliminate the temporaries. Compilers do not seem to do this.
+///
+/// The canonical type is the decompressed form.
+///
 
+/// `T` is the canonical type, which may define `compress`
 template <typename T>
-concept DefinesCompress = requires(T *t) {
-  { T::decompress(t) };
-  { T::compress(t, T::decompress(t)) };
+concept Compressible = requires(T t, typename T::compressed_type *p) {
+  { t.compress(p) };
+  { T::decompress(p) } -> std::same_as<T>;
+  { t = *p }; // need generic code to work reasonably well with pointers `p`
+  { T{*p} };  // and value_type `T`
 };
 
 template <typename T> struct Uncompressed {
+  using compressed = T;
+};
+template <Compressible T> struct Uncompressed<T> {
+  using compressed = typename T::compressed_type;
+};
+template <typename T>
+using compressed_t = typename Uncompressed<std::remove_cvref_t<T>>::compressed;
+
+template <typename T>
+concept Decompressible =
+  Compressible<typename T::decompressed_type> &&
+  std::same_as<T, compressed_t<typename T::decompressed_type>>;
+
+template <typename T> struct Compressed {
   using uncompressed = T;
 };
-template <DefinesCompress T> struct Uncompressed<T> {
-  using uncompressed = decltype(T::decompress(nullptr));
+template <Decompressible T> struct Compressed<T> {
+  using uncompressed = typename T::decompressed_type;
 };
 template <typename T>
-using uncompressed_t = typename Uncompressed<T>::uncompressed;
+using uncompressed_t =
+  typename Compressed<std::remove_cvref_t<T>>::uncompressed;
 
-template <typename T>
-concept Compressible =
-  !std::same_as<T, uncompressed_t<T>> && requires(T *t, uncompressed_t<T> u) {
-    { T::decompress(t) } -> std::same_as<uncompressed_t<T>>;
-    { T::compress(t, u) };
-  };
-
-template <Compressible T>
-[[gnu::always_inline]] constexpr auto decompress(const T *t)
-  -> uncompressed_t<T> {
-  return T::decompress(t);
-}
-template <typename T>
-[[gnu::always_inline]] constexpr auto decompress(const T *t) -> const T & {
-  return *t;
-}
-template <typename T>
-[[gnu::always_inline]] constexpr void compress(T *t,
-                                               const uncompressed_t<T> &u) {
-  if constexpr (Compressible<T>) T::compress(t, u);
-  else *t = u;
-}
+static_assert(std::same_as<uncompressed_t<double>, double>);
+static_assert(!Decompressible<double>);
+static_assert(!Compressible<double>);
 
 } // namespace poly::utils

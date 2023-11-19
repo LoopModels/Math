@@ -86,7 +86,7 @@ template <typename T, typename S, typename I>
   auto newDim = calcNewDim(shape, i);
   invariant(ptr != nullptr);
   if constexpr (std::same_as<decltype(newDim), Empty>)
-    if constexpr (utils::Compressible<T>) return decompress(ptr + offset);
+    if constexpr (utils::Decompressible<T>) return decompress(ptr + offset);
     else return ptr[offset];
   else if constexpr (simd::index::issimd<decltype(newDim)>)
     return simd::ref(ptr + offset, newDim);
@@ -105,8 +105,7 @@ template <typename T, typename S, typename R, typename C>
     if constexpr (std::same_as<decltype(newDim), Empty>)
       // 3.a.i. Vector indexing, contig, no mask
       // 3.a.ii. Vector indexing, contig, mask
-      if constexpr (utils::Compressible<T>)
-        return utils::decompress(ptr + offset);
+      if constexpr (utils::Decompressible<T>) return decompress(ptr + offset);
       else return ptr[offset];
     else if constexpr (simd::index::issimd<decltype(newDim)>)
       return simd::ref(ptr + offset, newDim);
@@ -157,7 +156,8 @@ template <typename T, bool Column = false> struct SliceIterator {
     std::conditional_t<std::is_const_v<T>,
                        Array<std::remove_cvref_t<T>, stride_type>,
                        MutArray<std::remove_reference_t<T>, stride_type>>;
-  T *data;
+  using storage_type = utils::compressed_t<T>;
+  storage_type *data;
   ptrdiff_t len;
   ptrdiff_t rowStride;
   ptrdiff_t idx;
@@ -237,15 +237,17 @@ template <class T, Dimension S> struct POLY_MATH_GSL_POINTER Array {
   static_assert(!std::is_const_v<T>, "T shouldn't be const");
   static_assert(std::is_trivially_destructible_v<T>,
                 "maybe should add support for destroying");
+
+  using storage_type = utils::compressed_t<T>;
   using value_type = T;
   using reference = T &;
   using const_reference = const T &;
   using size_type = ptrdiff_t;
   using difference_type = int;
-  using iterator = T *;
-  using const_iterator = const T *;
-  using pointer = T *;
-  using const_pointer = const T *;
+  using iterator = storage_type *;
+  using const_iterator = const storage_type *;
+  using pointer = storage_type *;
+  using const_pointer = const storage_type *;
   using concrete = std::true_type;
 
   static constexpr bool isdense =
@@ -258,19 +260,20 @@ template <class T, Dimension S> struct POLY_MATH_GSL_POINTER Array {
   constexpr Array(Array &&) noexcept = default;
   constexpr auto operator=(const Array &) -> Array & = default;
   constexpr auto operator=(Array &&) noexcept -> Array & = default;
-  constexpr Array(const T *p, S s) : ptr(p), sz(s) {}
+  constexpr Array(const storage_type *p, S s) : ptr(p), sz(s) {}
   constexpr Array(Valid<const T> p, S s) : ptr(p), sz(s) {}
   template <ptrdiff_t R, ptrdiff_t C>
-  constexpr Array(const T *p, Row<R> r, Col<C> c) : ptr(p), sz(S{r, c}) {}
+  constexpr Array(const storage_type *p, Row<R> r, Col<C> c)
+    : ptr(p), sz(S{r, c}) {}
   template <ptrdiff_t R, ptrdiff_t C>
-  constexpr Array(Valid<const T> p, Row<R> r, Col<C> c)
+  constexpr Array(Valid<const storage_type> p, Row<R> r, Col<C> c)
     : ptr(p), sz(dimension<S>(r, c)) {}
   template <std::convertible_to<S> V>
   constexpr Array(Array<T, V> a) : ptr(a.data()), sz(a.dim()) {}
   template <size_t N>
   constexpr Array(const std::array<T, N> &a) : ptr(a.data()), sz(N) {}
   [[nodiscard, gnu::returns_nonnull]] constexpr auto data() const noexcept
-    -> const T * {
+    -> const storage_type * {
     invariant(ptr != nullptr);
     return ptr;
   }
@@ -280,11 +283,11 @@ template <class T, Dimension S> struct POLY_MATH_GSL_POINTER Array {
     -> StridedIterator<const T>
   requires(std::is_same_v<S, StridedRange>)
   {
-    const T *p = ptr;
+    const storage_type *p = ptr;
     return StridedIterator{p, sz.stride};
   }
   [[nodiscard]] constexpr auto begin() const noexcept
-    -> const T *requires(isdense) { return ptr; }
+    -> const storage_type *requires(isdense) { return ptr; }
 
   [[nodiscard]] constexpr auto end() const noexcept
   requires(flatstride)
@@ -453,7 +456,7 @@ template <class T, Dimension S> struct POLY_MATH_GSL_POINTER Array {
 #endif
 protected:
   // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
-  const T *ptr;
+  const storage_type *ptr;
   // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
   [[no_unique_address]] S sz{};
 };
@@ -474,13 +477,14 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
   // using BaseT::BaseT;
   using BaseT::operator[], BaseT::data, BaseT::begin, BaseT::end, BaseT::rbegin,
     BaseT::rend, BaseT::front, BaseT::back;
+  using storage_type = utils::compressed_t<T>;
 
   constexpr MutArray(const MutArray &) = default;
   constexpr MutArray(MutArray &&) noexcept = default;
   constexpr auto operator=(const MutArray &) -> MutArray & = delete;
   // constexpr auto operator=(const MutArray &) -> MutArray & = default;
   constexpr auto operator=(MutArray &&) noexcept -> MutArray & = default;
-  constexpr MutArray(T *p, S s) : BaseT(p, s) {}
+  constexpr MutArray(storage_type *p, S s) : BaseT(p, s) {}
 
   constexpr void truncate(S nz) {
     S oz = this->sz;
@@ -501,7 +505,7 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
       ptrdiff_t rowsToCopy = newM;
       if (rowsToCopy && (--rowsToCopy) && (copyCols)) {
         // truncation, we need to copy rows to increase stride
-        T *src = data(), *dst = src;
+        storage_type *src = data(), *dst = src;
         do {
           src += oldX;
           dst += newX;
@@ -554,9 +558,10 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
   constexpr MutArray(Array<U, V> a) : Array<T, S>(a) {}
   template <size_t N>
   constexpr MutArray(std::array<T, N> &a) : Array<T, S>(a.data(), N) {}
-  [[nodiscard, gnu::returns_nonnull]] constexpr auto data() noexcept -> T * {
+  [[nodiscard, gnu::returns_nonnull]] constexpr auto data() noexcept
+    -> storage_type * {
     invariant(this->ptr != nullptr);
-    return const_cast<T *>(this->ptr);
+    return const_cast<storage_type *>(this->ptr);
   }
   [[nodiscard]] constexpr auto wrappedPtr() noexcept -> Valid<T> {
     return data();
@@ -565,11 +570,12 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
   [[nodiscard]] constexpr auto begin() noexcept -> StridedIterator<T>
   requires(std::is_same_v<S, StridedRange>)
   {
-    return StridedIterator{const_cast<T *>(this->ptr), this->sz.stride};
+    return StridedIterator{const_cast<storage_type *>(this->ptr),
+                           this->sz.stride};
   }
   [[nodiscard]] constexpr auto begin() noexcept
-    -> T *requires(!std::is_same_v<S, StridedRange>) {
-      return const_cast<T *>(this->ptr);
+    -> storage_type *requires(!std::is_same_v<S, StridedRange>) {
+      return const_cast<storage_type *>(this->ptr);
     }
 
   [[nodiscard]] constexpr auto end() noexcept {
@@ -580,7 +586,8 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
   // {
   //   return this->ptr;
   // }
-  // [[nodiscard, gnu::returns_nonnull]] constexpr auto end() noexcept -> T *
+  // [[nodiscard, gnu::returns_nonnull]] constexpr auto end() noexcept ->
+  // storage_type *
   // {
   //   return this->ptr + ptrdiff_t(this->sz);
   // }
@@ -633,7 +640,7 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
            newRow = ptrdiff_t{Row(this->sz)} - 1;
       this->sz.set(Row<>{newRow});
       if ((col == 0) || (r == newRow)) return;
-      T *dst = data() + ptrdiff_t(r) * col;
+      storage_type *dst = data() + ptrdiff_t(r) * col;
       std::copy_n(dst + col, (newRow - ptrdiff_t(r)) * col, dst);
     } else {
       static_assert(std::convertible_to<S, StridedDims<>>);
@@ -644,14 +651,14 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
       if ((col == 0) || (r == newRow)) return;
       invariant(col <= stride);
       if ((col + (512 / (sizeof(T)))) <= stride) {
-        T *dst = data() + ptrdiff_t(r) * stride;
+        storage_type *dst = data() + ptrdiff_t(r) * stride;
         for (ptrdiff_t m = ptrdiff_t(r); m < newRow; ++m) {
-          T *src = dst + stride;
+          storage_type *src = dst + stride;
           std::copy_n(src, col, dst);
           dst = src;
         }
       } else {
-        T *dst = data() + ptrdiff_t(r) * stride;
+        storage_type *dst = data() + ptrdiff_t(r) * stride;
         std::copy_n(dst + stride, (newRow - ptrdiff_t(r)) * stride, dst);
       }
     }
@@ -669,8 +676,8 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
       if ((colsToCopy == 0) || (row == 0)) return;
       // we only need to copy if memory shifts position
       for (ptrdiff_t m = 0; m < row; ++m) {
-        T *dst = data() + m * newCol + ptrdiff_t(c);
-        T *src = data() + m * oldCol + ptrdiff_t(c) + 1;
+        storage_type *dst = data() + m * newCol + ptrdiff_t(c);
+        storage_type *src = data() + m * oldCol + ptrdiff_t(c) + 1;
         std::copy_n(src, colsToCopy, dst);
       }
     } else {
@@ -683,7 +690,7 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
       if ((colsToCopy == 0) || (row == 0)) return;
       // we only need to copy if memory shifts position
       for (ptrdiff_t m = 0; m < row; ++m) {
-        T *dst = data() + m * stride + ptrdiff_t(c);
+        storage_type *dst = data() + m * stride + ptrdiff_t(c);
         std::copy_n(dst + 1, colsToCopy, dst);
       }
     }
@@ -715,7 +722,8 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
   }
 };
 
-template <typename T, typename S> MutArray(T *, S) -> MutArray<T, S>;
+template <typename T, typename S>
+MutArray(T *, S) -> MutArray<utils::uncompressed_t<T>, S>;
 
 template <typename T, typename S> MutArray(MutArray<T, S>) -> MutArray<T, S>;
 

@@ -58,16 +58,26 @@ template <ptrdiff_t W> inline auto vindex(int32_t stride) {
 #ifdef __AVX512F__
 static constexpr ptrdiff_t REGISTERS = 32;
 static constexpr ptrdiff_t VECTORWIDTH = 64;
+// namespace hw {
+// typedef double __m512d_u __attribute__((__vector_size__(64),
+// __aligned__(8)));
+
+// typedef int64_t __m512i_u __attribute__((__vector_size__(64),
+// __aligned__(8))); } // namespace hw
 
 template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto load(const T *p,
                                                          mask::None<8>)
   -> Vec<8, T> {
-  if constexpr (std::same_as<T, double>)
+  if constexpr (std::same_as<T, double>) {
+    // hw::__m512d_u v = *reinterpret_cast<const hw::__m512d_u *>(p);
+    // return std::bit_cast<Vec<8, double>>(v);
     return std::bit_cast<Vec<8, double>>(_mm512_loadu_pd(p));
-  else if constexpr (std::same_as<T, int64_t>)
+  } else if constexpr (std::same_as<T, int64_t>) {
+    // hw::__m512i_u v = *reinterpret_cast<const hw::__m512i_u *>(p);
+    // return std::bit_cast<Vec<8, int64_t>>(v);
     return std::bit_cast<Vec<8, int64_t>>(_mm512_loadu_epi64(p));
-  else static_assert(false);
+  } else static_assert(false);
 }
 template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto load(const T *p,
@@ -84,11 +94,15 @@ template <typename T>
 template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void store(T *p, mask::None<8>,
                                                           Vec<8, T> x) {
-  if constexpr (std::same_as<T, double>)
+  if constexpr (std::same_as<T, double>) {
+    // hw::__m512d_u v = std::bit_cast<Vec<8, double>>(x);
+    // *reinterpret_cast<hw::__m512d_u *>(p) = v;
     _mm512_storeu_pd(p, std::bit_cast<__m512d>(x));
-  else if constexpr (std::same_as<T, int64_t>)
+  } else if constexpr (std::same_as<T, int64_t>) {
+    // hw::__m512i_u v = std::bit_cast<Vec<8, int64_t>>(x);
+    // *reinterpret_cast<hw::__m512i_u *>(p) = v;
     _mm512_storeu_epi64(p, std::bit_cast<__m512i>(x));
-  else static_assert(false);
+  } else static_assert(false);
 }
 template <typename T>
 [[gnu::always_inline, gnu::artificial]] inline void store(T *p, mask::Bit<8> i,
