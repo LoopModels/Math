@@ -437,8 +437,11 @@ struct StaticArray<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>
   constexpr auto operator==(const StaticArray &other) const -> bool {
     // masks return `true` if `any` are on
     for (ptrdiff_t i = 0; i < M * L; ++i)
-      if (simd::cmp::ne<T>(data[i], other.data[i])) return false;
+      if (simd::cmp::ne<W, T>(data[i], other.data[i])) return false;
     return true;
+  }
+  template <std::size_t I> [[nodiscard]] constexpr auto get() const -> T {
+    return data[I / W][I % W];
   }
 };
 

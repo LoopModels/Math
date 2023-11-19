@@ -89,7 +89,7 @@ constexpr auto create(ptrdiff_t i, ptrdiff_t len) -> Bit<W> {
 #else // ifdef __AVX512VL__
 
 template <ptrdiff_t W, typename I = int64_t> struct Vector {
-  // static_assert((W == 2) || (W == 4));
+  static_assert(sizeof(I) * W <= 32);
   // TODO: add support for smaller mask types, we we can use smaller eltypes
   Vec<W, I> m;
   [[nodiscard]] constexpr auto intmask() const -> int32_t {
@@ -188,255 +188,320 @@ constexpr auto create(ptrdiff_t i, ptrdiff_t len) -> Vector<W> {
 #endif // ifdef __x86_64__; else
 } // namespace mask
 
-#ifdef __AVX512F__
-namespace cmp {
-
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto eq(Vec<8, T> x, Vec<8, T> y)
-  -> mask::Bit<8> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
-                               std::bit_cast<__m512d>(y), 8)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
-                                  std::bit_cast<__m512i>(y), 0)};
-  } else static_assert(false);
-}
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto ne(Vec<8, T> x, Vec<8, T> y)
-  -> mask::Bit<8> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
-                               std::bit_cast<__m512d>(y), 4)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
-                                  std::bit_cast<__m512i>(y), 4)};
-  } else static_assert(false);
-}
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto lt(Vec<8, T> x, Vec<8, T> y)
-  -> mask::Bit<8> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
-                               std::bit_cast<__m512d>(y), 25)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
-                                  std::bit_cast<__m512i>(y), 1)};
-  } else static_assert(false);
-}
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto gt(Vec<8, T> x, Vec<8, T> y)
-  -> mask::Bit<8> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
-                               std::bit_cast<__m512d>(y), 22)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
-                                  std::bit_cast<__m512i>(y), 6)};
-  } else static_assert(false);
-}
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto le(Vec<8, T> x, Vec<8, T> y)
-  -> mask::Bit<8> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
-                               std::bit_cast<__m512d>(y), 26)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
-                                  std::bit_cast<__m512i>(y), 2)};
-  } else static_assert(false);
-}
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto ge(Vec<8, T> x, Vec<8, T> y)
-  -> mask::Bit<8> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
-                               std::bit_cast<__m512d>(y), 21)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
-                                  std::bit_cast<__m512i>(y), 5)};
-  } else static_assert(false);
-}
-} // namespace cmp
-
 #ifdef __AVX512VL__
 
 namespace cmp {
 
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto eq(Vec<4, T> x, Vec<4, T> y)
-  -> mask::Bit<4> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {_mm256_cmp_pd_mask(std::bit_cast<__m256d>(x),
-                               std::bit_cast<__m256d>(y), 8)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm256_cmp_epi64_mask(std::bit_cast<__m256i>(x),
-                                  std::bit_cast<__m256i>(y), 0)};
+template <ptrdiff_t W, typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto eq(Vec<W, T> x, Vec<W, T> y)
+  -> mask::Bit<W> {
+  if constexpr (W == 8) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
+                                 std::bit_cast<__m512d>(y), 8)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
+                                    std::bit_cast<__m512i>(y), 0)};
+    } else static_assert(false);
+  } else if constexpr (W == 4) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm256_cmp_pd_mask(std::bit_cast<__m256d>(x),
+                                 std::bit_cast<__m256d>(y), 8)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm256_cmp_epi64_mask(std::bit_cast<__m256i>(x),
+                                    std::bit_cast<__m256i>(y), 0)};
+    } else static_assert(false);
+  } else if constexpr (W == 2) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm_cmp_pd_mask(std::bit_cast<__m128d>(x),
+                              std::bit_cast<__m128d>(y), 8)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm_cmp_epi64_mask(std::bit_cast<__m128i>(x),
+                                 std::bit_cast<__m128i>(y), 0)};
+    } else static_assert(false);
   } else static_assert(false);
 }
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto ne(Vec<4, T> x, Vec<4, T> y)
-  -> mask::Bit<4> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {_mm256_cmp_pd_mask(std::bit_cast<__m256d>(x),
-                               std::bit_cast<__m256d>(y), 4)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm256_cmp_epi64_mask(std::bit_cast<__m256i>(x),
-                                  std::bit_cast<__m256i>(y), 4)};
+template <ptrdiff_t W, typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto ne(Vec<W, T> x, Vec<W, T> y)
+  -> mask::Bit<W> {
+  if constexpr (W == 8) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
+                                 std::bit_cast<__m512d>(y), 4)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
+                                    std::bit_cast<__m512i>(y), 4)};
+    } else static_assert(false);
+  } else if constexpr (W == 4) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm256_cmp_pd_mask(std::bit_cast<__m256d>(x),
+                                 std::bit_cast<__m256d>(y), 4)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm256_cmp_epi64_mask(std::bit_cast<__m256i>(x),
+                                    std::bit_cast<__m256i>(y), 4)};
+    } else static_assert(false);
+  } else if constexpr (W == 2) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm_cmp_pd_mask(std::bit_cast<__m128d>(x),
+                              std::bit_cast<__m128d>(y), 4)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm_cmp_epi64_mask(std::bit_cast<__m128i>(x),
+                                 std::bit_cast<__m128i>(y), 4)};
+    } else static_assert(false);
   } else static_assert(false);
 }
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto lt(Vec<4, T> x, Vec<4, T> y)
-  -> mask::Bit<4> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {_mm256_cmp_pd_mask(std::bit_cast<__m256d>(x),
-                               std::bit_cast<__m256d>(y), 25)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm256_cmp_epi64_mask(std::bit_cast<__m256i>(x),
-                                  std::bit_cast<__m256i>(y), 1)};
+template <ptrdiff_t W, typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto lt(Vec<W, T> x, Vec<W, T> y)
+  -> mask::Bit<W> {
+  if constexpr (W == 8) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
+                                 std::bit_cast<__m512d>(y), 25)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
+                                    std::bit_cast<__m512i>(y), 1)};
+    } else static_assert(false);
+  } else if constexpr (W == 4) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm256_cmp_pd_mask(std::bit_cast<__m256d>(x),
+                                 std::bit_cast<__m256d>(y), 25)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm256_cmp_epi64_mask(std::bit_cast<__m256i>(x),
+                                    std::bit_cast<__m256i>(y), 1)};
+    } else static_assert(false);
+  } else if constexpr (W == 2) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm_cmp_pd_mask(std::bit_cast<__m128>(x),
+                              std::bit_cast<__m128d>(y), 25)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm_cmp_epi64_mask(std::bit_cast<__m128i>(x),
+                                 std::bit_cast<__m128i>(y), 1)};
+    } else static_assert(false);
   } else static_assert(false);
 }
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto gt(Vec<4, T> x, Vec<4, T> y)
-  -> mask::Bit<4> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {_mm256_cmp_pd_mask(std::bit_cast<__m256d>(x),
-                               std::bit_cast<__m256d>(y), 22)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm256_cmp_epi64_mask(std::bit_cast<__m256i>(x),
-                                  std::bit_cast<__m256i>(y), 6)};
+template <ptrdiff_t W, typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto gt(Vec<W, T> x, Vec<W, T> y)
+  -> mask::Bit<W> {
+  if constexpr (W == 8) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
+                                 std::bit_cast<__m512d>(y), 22)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
+                                    std::bit_cast<__m512i>(y), 6)};
+    } else static_assert(false);
+  } else if constexpr (W == 4) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm256_cmp_pd_mask(std::bit_cast<__m256d>(x),
+                                 std::bit_cast<__m256d>(y), 22)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm256_cmp_epi64_mask(std::bit_cast<__m256i>(x),
+                                    std::bit_cast<__m256i>(y), 6)};
+    } else static_assert(false);
+  } else if constexpr (W == 2) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm_cmp_pd_mask(std::bit_cast<__m128d>(x),
+                              std::bit_cast<__m128d>(y), 22)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm_cmp_epi64_mask(std::bit_cast<__m128i>(x),
+                                 std::bit_cast<__m128i>(y), 6)};
+    } else static_assert(false);
   } else static_assert(false);
 }
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto le(Vec<4, T> x, Vec<4, T> y)
-  -> mask::Bit<4> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {_mm256_cmp_pd_mask(std::bit_cast<__m256d>(x),
-                               std::bit_cast<__m256d>(y), 26)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm256_cmp_epi64_mask(std::bit_cast<__m256i>(x),
-                                  std::bit_cast<__m256i>(y), 2)};
+template <ptrdiff_t W, typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto le(Vec<W, T> x, Vec<W, T> y)
+  -> mask::Bit<W> {
+  if constexpr (W == 8) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
+                                 std::bit_cast<__m512d>(y), 26)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
+                                    std::bit_cast<__m512i>(y), 2)};
+    } else static_assert(false);
+  } else if constexpr (W == 4) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm256_cmp_pd_mask(std::bit_cast<__m256d>(x),
+                                 std::bit_cast<__m256d>(y), 26)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm256_cmp_epi64_mask(std::bit_cast<__m256i>(x),
+                                    std::bit_cast<__m256i>(y), 2)};
+    } else static_assert(false);
+  } else if constexpr (W == 2) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm_cmp_pd_mask(std::bit_cast<__m128d>(x),
+                              std::bit_cast<__m128d>(y), 26)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm_cmp_epi64_mask(std::bit_cast<__m128i>(x),
+                                 std::bit_cast<__m128i>(y), 2)};
+    } else static_assert(false);
   } else static_assert(false);
 }
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto ge(Vec<4, T> x, Vec<4, T> y)
-  -> mask::Bit<4> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {_mm256_cmp_pd_mask(std::bit_cast<__m256d>(x),
-                               std::bit_cast<__m256d>(y), 21)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm256_cmp_epi64_mask(std::bit_cast<__m256i>(x),
-                                  std::bit_cast<__m256i>(y), 5)};
+template <ptrdiff_t W, typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto ge(Vec<W, T> x, Vec<W, T> y)
+  -> mask::Bit<W> {
+  if constexpr (W == 8) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
+                                 std::bit_cast<__m512d>(y), 21)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
+                                    std::bit_cast<__m512i>(y), 5)};
+    } else static_assert(false);
+  } else if constexpr (W == 4) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm256_cmp_pd_mask(std::bit_cast<__m256d>(x),
+                                 std::bit_cast<__m256d>(y), 21)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm256_cmp_epi64_mask(std::bit_cast<__m256i>(x),
+                                    std::bit_cast<__m256i>(y), 5)};
+    } else static_assert(false);
+  } else if constexpr (W == 2) {
+
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm_cmp_pd_mask(std::bit_cast<__m128d>(x),
+                              std::bit_cast<__m128d>(y), 21)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm_cmp_epi64_mask(std::bit_cast<__m128i>(x),
+                                 std::bit_cast<__m128i>(y), 5)};
+    } else static_assert(false);
   } else static_assert(false);
 }
 
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto eq(Vec<2, T> x, Vec<2, T> y)
-  -> mask::Bit<2> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {
-      _mm_cmp_pd_mask(std::bit_cast<__m128d>(x), std::bit_cast<__m128d>(y), 8)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm_cmp_epi64_mask(std::bit_cast<__m128i>(x),
-                               std::bit_cast<__m128i>(y), 0)};
-  } else static_assert(false);
-}
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto ne(Vec<2, T> x, Vec<2, T> y)
-  -> mask::Bit<2> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {
-      _mm_cmp_pd_mask(std::bit_cast<__m128d>(x), std::bit_cast<__m128d>(y), 4)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm_cmp_epi64_mask(std::bit_cast<__m128i>(x),
-                               std::bit_cast<__m128i>(y), 4)};
-  } else static_assert(false);
-}
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto lt(Vec<2, T> x, Vec<2, T> y)
-  -> mask::Bit<2> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {
-      _mm_cmp_pd_mask(std::bit_cast<__m128>(x), std::bit_cast<__m128d>(y), 25)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm_cmp_epi64_mask(std::bit_cast<__m128i>(x),
-                               std::bit_cast<__m128i>(y), 1)};
-  } else static_assert(false);
-}
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto gt(Vec<2, T> x, Vec<2, T> y)
-  -> mask::Bit<2> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {_mm_cmp_pd_mask(std::bit_cast<__m128d>(x),
-                            std::bit_cast<__m128d>(y), 22)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm_cmp_epi64_mask(std::bit_cast<__m128i>(x),
-                               std::bit_cast<__m128i>(y), 6)};
-  } else static_assert(false);
-}
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto le(Vec<2, T> x, Vec<2, T> y)
-  -> mask::Bit<2> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {_mm_cmp_pd_mask(std::bit_cast<__m128d>(x),
-                            std::bit_cast<__m128d>(y), 26)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm_cmp_epi64_mask(std::bit_cast<__m128i>(x),
-                               std::bit_cast<__m128i>(y), 2)};
-  } else static_assert(false);
-}
-template <typename T>
-[[gnu::always_inline, gnu::artificial]] inline auto ge(Vec<2, T> x, Vec<2, T> y)
-  -> mask::Bit<2> {
-  if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
-    return {_mm_cmp_pd_mask(std::bit_cast<__m128d>(x),
-                            std::bit_cast<__m128d>(y), 21)};
-  } else if constexpr (std::same_as<T, int64_t>) {
-    return {_mm_cmp_epi64_mask(std::bit_cast<__m128i>(x),
-                               std::bit_cast<__m128i>(y), 5)};
-  } else static_assert(false);
-}
 } // namespace cmp
-#endif // ifdef __AVX512VL__
-#endif // ifdef __AVX512F__
+#elif defined(__AVX512F__)
 
-#ifndef __AVX512VL__
+template <ptrdiff_t W, typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto eq(Vec<W, T> x,
+                                                       Vec<W, T> y) {
+  if constexpr (W == 8) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
+                                 std::bit_cast<__m512d>(y), 8)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
+                                    std::bit_cast<__m512i>(y), 0)};
+    } else static_assert(false);
+  } else {
+    return mask::Vector<W>{x == y};
+  }
+}
+template <ptrdiff_t W, typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto ne(Vec<W, T> x,
+                                                       Vec<W, T> y) {
+  if constexpr (W == 8) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
+                                 std::bit_cast<__m512d>(y), 4)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
+                                    std::bit_cast<__m512i>(y), 4)};
+    } else static_assert(false);
+  } else {
+    return mask::Vector<W>{x != y};
+  }
+}
+
+template <ptrdiff_t W, typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto lt(Vec<W, T> x,
+                                                       Vec<W, T> y) {
+  if constexpr (W == 8) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
+                                 std::bit_cast<__m512d>(y), 25)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
+                                    std::bit_cast<__m512i>(y), 1)};
+    } else static_assert(false);
+  } else {
+    return mask::Vector<W>{x < y};
+  }
+}
+template <ptrdiff_t W, typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto gt(Vec<W, T> x,
+                                                       Vec<W, T> y) {
+  if constexpr (W == 8) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
+                                 std::bit_cast<__m512d>(y), 22)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
+                                    std::bit_cast<__m512i>(y), 6)};
+    } else static_assert(false);
+  } else {
+    return mask::Vector<W>{x > y};
+  }
+}
+
+template <ptrdiff_t W, typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto le(Vec<W, T> x,
+                                                       Vec<W, T> y) {
+  if constexpr (W == 8) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
+                                 std::bit_cast<__m512d>(y), 26)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
+                                    std::bit_cast<__m512i>(y), 2)};
+    } else static_assert(false);
+  } else {
+    return mask::Vector<W>{x <= y};
+  }
+}
+template <ptrdiff_t W, typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto ge(Vec<W, T> x,
+                                                       Vec<W, T> y) {
+  if constexpr (W == 8) {
+    if constexpr (std::same_as<T, double>) { // UQ (unordered quiet?)
+      return {_mm512_cmp_pd_mask(std::bit_cast<__m512d>(x),
+                                 std::bit_cast<__m512d>(y), 21)};
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return {_mm512_cmp_epi64_mask(std::bit_cast<__m512i>(x),
+                                    std::bit_cast<__m512i>(y), 5)};
+    } else static_assert(false);
+  } else {
+    return mask::Vector<W>{x >= y};
+  }
+}
+
+#else  // ifdef __AVX512VL__
+
 namespace cmp {
 
-template <typename T, ptrdiff_t W>
+template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto eq(Vec<W, T> x, Vec<W, T> y)
   -> mask::Vector<W> {
   return {x == y};
 }
-template <typename T, ptrdiff_t W>
+template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto ne(Vec<W, T> x, Vec<W, T> y)
   -> mask::Vector<W> {
   return {x != y};
 }
 
-template <typename T, ptrdiff_t W>
+template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto lt(Vec<W, T> x, Vec<W, T> y)
   -> mask::Vector<W> {
   return {x < y};
 }
-template <typename T, ptrdiff_t W>
+template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto gt(Vec<W, T> x, Vec<W, T> y)
   -> mask::Vector<W> {
   return {x > y};
 }
 
-template <typename T, ptrdiff_t W>
+template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto le(Vec<W, T> x, Vec<W, T> y)
   -> mask::Vector<W> {
   return {x <= y};
 }
-template <typename T, ptrdiff_t W>
+template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto ge(Vec<W, T> x, Vec<W, T> y)
   -> mask::Vector<W> {
   return {x >= y};
 }
 } // namespace cmp
-#endif
+#endif // ifdef __AVX512VL__; else
 
 } // namespace poly::simd
 #endif // Masks_hpp_INCLUDED
