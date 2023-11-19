@@ -158,8 +158,8 @@ store(T *p, mask::Bit<8> i, Vec<8, T> x, int32_t stride) {
                                  std::bit_cast<__m512i>(x), 8);
   else static_assert(false);
 }
-
 #else // no AVX512F
+
 static constexpr ptrdiff_t REGISTERS = 16;
 #ifdef __AVX__
 static constexpr ptrdiff_t VECTORWIDTH = 32;

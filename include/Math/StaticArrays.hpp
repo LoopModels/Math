@@ -4,8 +4,8 @@
 #include "Utilities/Reference.hpp"
 #include <type_traits>
 #include <utility>
-namespace poly {
-namespace math {
+
+namespace poly::math {
 
 static_assert(
   AbstractSimilar<PtrVector<int64_t>, std::integral_constant<unsigned int, 4>>);
@@ -45,7 +45,7 @@ template <class T, ptrdiff_t M, ptrdiff_t N,
 struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Align>,
                                      StaticArray<T, M, N, Align>> {
   static constexpr ptrdiff_t PaddedCols = calcPaddedCols<T, N, Align>();
-  static constexpr ptrdiff_t capacity = M * N;
+  static constexpr ptrdiff_t capacity = M * PaddedCols;
   alignas(Align) T memory_[capacity]; // NOLINT(modernize-avoid-c-arrays)
 
   using value_type = utils::uncompressed_t<T>;
@@ -58,6 +58,8 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Align>,
   using pointer = T *;
   using const_pointer = const T *;
   using concrete = std::true_type;
+
+  using decompressed_type = StaticArray<T, M, N, alignSIMD<T, N>()>;
   using S = StaticDims<T, M, N, Align>;
   constexpr explicit StaticArray(){}; // NOLINT(modernize-use-equals-default)
   constexpr explicit StaticArray(const T &x) noexcept {
@@ -75,7 +77,7 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Align>,
       (*this) << *list.begin();
       return;
     }
-    invariant(list.size(), size_t(capacity));
+    invariant(list.size() <= size_t(capacity));
     std::copy(list.begin(), list.end(), data());
   }
   template <AbstractSimilar<S> V> constexpr StaticArray(const V &b) noexcept {
@@ -294,6 +296,13 @@ struct StaticArray<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>
   // constexpr operator compressed_type() { return compressed_type{*this}; }
   constexpr StaticArray(StaticArray const &) = default;
   constexpr StaticArray(StaticArray &&) noexcept = default;
+  constexpr explicit StaticArray(const std::initializer_list<T> &list) {
+    if (list.size() == 1) {
+      (*this) << *list.begin();
+      return;
+    }
+    std::memcpy(data, list.begin(), list.size() * sizeof(T));
+  }
   template <AbstractSimilar<S> V> constexpr StaticArray(const V &b) noexcept {
     (*this) << b;
   }
@@ -425,6 +434,12 @@ struct StaticArray<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>
     if constexpr (M == 1) return (*this)[0, i];
     else return (*this)[i, 0];
   }
+  constexpr auto operator==(const StaticArray &other) const -> bool {
+    // masks return `true` if `any` are on
+    for (ptrdiff_t i = 0; i < M * L; ++i)
+      if (simd::cmp::ne<T>(data[i], other.data[i])) return false;
+    return true;
+  }
 };
 
 template <class T, ptrdiff_t N> using SVector = StaticArray<T, 1, N>;
@@ -448,9 +463,7 @@ template <class T, class... U>
 StaticArray(T, U...) -> StaticArray<T, 1, 1 + sizeof...(U)>;
 
 static_assert(utils::Compressible<SVector<int64_t, 3>>);
-} // namespace math
-
-}; // namespace poly
+} // namespace poly::math
 
 template <class T, ptrdiff_t N> // NOLINTNEXTLINE(cert-dcl58-cpp)
 struct std::tuple_size<::poly::math::SVector<T, N>>
