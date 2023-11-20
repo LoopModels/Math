@@ -11,6 +11,7 @@
 #include "Math/Rational.hpp"
 #include "Utilities/Invariant.hpp"
 #include "Utilities/Optional.hpp"
+#include "Utilities/Reference.hpp"
 #include "Utilities/TypeCompression.hpp"
 #include "Utilities/TypePromotion.hpp"
 #include "Utilities/Valid.hpp"
@@ -51,7 +52,7 @@ template <typename S>
 concept Dimension = VectorDimension<S> != MatrixDimension<S>;
 template <class T, Dimension S,
           ptrdiff_t N = containers::PreAllocStorage<T, S>(),
-          class A = alloc::Mallocator<T>>
+          class A = alloc::Mallocator<utils::compressed_t<T>>>
 struct ManagedArray;
 
 template <typename T>
@@ -86,7 +87,8 @@ template <typename T, typename S, typename I>
   auto newDim = calcNewDim(shape, i);
   invariant(ptr != nullptr);
   if constexpr (std::same_as<decltype(newDim), Empty>)
-    if constexpr (utils::Decompressible<T>) return decompress(ptr + offset);
+    if constexpr (utils::Decompressible<T>)
+      return utils::decompressed_t<T>::decompress(ptr + offset);
     else return ptr[offset];
   else if constexpr (simd::index::issimd<decltype(newDim)>)
     return simd::ref(ptr + offset, newDim);
@@ -123,7 +125,7 @@ template <typename T, typename S, typename I>
   auto newDim = calcNewDim(shape, i);
   invariant(ptr != nullptr);
   if constexpr (std::same_as<decltype(newDim), Empty>)
-    if constexpr (utils::Compressible<T>) return ref(ptr + offset);
+    if constexpr (utils::Compressible<T>) return utils::ref(ptr, offset);
     else return ptr[offset];
   else if constexpr (simd::index::issimd<decltype(newDim)>)
     return simd::ref(ptr + offset, newDim);
@@ -261,7 +263,7 @@ template <class T, Dimension S> struct POLY_MATH_GSL_POINTER Array {
   constexpr auto operator=(const Array &) -> Array & = default;
   constexpr auto operator=(Array &&) noexcept -> Array & = default;
   constexpr Array(const storage_type *p, S s) : ptr(p), sz(s) {}
-  constexpr Array(Valid<const T> p, S s) : ptr(p), sz(s) {}
+  constexpr Array(Valid<const storage_type> p, S s) : ptr(p), sz(s) {}
   template <ptrdiff_t R, ptrdiff_t C>
   constexpr Array(const storage_type *p, Row<R> r, Col<C> c)
     : ptr(p), sz(S{r, c}) {}
@@ -477,7 +479,7 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
   // using BaseT::BaseT;
   using BaseT::operator[], BaseT::data, BaseT::begin, BaseT::end, BaseT::rbegin,
     BaseT::rend, BaseT::front, BaseT::back;
-  using storage_type = utils::compressed_t<T>;
+  using storage_type = typename BaseT::storage_type;
 
   constexpr MutArray(const MutArray &) = default;
   constexpr MutArray(MutArray &&) noexcept = default;
@@ -723,7 +725,7 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
 };
 
 template <typename T, typename S>
-MutArray(T *, S) -> MutArray<utils::uncompressed_t<T>, S>;
+MutArray(T *, S) -> MutArray<utils::decompressed_t<T>, S>;
 
 template <typename T, typename S> MutArray(MutArray<T, S>) -> MutArray<T, S>;
 
@@ -777,11 +779,12 @@ template <class T, Dimension S>
 struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
   using BaseT = MutArray<T, S>;
   using U = containers::default_capacity_type_t<S>;
+  using storage_type = typename BaseT::storage_type;
   constexpr ResizeableView() noexcept : BaseT(nullptr, 0), capacity(0) {}
-  constexpr ResizeableView(T *p, S s, U c) noexcept
+  constexpr ResizeableView(storage_type *p, S s, U c) noexcept
     : BaseT(p, s), capacity(c) {}
   constexpr ResizeableView(alloc::Arena<> *a, S s, U c) noexcept
-    : ResizeableView{a->template allocate<T>(c), s, c} {}
+    : ResizeableView{a->template allocate<storage_type>(c), s, c} {}
 
   [[nodiscard]] constexpr auto isFull() const -> bool {
     return U(this->sz) == capacity;
@@ -998,12 +1001,14 @@ static_assert(std::is_trivially_move_assignable_v<MutArray<void *, ptrdiff_t>>);
 /// Non-owning view of a managed array, capable of reallocating, etc.
 /// It does not own memory. Mostly, it serves to drop the inlined
 /// stack capacity of the `ManagedArray` from the type.
-template <class T, Dimension S, class A = alloc::Mallocator<T>>
+template <class T, Dimension S,
+          class A = alloc::Mallocator<utils::compressed_t<T>>>
 struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S> {
   using BaseT = ResizeableView<T, S>;
   using U = containers::default_capacity_type_t<S>;
-  constexpr ReallocView(T *p, S s, U c) noexcept : BaseT(p, s, c) {}
-  constexpr ReallocView(T *p, S s, U c, A alloc) noexcept
+  using storage_type = typename BaseT::storage_type;
+  constexpr ReallocView(storage_type *p, S s, U c) noexcept : BaseT(p, s, c) {}
+  constexpr ReallocView(storage_type *p, S s, U c, A alloc) noexcept
     : BaseT(p, s, c), allocator(alloc) {}
 
   [[nodiscard]] constexpr auto newCapacity() const -> U {
@@ -1202,7 +1207,8 @@ protected:
   [[no_unique_address]] A allocator{};
 
   constexpr void allocateAtLeast(U len) {
-    alloc::AllocResult<T> res = alloc::alloc_at_least(allocator, len);
+    alloc::AllocResult<storage_type> res =
+      alloc::alloc_at_least(allocator, len);
     this->ptr = res.ptr;
     this->capacity = res.count;
   }
@@ -1237,7 +1243,7 @@ protected:
     if (wasAllocated()) allocator.deallocate(this->data(), this->capacity);
   }
   // this method should be called whenever the buffer lives
-  void maybeDeallocate(T *newPtr, U newCapacity) noexcept {
+  void maybeDeallocate(storage_type *newPtr, U newCapacity) noexcept {
     maybeDeallocate();
     this->ptr = newPtr;
     this->capacity = newCapacity;
@@ -1278,6 +1284,7 @@ struct POLY_MATH_GSL_OWNER ManagedArray : ReallocView<T, S, A> {
   static_assert(std::is_trivially_destructible_v<T>);
   using BaseT = ReallocView<T, S, A>;
   using U = containers::default_capacity_type_t<S>;
+  using storage_type = typename BaseT::storage_type;
   // We're deliberately not initializing storage.
 #if !defined(__clang__) && defined(__GNUC__)
 #pragma GCC diagnostic push
@@ -1517,7 +1524,7 @@ struct POLY_MATH_GSL_OWNER ManagedArray : ReallocView<T, S, A> {
   }
 
 private:
-  [[no_unique_address]] containers::Storage<T, N> memory;
+  [[no_unique_address]] containers::Storage<storage_type, N> memory;
 };
 
 static_assert(std::move_constructible<ManagedArray<intptr_t, ptrdiff_t>>);

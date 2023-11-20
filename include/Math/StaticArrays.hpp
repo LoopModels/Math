@@ -48,7 +48,7 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Align>,
   static constexpr ptrdiff_t capacity = M * PaddedCols;
   alignas(Align) T memory_[capacity]; // NOLINT(modernize-avoid-c-arrays)
 
-  using value_type = utils::uncompressed_t<T>;
+  using value_type = utils::decompressed_t<T>;
   using reference = decltype(utils::ref((T *)nullptr, 0));
   using const_reference = decltype(utils::ref((const T *)nullptr, 0));
   using size_type = ptrdiff_t;
@@ -204,7 +204,7 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Align>,
     return index(data(), S{}, r, c);
   }
   constexpr void fill(T value) {
-    std::fill_n((T *)(data()), ptrdiff_t(this->dim()), value);
+    std::fill_n(data(), ptrdiff_t(this->dim()), value);
   }
   [[nodiscard]] constexpr auto diag() noexcept {
     StridedRange r{unsigned(min(Row(S{}), Col(S{}))),
@@ -224,39 +224,6 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Align>,
   [[nodiscard]] constexpr auto get() const -> const T & {
     return memory_[I];
   }
-  /*
-    static constexpr auto decompress(const StaticArray *p) -> PaddedType {
-      constexpr ptrdiff_t W =
-        math::simd::vecWidth<T, std::integral_constant<ptrdiff_t, len>>();
-      constexpr ptrdiff_t P = ((len + W - 1) / W) * W;
-      if constexpr (P != len) {
-        PaddedType result; // NRVO
-        ptrdiff_t i = 0, n = W;
-        const auto &A{*p};
-        POLYMATHVECTORIZE
-        for (; n <= len; i = n, n += W) {
-          auto j = simd::unroll<W, 1>(i);
-          result[j] = A[j];
-        }
-        result[simd::unroll<W, 1>(i)] = A[simd::unroll<W, 1>(i, len)];
-        return result;
-      } else return *p; // RVO
-    }
-    static constexpr void compress(StaticArray *p, const PaddedType &rhs) {
-      constexpr ptrdiff_t W =
-        math::simd::vecWidth<T, std::integral_constant<ptrdiff_t, len>>();
-      if constexpr (W != 1) {
-        ptrdiff_t i = 0, n = W;
-        auto &A{*p};
-        POLYMATHVECTORIZE
-        for (; n <= len; i = n, n += W) {
-          auto j = simd::unroll<W, 1>(i);
-          A[j] = rhs[j];
-        }
-        if (i < len) A[simd::unroll<W, 1>(i, len)] = rhs[simd::unroll<W, 1>(i)];
-      } else *p << rhs;
-    }
-    */
 };
 
 template <simd::SIMDSupported T, ptrdiff_t M, ptrdiff_t N>
@@ -280,9 +247,8 @@ struct StaticArray<T, M, N, size_t(VecLen<N, T>) * sizeof(T)>
 
   using compressed_type = StaticArray<T, M, N, alignof(T)>;
 
-  constexpr void compress(compressed_type *p) { *p << *this; }
-  static constexpr auto decompress(StaticArray<T, M, N, alignof(T)> *p)
-    -> StaticArray {
+  constexpr void compress(compressed_type *p) const { *p << *this; }
+  static constexpr auto decompress(const compressed_type *p) -> StaticArray {
     return StaticArray{*p};
   }
   static constexpr ptrdiff_t W = VecLen<N, T>;
@@ -294,7 +260,7 @@ struct StaticArray<T, M, N, size_t(VecLen<N, T>) * sizeof(T)>
   static constexpr ptrdiff_t L = (N + W - 1) / W;
   static_assert(L * W == calcPaddedCols<T, N, Align>());
   // simd::Vec<W, T> data[M][L];
-  simd::Vec<W, T> data[M * L];
+  simd::Vec<W, T> memory_[M * L];
   // std::array<std::array<simd::Vec<W, T>, L>, M> data;
   // constexpr operator compressed_type() { return compressed_type{*this}; }
   constexpr StaticArray(StaticArray const &) = default;
@@ -306,15 +272,19 @@ struct StaticArray<T, M, N, size_t(VecLen<N, T>) * sizeof(T)>
     }
     invariant(list.size() <= L * W);
     size_t count = list.size() * sizeof(T);
-    std::memcpy(data, list.begin(), count);
-    std::memset((char *)data + count, 0, (L * W - list.size()) * sizeof(T));
+    std::memcpy(memory_, list.begin(), count);
+    std::memset((char *)memory_ + count, 0, (L * W - list.size()) * sizeof(T));
+  }
+  constexpr auto data() -> T * { return reinterpret_cast<T *>(memory_); }
+  [[nodiscard]] constexpr auto data() const -> const T * {
+    return reinterpret_cast<T *>(memory_);
   }
   template <AbstractSimilar<S> V> constexpr StaticArray(const V &b) noexcept {
     (*this) << b;
   }
   constexpr explicit StaticArray(T x) {
     simd::Vec<W, T> v = simd::Vec<W, T>{} + x;
-    for (ptrdiff_t i = 0; i < M * L; ++i) data[i] = v;
+    for (ptrdiff_t i = 0; i < M * L; ++i) memory_[i] = v;
   }
   constexpr auto operator=(StaticArray const &) -> StaticArray & = default;
   constexpr auto operator=(StaticArray &&) noexcept -> StaticArray & = default;
@@ -330,12 +300,12 @@ struct StaticArray<T, M, N, size_t(VecLen<N, T>) * sizeof(T)>
   inline auto operator[](ptrdiff_t i, ptrdiff_t j) -> T & {
     // return reinterpret_cast<T *>(data[i].data())[j];
     // return reinterpret_cast<T *>(data[i])[j];
-    return reinterpret_cast<T *>(data + i * L)[j];
+    return reinterpret_cast<T *>(memory_ + i * L)[j];
   }
   inline auto operator[](ptrdiff_t i, ptrdiff_t j) const -> T {
     // return reinterpret_cast<T *>(data[i].data())[j];
     // return reinterpret_cast<const T *>(data[i])[j];
-    return reinterpret_cast<const T *>(data + i * L)[j];
+    return reinterpret_cast<const T *>(memory_ + i * L)[j];
   }
   template <ptrdiff_t U, typename Mask>
   [[gnu::always_inline]] inline auto
@@ -363,7 +333,7 @@ struct StaticArray<T, M, N, size_t(VecLen<N, T>) * sizeof(T)>
     for (ptrdiff_t r = 0; r < R; ++r) {
       POLYMATHFULLUNROLL
       for (ptrdiff_t u = 0; u < C; ++u)
-        ret[r, u] = data[(i.index + r) * L + k + u];
+        ret[r, u] = memory_[(i.index + r) * L + k + u];
       // for (ptrdiff_t u = 0; u < C; ++u) ret[r, u] = data[i.index + r][k + u];
     }
     return ret;
@@ -443,17 +413,17 @@ struct StaticArray<T, M, N, size_t(VecLen<N, T>) * sizeof(T)>
   constexpr auto operator==(const StaticArray &other) const -> bool {
     // masks return `true` if `any` are on
     for (ptrdiff_t i = 0; i < M * L; ++i)
-      if (simd::cmp::ne<W, T>(data[i], other.data[i])) return false;
+      if (simd::cmp::ne<W, T>(memory_[i], other.data[i])) return false;
     return true;
   }
   template <std::size_t I> [[nodiscard]] constexpr auto get() const -> T {
-    return data[I / W][I % W];
+    return memory_[I / W][I % W];
   }
 };
 
-template <class T, ptrdiff_t N> using SVector = StaticArray<T, 1, N>;
-static_assert(
-  std::same_as<Row<1>, decltype(std::declval<SVector<int64_t, 3>>().numRow())>);
+template <class T, ptrdiff_t N, ptrdiff_t Align = alignSIMD<T, N>()>
+using SVector = StaticArray<T, 1, N, Align>;
+static_assert(std::same_as<Row<1>, decltype(SVector<int64_t, 3>::numRow())>);
 static_assert(
   std::same_as<Row<1>, decltype(numRows(std::declval<SVector<int64_t, 3>>()))>);
 

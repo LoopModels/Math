@@ -12,11 +12,15 @@
 
 namespace poly::math {
 
-template <class T, ptrdiff_t N> class Dual {
+template <class T, ptrdiff_t N, ptrdiff_t Align = math::alignSIMD<T, N>()>
+struct Dual {
   T val{};
-  SVector<T, N> partials{T{}};
+  SVector<T, N, Align> partials{T{}};
 
-public:
+  using compressed_type = Dual<utils::compressed_t<T>, N, alignof(T)>;
+  using decompressed_type =
+    Dual<utils::decompressed_t<T>, N, math::alignSIMD<T, N>()>;
+
   constexpr Dual() = default;
   constexpr Dual(T v) : val(v) {}
   constexpr Dual(T v, ptrdiff_t n) : val(v) { partials[n] = T{1}; }
@@ -163,6 +167,28 @@ public:
   }
   constexpr auto operator>=(const Dual &other) const -> bool {
     return val >= other.val;
+  }
+  constexpr void compress(compressed_type *p) const
+  requires(std::same_as<Dual, decompressed_type>)
+  {
+    utils::compress(val, &(p->val));
+    partials.compress(&(p->partials));
+  }
+  static constexpr auto decompress(const compressed_type *p) -> Dual {
+    return {utils::decompress<T>(&(p->val)),
+            utils::decompress<SVector<T, N>>(&(p->partials))};
+  }
+  constexpr operator compressed_type() const
+  requires(std::same_as<Dual, decompressed_type>)
+  {
+    compressed_type ret;
+    compress(&ret);
+    return ret;
+  }
+  constexpr operator decompressed_type() const
+  requires(std::same_as<Dual, compressed_type>)
+  {
+    return decompressed_type::decompress(this);
   }
 };
 template <class T, ptrdiff_t N> Dual(T, SVector<T, N>) -> Dual<T, N>;

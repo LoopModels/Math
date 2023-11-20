@@ -201,6 +201,7 @@ TEST(ExpMatTest, BasicAssertions) {
   B[3, 3] = 0.3930685232252409;
   EXPECT_LE(norm2(B - expm(A)), 1e-10);
 
+  static_assert(poly::utils::Compressible<Dual<double, 2>>);
   SquareMatrix<Dual<double, 2>, L> Ad(4);
   Ad[0, 0] = Dual<double, 2>{
     0.13809508135032297,

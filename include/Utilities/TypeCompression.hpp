@@ -19,12 +19,14 @@ namespace poly::utils {
 
 /// `T` is the canonical type, which may define `compress`
 template <typename T>
-concept Compressible = requires(T t, typename T::compressed_type *p) {
-  { t.compress(p) };
-  { T::decompress(p) } -> std::same_as<T>;
-  { t = *p }; // need generic code to work reasonably well with pointers `p`
-  { T{*p} };  // and value_type `T`
-};
+concept Compressible =
+  (!std::same_as<T, typename T::compressed_type>)&&requires(
+    T t, typename T::compressed_type *p) {
+    { t.compress(p) };
+    { T::decompress(p) } -> std::same_as<T>;
+    { t = *p }; // need generic code to work reasonably well with pointers `p`
+    { T{*p} };  // and value_type `T`
+  };
 
 template <typename T> struct Uncompressed {
   using compressed = T;
@@ -47,11 +49,21 @@ template <Decompressible T> struct Compressed<T> {
   using uncompressed = typename T::decompressed_type;
 };
 template <typename T>
-using uncompressed_t =
+using decompressed_t =
   typename Compressed<std::remove_cvref_t<T>>::uncompressed;
 
-static_assert(std::same_as<uncompressed_t<double>, double>);
+static_assert(std::same_as<decompressed_t<double>, double>);
 static_assert(!Decompressible<double>);
 static_assert(!Compressible<double>);
+
+template <typename T> constexpr void compress(const T &x, compressed_t<T> *p) {
+  if constexpr (Compressible<T>) x.compress(p);
+  else *p = x;
+}
+template <typename T>
+constexpr auto decompress(const compressed_t<T> *p) -> decltype(auto) {
+  if constexpr (Compressible<T>) return T::decompress(p);
+  else return *p;
+}
 
 } // namespace poly::utils
