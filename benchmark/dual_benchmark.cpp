@@ -43,9 +43,7 @@ template <std::floating_point T, ptrdiff_t N> struct ManualDual<T, N, false> {
 };
 template <std::floating_point T, ptrdiff_t N> struct ManualDual<T, N, true> {
   T value;
-  poly::math::StaticArray<T, 1, N,
-                          alignof(poly::simd::Vec<poly::math::VecLen<N, T>, T>)>
-    partials;
+  poly::math::StaticArray<T, 1, N, false> partials;
 };
 template <typename T, ptrdiff_t N, bool B>
 [[gnu::always_inline]] constexpr auto operator*(const ManualDual<T, N, B> &a,
@@ -135,6 +133,7 @@ BENCHMARK(BM_dual8x2prod_simdarray);
 static void BM_dual7x2prod(benchmark::State &state) {
   std::mt19937_64 rng0;
   using D = Dual<Dual<double, 7>, 2>;
+  static_assert(poly::utils::Compressible<D>);
   D a = URand<D>{}(rng0), b = URand<D>{}(rng0), c;
   for (auto _ : state) {
     prod(c, a, b);

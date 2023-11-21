@@ -51,7 +51,8 @@ namespace poly::math {
 template <typename S>
 concept Dimension = VectorDimension<S> != MatrixDimension<S>;
 template <class T, Dimension S,
-          ptrdiff_t N = containers::PreAllocStorage<T, S>(),
+          ptrdiff_t N =
+            containers::PreAllocStorage<utils::compressed_t<T>, S>(),
           class A = alloc::Mallocator<utils::compressed_t<T>>>
 struct ManagedArray;
 
@@ -1559,8 +1560,8 @@ template <class T, ptrdiff_t L = 64>
 using DenseMatrix = ManagedArray<T, DenseDims<>, L>;
 template <class T> using SquarePtrMatrix = Array<T, SquareDims<>>;
 template <class T> using MutSquarePtrMatrix = MutArray<T, SquareDims<>>;
-template <class T,
-          ptrdiff_t L = containers::PreAllocSquareStorage<T, SquareDims<>>()>
+template <class T, ptrdiff_t L = containers::PreAllocSquareStorage<
+                     utils::compressed_t<T>, SquareDims<>>()>
 using SquareMatrix = ManagedArray<T, SquareDims<>, L>;
 
 static_assert(sizeof(PtrMatrix<int64_t>) ==

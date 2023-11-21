@@ -107,6 +107,10 @@ BENCHMARK(BM_dual8x2BmApI_manual)->DenseRange(2, 10, 1);
 static void BM_dual7x2dApI(benchmark::State &state) {
   std::mt19937_64 rng0;
   using D = Dual<Dual<double, 7>, 2>;
+  static_assert(poly::utils::Compressible<Dual<double, 7>>);
+  static_assert(poly::utils::Compressible<D>);
+  static_assert(sizeof(poly::utils::compressed_t<D>) == (24 * sizeof(double)));
+  static_assert(sizeof(D) == sizeof(Dual<Dual<double, 8>, 2>));
   ptrdiff_t dim = state.range(0);
   SquareMatrix<D> A{SquareDims{{dim}}};
   SquareMatrix<D> B{SquareDims{{dim}}};

@@ -12,14 +12,48 @@
 
 namespace poly::math {
 
-template <class T, ptrdiff_t N, ptrdiff_t Align = math::alignSIMD<T, N>()>
-struct Dual {
+template <class T, ptrdiff_t N, bool Compress = false> struct Dual {
+  static_assert(Compress);
   T val{};
-  SVector<T, N, Align> partials{T{}};
+  SVector<T, N, true> partials{T{}};
 
-  using compressed_type = Dual<utils::compressed_t<T>, N, alignof(T)>;
-  using decompressed_type =
-    Dual<utils::decompressed_t<T>, N, math::alignSIMD<T, N>()>;
+  using decompressed_type = Dual<utils::decompressed_t<T>, N, false>;
+  constexpr operator decompressed_type() const {
+    return decompressed_type::decompress(this);
+  }
+  [[nodiscard]] constexpr auto value() const -> const T & { return val; }
+  [[gnu::always_inline]] constexpr auto operator-() const & -> Dual {
+    return {-val, -partials};
+  }
+  [[gnu::always_inline]] constexpr auto
+  operator+(const Dual &other) const & -> Dual {
+    return {val + other.val, partials + other.partials};
+  }
+  [[gnu::always_inline]] constexpr auto operator-(const Dual &other) const
+    -> Dual {
+    return {val - other.val, partials - other.partials};
+  }
+  [[gnu::always_inline]] constexpr auto operator+=(const Dual &other)
+    -> Dual & {
+    val += other.val;
+    partials += other.partials;
+    return *this;
+  }
+  [[gnu::always_inline]] constexpr auto operator-=(const Dual &other)
+    -> Dual & {
+    val -= other.val;
+    partials -= other.partials;
+    return *this;
+  }
+};
+
+template <class T, ptrdiff_t N> struct Dual<T, N, false> {
+  T val{};
+  SVector<T, N, false> partials{T{}};
+
+  using compressed_type = Dual<utils::compressed_t<T>, N, true>;
+  using decompressed_type = Dual<utils::decompressed_t<T>, N, false>;
+  static_assert(std::same_as<Dual, decompressed_type>);
 
   constexpr Dual() = default;
   constexpr Dual(T v) : val(v) {}
@@ -168,9 +202,7 @@ struct Dual {
   constexpr auto operator>=(const Dual &other) const -> bool {
     return val >= other.val;
   }
-  constexpr void compress(compressed_type *p) const
-  requires(std::same_as<Dual, decompressed_type>)
-  {
+  constexpr void compress(compressed_type *p) const {
     utils::compress(val, &(p->val));
     partials.compress(&(p->partials));
   }
@@ -178,19 +210,19 @@ struct Dual {
     return {utils::decompress<T>(&(p->val)),
             utils::decompress<SVector<T, N>>(&(p->partials))};
   }
-  constexpr operator compressed_type() const
-  requires(std::same_as<Dual, decompressed_type>)
-  {
+  constexpr operator compressed_type() const {
     compressed_type ret;
     compress(&ret);
     return ret;
   }
-  constexpr operator decompressed_type() const
-  requires(std::same_as<Dual, compressed_type>)
-  {
-    return decompressed_type::decompress(this);
-  }
 };
+
+static_assert(utils::Compressible<Dual<double, 7>>);
+
+// template <simd::SIMDSupported T, ptrdiff_t N>
+// requires(std::popcount(size_t(N)) > 1)
+// struct Dual<T, N> {};
+
 template <class T, ptrdiff_t N> Dual(T, SVector<T, N>) -> Dual<T, N>;
 
 template <class T, ptrdiff_t N>
@@ -369,9 +401,12 @@ constexpr auto gradient(alloc::Arena<> *arena, PtrVector<double> x,
   }
 }
 // only computes the upper triangle blocks
-template <class T, ptrdiff_t N> constexpr auto value(const Dual<T, N> &x) {
+template <class T, ptrdiff_t N, bool Compress>
+constexpr auto value(const Dual<T, N, Compress> &x) {
   return value(x.value());
 }
+// this can call `value` on a compressed `Dual`, whichh is why we need `value`
+// to be defined on it.`
 template <class T, ptrdiff_t N>
 constexpr auto value(utils::Reference<Dual<T, N>> x) {
   return value(x.c->value());
