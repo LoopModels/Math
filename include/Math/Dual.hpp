@@ -335,6 +335,8 @@ struct Dual<T, N, false> {
     return {data - other.data};
   }
   constexpr auto operator*(const Dual &other) const -> Dual {
+    // TODO: either update remaining methods to match this style,
+    // or figure out how to get `conditional`'s codegen quality to match
     Dual ret;
     V vt = vvalue(), vo = other.vvalue(), x = vt * other.data.memory_[0];
     ret.data.memory_[0] = (simd::range<W, int64_t>() == simd::Vec<W, int64_t>{})

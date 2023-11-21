@@ -574,7 +574,7 @@ constexpr auto operator==(Unroll<U, W, M> x, ptrdiff_t y) {
     Vec<W, int64_t> v = Vec<W, int64_t>{} + y;
     POLYMATHFULLUNROLL
     for (ptrdiff_t u = 0; u < U; ++u)
-      ret.data[u] = (range<W, int64_t>() + (u * W)) == v;
+      ret.data[u] = range<W, int64_t>() == (v - u * W);
     return ret;
   }
 }
@@ -590,7 +590,7 @@ constexpr auto operator!=(Unroll<U, W, M> x, ptrdiff_t y) {
     Vec<W, int64_t> v = Vec<W, int64_t>{} + y;
     POLYMATHFULLUNROLL
     for (ptrdiff_t u = 0; u < U; ++u)
-      ret.data[u] = (range<W, int64_t>() + (u * W)) != v;
+      ret.data[u] = range<W, int64_t>() != (v - u * W);
     return ret;
   }
 }
@@ -606,7 +606,7 @@ constexpr auto operator<(Unroll<U, W, M> x, ptrdiff_t y) {
     Vec<W, int64_t> v = Vec<W, int64_t>{} + y;
     POLYMATHFULLUNROLL
     for (ptrdiff_t u = 0; u < U; ++u)
-      ret.data[u] = (range<W, int64_t>() + (u * W)) < v;
+      ret.data[u] = range<W, int64_t>() < (v - u * W);
     return ret;
   }
 }
@@ -622,7 +622,7 @@ constexpr auto operator>(Unroll<U, W, M> x, ptrdiff_t y) {
     Vec<W, int64_t> v = Vec<W, int64_t>{} + y;
     POLYMATHFULLUNROLL
     for (ptrdiff_t u = 0; u < U; ++u)
-      ret.data[u] = (range<W, int64_t>() + (u * W)) > v;
+      ret.data[u] = range<W, int64_t>() > (v - u * W);
     return ret;
   }
 }
@@ -638,7 +638,7 @@ constexpr auto operator<=(Unroll<U, W, M> x, ptrdiff_t y) {
     Vec<W, int64_t> v = Vec<W, int64_t>{} + y;
     POLYMATHFULLUNROLL
     for (ptrdiff_t u = 0; u < U; ++u)
-      ret.data[u] = (range<W, int64_t>() + (u * W)) <= v;
+      ret.data[u] = range<W, int64_t>() <= (v - u * W);
     return ret;
   }
 }
@@ -654,7 +654,7 @@ constexpr auto operator>=(Unroll<U, W, M> x, ptrdiff_t y) {
     Vec<W, int64_t> v = Vec<W, int64_t>{} + y;
     POLYMATHFULLUNROLL
     for (ptrdiff_t u = 0; u < U; ++u)
-      ret.data[u] = (range<W, int64_t>() + (u * W)) >= v;
+      ret.data[u] = range<W, int64_t>() >= (v - u * W);
     return ret;
   }
 }
