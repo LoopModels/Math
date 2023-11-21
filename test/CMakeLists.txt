@@ -1,14 +1,9 @@
 cmake_minimum_required(VERSION 3.14)
 
-# # ---- Static Analyzers ----
-# find_program(CLANGTIDY clang-tidy)
-# if(NOT CLANGTIDY MATCHES CLANGTIDY-NOTFOUND)
-#   set(CMAKE_CXX_CLANG_TIDY ${CLANGTIDY})
-# endif()
-# find_program(CPPCHECK cppcheck)
-# if(NOT CPPCHECK MATCHES CPPCHECK-NOTFOUND)
-#   set(CMAKE_CXX_CPPCHECK "${CPPCHECK} --language=c++ --enable=warning,style,performance,information")
-# endif()
+# # ---- Static Analyzers ---- find_program(CLANGTIDY clang-tidy) if(NOT CLANGTIDY MATCHES
+# CLANGTIDY-NOTFOUND) set(CMAKE_CXX_CLANG_TIDY ${CLANGTIDY}) endif() find_program(CPPCHECK cppcheck)
+# if(NOT CPPCHECK MATCHES CPPCHECK-NOTFOUND) set(CMAKE_CXX_CPPCHECK "${CPPCHECK} --language=c++
+# --enable=warning,style,performance,information") endif()
 
 project(MathTests LANGUAGES CXX)
 
@@ -31,10 +26,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if(((USE_SANITIZER MATCHES "([Aa]ddress)") OR (USE_SANITIZER MATCHES "([Aa]ddress);([Uu]ndefined)"))
    AND (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 )
-  find_library(LUNWIND_LIB lunwind)
-message(STATUS "Found unwindlib ${LUNWIND_LIB}")
+  find_library(LUNWIND_LIB unwind)
+  message(STATUS "Found unwindlib ${LUNWIND_LIB}")
   if(LUNWIND_LIB)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lunwind -Wno-unused-command-line-argument")
+    set(CMAKE_EXE_LINKER_FLAGS
+        "${CMAKE_EXE_LINKER_FLAGS} -lunwind -Wno-unused-command-line-argument"
+    )
   endif()
 endif()
 

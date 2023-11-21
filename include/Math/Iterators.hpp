@@ -49,6 +49,7 @@ template <std::integral B, std::integral E> struct Range<B, E> {
   [[nodiscard]] constexpr auto operator[](value_type i) const -> value_type {
     return b + i;
   }
+  [[nodiscard]] constexpr auto operator[](auto i) const { return i + b; }
 };
 constexpr auto standardizeRangeBound(auto x) { return x; }
 constexpr auto standardizeRangeBound(std::unsigned_integral auto x) {

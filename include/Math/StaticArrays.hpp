@@ -70,7 +70,7 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Compress>,
   using compressed_type = StaticArray<utils::compressed_t<T>, M, N, true>;
   using decompressed_type = StaticArray<value_type, M, N, false>;
   using S = StaticDims<T, M, N, Compress>;
-  constexpr explicit StaticArray(){}; // NOLINT(modernize-use-equals-default)
+  constexpr StaticArray(){}; // NOLINT(modernize-use-equals-default)
   constexpr explicit StaticArray(const T &x) noexcept { (*this) << x; }
   constexpr explicit StaticArray(
     const std::convertible_to<T> auto &x) noexcept {
@@ -275,8 +275,9 @@ struct StaticArray<T, M, N, false>
 
   static constexpr ptrdiff_t L = (N + W - 1) / W;
   static_assert(L * W == calcPaddedCols<T, N, Align>());
+  using V = simd::Vec<W, T>;
   // simd::Vec<W, T> data[M][L];
-  simd::Vec<W, T> memory_[M * L];
+  V memory_[M * L];
   // std::array<std::array<simd::Vec<W, T>, L>, M> data;
   // constexpr operator compressed_type() { return compressed_type{*this}; }
   constexpr StaticArray(StaticArray const &) = default;
@@ -304,7 +305,7 @@ struct StaticArray<T, M, N, false>
   }
   constexpr auto operator=(StaticArray const &) -> StaticArray & = default;
   constexpr auto operator=(StaticArray &&) noexcept -> StaticArray & = default;
-  constexpr explicit StaticArray(){}; // NOLINT(modernize-use-equals-default)
+  constexpr StaticArray(){}; // NOLINT(modernize-use-equals-default)
   static constexpr auto numRow() -> Row<M> { return {}; }
   static constexpr auto numCol() -> Col<N> { return {}; }
   static constexpr auto safeRow() -> Row<M> { return {}; }

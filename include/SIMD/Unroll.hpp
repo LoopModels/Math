@@ -560,6 +560,106 @@ ref(T *p, index::UnrollDims<R, C, W, M, Transposed, X> i)
   -> UnrollRef<R, C, W, T, X, 1, M, Transposed> {
   return {p, i.rs, std::array<M, 1>{i.mask}};
 }
+namespace index {
+
+template <ptrdiff_t U, ptrdiff_t W, typename M>
+constexpr auto operator==(Unroll<U, W, M> x, ptrdiff_t y) {
+  if constexpr (W == 1) {
+    poly::simd::Unroll<U, 1, 1, int64_t> ret;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t u = 0; u < U; ++u) ret.data[u] = (x.index + u) == y;
+    return ret;
+  } else {
+    poly::simd::Unroll<1, U, W, int64_t> ret;
+    Vec<W, int64_t> v = Vec<W, int64_t>{} + y;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t u = 0; u < U; ++u)
+      ret.data[u] = (range<W, int64_t>() + (u * W)) == v;
+    return ret;
+  }
+}
+template <ptrdiff_t U, ptrdiff_t W, typename M>
+constexpr auto operator!=(Unroll<U, W, M> x, ptrdiff_t y) {
+  if constexpr (W == 1) {
+    poly::simd::Unroll<U, 1, 1, int64_t> ret;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t u = 0; u < U; ++u) ret.data[u] = (x.index + u) != y;
+    return ret;
+  } else {
+    poly::simd::Unroll<1, U, W, int64_t> ret;
+    Vec<W, int64_t> v = Vec<W, int64_t>{} + y;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t u = 0; u < U; ++u)
+      ret.data[u] = (range<W, int64_t>() + (u * W)) != v;
+    return ret;
+  }
+}
+template <ptrdiff_t U, ptrdiff_t W, typename M>
+constexpr auto operator<(Unroll<U, W, M> x, ptrdiff_t y) {
+  if constexpr (W == 1) {
+    poly::simd::Unroll<U, 1, 1, int64_t> ret;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t u = 0; u < U; ++u) ret.data[u] = (x.index + u) < y;
+    return ret;
+  } else {
+    poly::simd::Unroll<1, U, W, int64_t> ret;
+    Vec<W, int64_t> v = Vec<W, int64_t>{} + y;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t u = 0; u < U; ++u)
+      ret.data[u] = (range<W, int64_t>() + (u * W)) < v;
+    return ret;
+  }
+}
+template <ptrdiff_t U, ptrdiff_t W, typename M>
+constexpr auto operator>(Unroll<U, W, M> x, ptrdiff_t y) {
+  if constexpr (W == 1) {
+    poly::simd::Unroll<U, 1, 1, int64_t> ret;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t u = 0; u < U; ++u) ret.data[u] = (x.index + u) > y;
+    return ret;
+  } else {
+    poly::simd::Unroll<1, U, W, int64_t> ret;
+    Vec<W, int64_t> v = Vec<W, int64_t>{} + y;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t u = 0; u < U; ++u)
+      ret.data[u] = (range<W, int64_t>() + (u * W)) > v;
+    return ret;
+  }
+}
+template <ptrdiff_t U, ptrdiff_t W, typename M>
+constexpr auto operator<=(Unroll<U, W, M> x, ptrdiff_t y) {
+  if constexpr (W == 1) {
+    poly::simd::Unroll<U, 1, 1, int64_t> ret;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t u = 0; u < U; ++u) ret.data[u] = (x.index + u) <= y;
+    return ret;
+  } else {
+    poly::simd::Unroll<1, U, W, int64_t> ret;
+    Vec<W, int64_t> v = Vec<W, int64_t>{} + y;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t u = 0; u < U; ++u)
+      ret.data[u] = (range<W, int64_t>() + (u * W)) <= v;
+    return ret;
+  }
+}
+template <ptrdiff_t U, ptrdiff_t W, typename M>
+constexpr auto operator>=(Unroll<U, W, M> x, ptrdiff_t y) {
+  if constexpr (W == 1) {
+    poly::simd::Unroll<U, 1, 1, int64_t> ret;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t u = 0; u < U; ++u) ret.data[u] = (x.index + u) >= y;
+    return ret;
+  } else {
+    poly::simd::Unroll<1, U, W, int64_t> ret;
+    Vec<W, int64_t> v = Vec<W, int64_t>{} + y;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t u = 0; u < U; ++u)
+      ret.data[u] = (range<W, int64_t>() + (u * W)) >= v;
+    return ret;
+  }
+}
+
+} // namespace index
 
 } // namespace poly::simd
 #endif // Unroll_hpp_INCLUDED

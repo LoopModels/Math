@@ -110,7 +110,7 @@ static void BM_dual7x2dApI(benchmark::State &state) {
   static_assert(poly::utils::Compressible<Dual<double, 7>>);
   static_assert(poly::utils::Compressible<D>);
   static_assert(sizeof(poly::utils::compressed_t<D>) == (24 * sizeof(double)));
-  static_assert(sizeof(D) == sizeof(Dual<Dual<double, 8>, 2>));
+  // static_assert(sizeof(D) == sizeof(Dual<Dual<double, 8>, 2>));
   ptrdiff_t dim = state.range(0);
   SquareMatrix<D> A{SquareDims{{dim}}};
   SquareMatrix<D> B{SquareDims{{dim}}};

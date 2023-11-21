@@ -21,7 +21,15 @@ template <class T, ptrdiff_t N, bool Compress = false> struct Dual {
   constexpr operator decompressed_type() const {
     return decompressed_type::decompress(this);
   }
+  [[nodiscard]] constexpr auto value() -> T { return val; }
   [[nodiscard]] constexpr auto value() const -> const T & { return val; }
+  [[nodiscard]] constexpr auto gradient() -> SVector<T, N, true> & {
+    return partials;
+  }
+  [[nodiscard]] constexpr auto gradient() const -> const SVector<T, N, true> & {
+    return partials;
+  }
+
   [[gnu::always_inline]] constexpr auto operator-() const & -> Dual {
     return {-val, -partials};
   }
@@ -47,7 +55,51 @@ template <class T, ptrdiff_t N, bool Compress = false> struct Dual {
   }
 };
 
+template <class T, ptrdiff_t N>
+requires(std::popcount(size_t(N)) > 1)
+struct Dual<T, N, true> {
+  SVector<T, N + 1, true> data{T{}};
+
+  using decompressed_type = Dual<utils::decompressed_t<T>, N, false>;
+  constexpr operator decompressed_type() const {
+    return decompressed_type::decompress(this);
+  }
+  [[nodiscard]] constexpr auto value() -> T { return data[0]; }
+  [[nodiscard]] constexpr auto value() const -> const T & { return data[0]; }
+  [[nodiscard]] constexpr auto gradient()
+    -> MutArray<T, std::integral_constant<ptrdiff_t, N>> {
+    return {data.data() + 1, {}};
+  }
+  [[nodiscard]] constexpr auto gradient() const
+    -> Array<T, std::integral_constant<ptrdiff_t, N>> {
+    return {data.data() + 1, {}};
+  }
+
+  [[gnu::always_inline]] constexpr auto operator-() const & -> Dual {
+    return {-data};
+  }
+  [[gnu::always_inline]] constexpr auto
+  operator+(const Dual &other) const & -> Dual {
+    return {data + other.data};
+  }
+  [[gnu::always_inline]] constexpr auto operator-(const Dual &other) const
+    -> Dual {
+    return {data - other.data};
+  }
+  [[gnu::always_inline]] constexpr auto operator+=(const Dual &other)
+    -> Dual & {
+    data += other.data;
+    return *this;
+  }
+  [[gnu::always_inline]] constexpr auto operator-=(const Dual &other)
+    -> Dual & {
+    data -= other.data;
+    return *this;
+  }
+};
+
 template <class T, ptrdiff_t N> struct Dual<T, N, false> {
+  // default decompressed separates the value and partials
   T val{};
   SVector<T, N, false> partials{T{}};
 
@@ -208,8 +260,16 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
   }
   static constexpr auto decompress(const compressed_type *p) -> Dual {
     return {utils::decompress<T>(&(p->val)),
-            utils::decompress<SVector<T, N>>(&(p->partials))};
+            SVector<T, N>::decompress(&(p->partials))};
   }
+  // constexpr void compress(compressed_type *p) const {
+  //   utils::compress(val, &(p->data[0]));
+  //   p->gradient() << partials;
+  // }
+  // static constexpr auto decompress(const compressed_type *p) -> Dual {
+  //   return {utils::decompress<T>(&(p->data[0])), SVector<T,
+  //   N>(p->gradient())};
+  // }
   constexpr operator compressed_type() const {
     compressed_type ret;
     compress(&ret);
@@ -217,11 +277,226 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
   }
 };
 
-static_assert(utils::Compressible<Dual<double, 7>>);
+template <simd::SIMDSupported T, ptrdiff_t N>
+requires(std::popcount(size_t(N)) > 1)
+struct Dual<T, N, false> {
+  static constexpr ptrdiff_t value_idx = 0; // N;
+  static constexpr ptrdiff_t partial_offset = value_idx != N;
+  using data_type = SVector<T, N + 1, false>;
+  data_type data{T{}};
+  using compressed_type = Dual<T, N, true>;
+  using decompressed_type = Dual<T, N, false>;
 
-// template <simd::SIMDSupported T, ptrdiff_t N>
-// requires(std::popcount(size_t(N)) > 1)
-// struct Dual<T, N> {};
+  using V = typename data_type::V;
+  static constexpr ptrdiff_t W = data_type::W;
+  // constexpr Dual() = default;
+  constexpr Dual() = default;
+  constexpr Dual(T v) { data[value_idx] = v; }
+  constexpr Dual(T v, ptrdiff_t n) {
+    data[value_idx] = v;
+    data[partial_offset + n] = T{1};
+  }
+  // constexpr Dual(T v, ptrdiff_t n, T p) {
+  //   data[value_idx] = v;
+  //   data[partial_offset + n] = p;
+  // }
+  constexpr Dual(T v, AbstractVector auto g) {
+    value() = v;
+    gradient() << g;
+  }
+  constexpr Dual(SVector<T, N + 1> d) : data{d} {}
+  constexpr Dual(const AbstractVector auto &d)
+  requires(std::convertible_to<utils::eltype_t<decltype(d)>, T>)
+    : data{d} {}
+  constexpr Dual(std::integral auto v) { value() = v; }
+  constexpr Dual(std::floating_point auto v) { value() = v; }
+  constexpr auto value() -> T & { return data[value_idx]; }
+  constexpr auto gradient()
+    -> MutArray<T, std::integral_constant<ptrdiff_t, N>> {
+    return {data.data() + partial_offset, {}};
+  }
+  [[nodiscard]] constexpr auto value() const -> T { return data[value_idx]; }
+  [[nodiscard]] constexpr auto vvalue() const -> V {
+    // return data[value_idx];
+    return (simd::range<W, int64_t>() == simd::Vec<W, int64_t>{})
+             ? data.memory_[0]
+             : V{};
+  }
+  [[nodiscard]] constexpr auto gradient() const
+    -> Array<T, std::integral_constant<ptrdiff_t, N>> {
+    return {data.data() + partial_offset, {}};
+  }
+
+  constexpr auto operator-() const & -> Dual { return {-data}; }
+  constexpr auto operator+(const Dual &other) const & -> Dual {
+    return {data + other.data};
+  }
+  constexpr auto operator-(const Dual &other) const -> Dual {
+    return {data - other.data};
+  }
+  constexpr auto operator*(const Dual &other) const -> Dual {
+    Dual ret;
+    V vt = vvalue(), vo = other.vvalue(), x = vt * other.data.memory_[0];
+    ret.data.memory_[0] = (simd::range<W, int64_t>() == simd::Vec<W, int64_t>{})
+                            ? x
+                            : x + vo * data.memory_[0];
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t i = 1; i < data_type::L; ++i)
+      ret.data.memory_[i] = vt * other.data.memory_[i] + vo * data.memory_[i];
+    return ret;
+    // return {conditional(std::plus<>{},
+    //                     elementwise_not_equal(_(0, N + 1), value_idx),
+    //                     value() * other.data, data * other.value())};
+  }
+  constexpr auto operator/(const Dual &other) const -> Dual {
+    // val = value() / other.value()
+    // partials = (other.value() * gradient() - value() * other.gradient()) /
+    // (other.value() * other.value())
+    // partials = (gradient()) / (other.value())
+    //  - (value() * other.gradient()) / (other.value() * other.value())
+    T v{other.value()};
+    return {conditional(std::minus<>{},
+                        elementwise_not_equal(_(0, N + 1), value_idx), data / v,
+                        value() * other.data / (v * v))};
+  }
+  constexpr auto operator+=(const Dual &other) -> Dual & {
+    data += other.data;
+    return *this;
+  }
+  constexpr auto operator-=(const Dual &other) -> Dual & {
+    data -= other.data;
+    return *this;
+  }
+  constexpr auto operator*=(const Dual &other) -> Dual & {
+    data << conditional(std::plus<>{},
+                        elementwise_not_equal(_(0, N + 1), value_idx),
+                        value() * other.data, data * other.value());
+    return *this;
+  }
+  constexpr auto operator/=(const Dual &other) -> Dual & {
+    T v{other.value()};
+    data << conditional(std::minus<>{},
+                        elementwise_not_equal(_(0, N + 1), value_idx), data / v,
+                        value() * other.data / (v * v));
+    return *this;
+  }
+  constexpr auto operator+(double other) const & -> Dual {
+    Dual ret = *this;
+    ret.data.memory_[0] += simd::Vec<SVector<T, N + 1>::W, T>{other};
+    return ret;
+  }
+  constexpr auto operator-(double other) const -> Dual {
+    Dual ret = *this;
+    ret.data.memory_[0] -= simd::Vec<SVector<T, N + 1>::W, T>{other};
+    return ret;
+  }
+  constexpr auto operator*(double other) const -> Dual {
+    return {data * other};
+  }
+  constexpr auto operator/(double other) const -> Dual {
+    return {data / other};
+  }
+  constexpr auto operator+=(double other) -> Dual & {
+    data.memory_[0] += simd::Vec<SVector<T, N + 1>::W, T>{other};
+    return *this;
+  }
+  constexpr auto operator-=(double other) -> Dual & {
+    data.memory_[0] -= simd::Vec<SVector<T, N + 1>::W, T>{other};
+    return *this;
+  }
+  constexpr auto operator*=(double other) -> Dual & {
+    data *= other;
+    return *this;
+  }
+  constexpr auto operator/=(double other) -> Dual & {
+    data /= other;
+    return *this;
+  }
+  constexpr auto operator==(const Dual &other) const -> bool {
+    return value() == other.value(); // && grad == other.grad;
+  }
+  constexpr auto operator!=(const Dual &other) const -> bool {
+    return value() != other.value(); // || grad != other.grad;
+  }
+  constexpr auto operator==(double other) const -> bool {
+    return value() == other;
+  }
+  constexpr auto operator!=(double other) const -> bool {
+    return value() != other;
+  }
+  constexpr auto operator<(double other) const -> bool {
+    return value() < other;
+  }
+  constexpr auto operator>(double other) const -> bool {
+    return value() > other;
+  }
+  constexpr auto operator<=(double other) const -> bool {
+    return value() <= other;
+  }
+  constexpr auto operator>=(double other) const -> bool {
+    return value() >= other;
+  }
+  constexpr auto operator<(const Dual &other) const -> bool {
+    return value() < other.value();
+  }
+  constexpr auto operator>(const Dual &other) const -> bool {
+    return value() > other.value();
+  }
+  constexpr auto operator<=(const Dual &other) const -> bool {
+    return value() <= other.value();
+  }
+  constexpr auto operator>=(const Dual &other) const -> bool {
+    return value() >= other.value();
+  }
+
+  friend constexpr auto exp(Dual x) -> Dual {
+    return {conditional(std::multiplies<>{},
+                        elementwise_not_equal(_(0, N + 1), value_idx),
+                        exp(x.value()), x.data)};
+  }
+
+  friend constexpr auto operator+(double other, Dual x) -> Dual {
+    return {other + x.data};
+  }
+  friend constexpr auto operator-(double other, Dual x) -> Dual {
+    return {other - x.data};
+  }
+  friend constexpr auto operator*(double other, Dual x) -> Dual {
+    return {other * x.data};
+  }
+  friend constexpr auto operator/(double other, Dual x) -> Dual {
+    T v = other / x.value();
+    return {conditional(std::multiplies<>{},
+                        elementwise_not_equal(_(0, N + 1), value_idx), v,
+                        -x.data / x.value())};
+    // return {v, -v * x.gradient() / (x.value())};
+  }
+  constexpr void compress(compressed_type *p) const { p->data << data; }
+  static constexpr auto decompress(const compressed_type *p) -> Dual {
+    return {SVector<T, N + 1, false>{p->data}};
+  }
+  constexpr operator compressed_type() const {
+    compressed_type ret;
+    compress(&ret);
+    return ret;
+  }
+};
+static_assert(!std::convertible_to<Array<Dual<double, 7, true>,
+                                         std::integral_constant<ptrdiff_t, 2>>,
+                                   Dual<double, 7, false>>);
+static_assert(utils::Compressible<Dual<double, 7>>);
+static_assert(utils::Compressible<Dual<double, 8>>);
+static_assert(
+  AbstractVector<
+    Conditional<poly::math::ElementwiseBinaryOp<poly::math::Range<long, long>,
+                                                long, std::not_equal_to<void>>,
+                poly::math::ElementwiseBinaryOp<
+                  double, poly::math::StaticArray<double, 1, 8, false>,
+                  std::multiplies<void>>,
+                poly::math::ElementwiseBinaryOp<
+                  poly::math::StaticArray<double, 1, 8, false>, double,
+                  std::multiplies<void>>,
+                std::plus<void>>>);
 
 template <class T, ptrdiff_t N> Dual(T, SVector<T, N>) -> Dual<T, N>;
 

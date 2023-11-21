@@ -291,7 +291,6 @@ template <TrivialTensor C, Trivial A, Trivial B> struct AbstractSelect {
       }
     }
   }
-  [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
 };
 
 inline constexpr auto view(const Trivial auto &x) { return x; }
@@ -305,7 +304,7 @@ struct Select : public AbstractSelect<C, A, B> {
   using value_type = AbstractSelect<C, A, B>::value_type;
   static constexpr bool has_reduction_loop =
     HasInnerReduction<A> || HasInnerReduction<B>;
-  constexpr auto operator[](ptrdiff_t i) const -> value_type
+  constexpr auto operator[](auto i) const
   requires LinearlyIndexableOrConvertible<C, bool> &&
            LinearlyIndexableOrConvertible<A, value_type> &&
            LinearlyIndexableOrConvertible<B, value_type>
@@ -313,7 +312,7 @@ struct Select : public AbstractSelect<C, A, B> {
     return get<bool>(this->c, i) ? get<value_type>(this->a, i)
                                  : get<value_type>(this->b, i);
   }
-  constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) const -> value_type
+  constexpr auto operator[](auto i, auto j) const
   requires CartesianIndexableOrConvertible<C, bool> &&
            CartesianIndexableOrConvertible<A, value_type> &&
            CartesianIndexableOrConvertible<B, value_type>
@@ -321,6 +320,7 @@ struct Select : public AbstractSelect<C, A, B> {
     return get<bool>(this->c, i, j) ? get<value_type>(this->a, i, j)
                                     : get<value_type>(this->b, i, j);
   }
+  [[nodiscard]] constexpr auto view() const -> Select { return *this; };
 };
 template <TrivialTensor C, Trivial A, Trivial B>
 Select(C c, A a, B b) -> Select<C, A, B>;
@@ -344,7 +344,65 @@ struct Conditional : public AbstractSelect<C, A, B> {
     auto x = get<value_type>(this->a, i);
     return get<bool>(this->c, i) ? op(x, get<value_type>(this->b, i)) : x;
   }
-  constexpr auto operator[](ptrdiff_t i, ptrdiff_t j) const -> value_type
+  template <ptrdiff_t U, ptrdiff_t W, typename M>
+  constexpr auto operator[](simd::index::Unroll<U, W, M> i) const
+  requires LinearlyIndexableOrConvertible<C, bool> &&
+           LinearlyIndexableOrConvertible<A, value_type> &&
+           LinearlyIndexableOrConvertible<B, value_type>
+  {
+    if constexpr (W == 1) {
+      auto c = get<bool>(this->c, i);
+      simd::Unroll<U, 1, 1, value_type> x = get<value_type>(this->a, i),
+                                        y = op(x, get<value_type>(this->b, i));
+      POLYMATHFULLUNROLL
+      for (ptrdiff_t u = 0; u < U; ++u)
+        x.data[u] = c.data[u] ? y.data[u] : x.data[u];
+      return x;
+    } else if constexpr (LinearlyIndexable<A, value_type>) {
+      auto c = get<bool>(this->c, i);
+      simd::Unroll<1, U, W, value_type> x = get<value_type>(this->a, i),
+                                        y = op(x, get<value_type>(this->b, i));
+      POLYMATHFULLUNROLL
+      for (ptrdiff_t u = 0; u < U; ++u)
+        x.data[u] = c.data[u] ? y.data[u] : x.data[u];
+      return x;
+    } else if constexpr (LinearlyIndexable<B, value_type>) {
+      auto c = get<bool>(this->c, i);
+      using V = simd::Vec<W, value_type>;
+      value_type x_ = get<value_type>(this->a, i);
+      V x = V{} + x_;
+      simd::Unroll<1, U, W, value_type> y = op(x, get<value_type>(this->b, i));
+      POLYMATHFULLUNROLL
+      for (ptrdiff_t u = 0; u < U; ++u)
+        if constexpr (LinearlyIndexable<B, value_type>)
+          y.data[u] = c.data[u] ? y.data[u] : x;
+      return y;
+    } else {
+      auto c = get<bool>(this->c, i);
+      using V = simd::Vec<W, value_type>;
+      value_type x_ = get<value_type>(this->a, i);
+      value_type y_ = op(x_, get<value_type>(this->b, i));
+      V x = V{} + x_, y = V{} + y_;
+      simd::Unroll<1, U, W, value_type> z;
+      POLYMATHFULLUNROLL
+      for (ptrdiff_t u = 0; u < U; ++u) z.data[u] = c.data[u] ? y : x;
+      return z;
+    }
+    //   auto c = get<bool>(this->c, i);
+    //   auto x = get<value_type>(this->a, i);
+    //   auto y = op(x, get<value_type>(this->b, i));
+    //   simd::Unroll<1, U, W, value_type> z;
+    //   POLYMATHFULLUNROLL
+    //   for (ptrdiff_t u = 0; u < U; ++u)
+    //     if constexpr (LinearlyIndexable<A, value_type>)
+    //       z.data[u] = !c.data[u] ? x.data[u] : y.data[u];
+    //     else if constexpr (LinearlyIndexable<B, value_type>)
+    //       z.data[u] = !c.data[u] ? x : y.data[u];
+    //     else z.data[u] = c.data[u] ? y : x;
+    //   return z;
+    // }
+  }
+  constexpr auto operator[](auto i, auto j) const
   requires CartesianIndexableOrConvertible<C, bool> &&
            CartesianIndexableOrConvertible<A, value_type> &&
            CartesianIndexableOrConvertible<B, value_type>
@@ -352,6 +410,7 @@ struct Conditional : public AbstractSelect<C, A, B> {
     auto x = get<value_type>(this->a, i, j);
     return get<bool>(this->c, i, j) ? op(x, get<value_type>(this->b, i, j)) : x;
   }
+  [[nodiscard]] constexpr auto view() const -> Conditional { return *this; };
 };
 constexpr auto conditional(auto op, const AbstractTensor auto &c, const auto &a,
                            const auto &b) {

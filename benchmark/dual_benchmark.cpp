@@ -94,7 +94,7 @@ template <typename T, ptrdiff_t N, bool B>
 template <ptrdiff_t M, ptrdiff_t N, bool SIMDArray> auto setup_manual() {
   using D = ManualDual<ManualDual<double, M, SIMDArray>, N>;
   std::mt19937_64 rng0;
-  D a, b, c;
+  D a{}, b{}, c{};
   a.value.value = URand<double>{}(rng0);
   b.value.value = URand<double>{}(rng0);
   for (ptrdiff_t j = 0; j < M; ++j) {
@@ -133,6 +133,7 @@ BENCHMARK(BM_dual8x2prod_simdarray);
 static void BM_dual7x2prod(benchmark::State &state) {
   std::mt19937_64 rng0;
   using D = Dual<Dual<double, 7>, 2>;
+  // static_assert(sizeof(D) == sizeof(Dual<Dual<double, 8>, 2>));
   static_assert(poly::utils::Compressible<D>);
   D a = URand<D>{}(rng0), b = URand<D>{}(rng0), c;
   for (auto _ : state) {

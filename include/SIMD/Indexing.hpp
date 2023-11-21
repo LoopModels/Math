@@ -4,7 +4,6 @@
 
 #include "Math/AxisTypes.hpp"
 #include "SIMD/Masks.hpp"
-
 namespace poly::simd::index {
 // Unroll rows by a factor of `R` and cols by `C`, vectorizing with width `W`
 template <ptrdiff_t U, ptrdiff_t W = 1, typename M = mask::None<W>>
@@ -13,6 +12,7 @@ struct Unroll {
   [[no_unique_address]] M mask{};
   explicit constexpr operator ptrdiff_t() const { return index; }
   explicit constexpr operator bool() const { return bool(mask); }
+  constexpr auto operator+(ptrdiff_t b) -> Unroll { return {b + index, mask}; }
 };
 template <ptrdiff_t U, ptrdiff_t W>
 [[gnu::always_inline]] constexpr auto unrollmask(ptrdiff_t L, ptrdiff_t i) {
@@ -52,7 +52,6 @@ static constexpr bool issimd<Unroll<U, W, M>> = true;
 template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename M, bool Transposed,
           ptrdiff_t X>
 static constexpr bool issimd<UnrollDims<R, C, W, M, Transposed, X>> = true;
-
 } // namespace poly::simd::index
 
 #endif
