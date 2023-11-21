@@ -78,7 +78,6 @@ concept BinaryFuncOfElts =
   return true;
 }
 
-
 template <typename Op, typename A> struct Elementwise {
   using value_type =
     decltype(std::declval<Op>()(std::declval<utils::eltype_t<A>>()));
@@ -682,19 +681,23 @@ constexpr auto operator*(const AbstractTensor auto &a,
 }
 template <AbstractVector M, utils::ElementOf<M> S>
 constexpr auto operator*(const M &b, S a) {
-  return ElementwiseBinaryOp(std::multiplies<>{}, view(b), view(a));
+  return ElementwiseBinaryOp(std::multiplies<>{}, view(b),
+                             utils::eltype_t<M>(a));
 }
 template <AbstractVector M, utils::ElementOf<M> S>
 constexpr auto operator*(S a, const M &b) {
-  return ElementwiseBinaryOp(std::multiplies<>{}, view(a), view(b));
+  return ElementwiseBinaryOp(std::multiplies<>{}, utils::eltype_t<M>(a),
+                             view(b));
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
 constexpr auto operator*(S a, const M &b) {
-  return ElementwiseBinaryOp(std::multiplies<>{}, view(a), view(b));
+  return ElementwiseBinaryOp(std::multiplies<>{}, utils::eltype_t<M>(a),
+                             view(b));
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
 constexpr auto operator*(const M &b, S a) {
-  return ElementwiseBinaryOp(std::multiplies<>{}, view(b), view(a));
+  return ElementwiseBinaryOp(std::multiplies<>{}, view(b),
+                             utils::eltype_t<M>(a));
 }
 
 template <class A, Compatible<A> B>

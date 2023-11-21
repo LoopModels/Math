@@ -7,6 +7,7 @@ template <typename T> struct Reference {
   static_assert(!std::same_as<C, T>);
   C *c;
   constexpr operator T() const { return T::decompress(c); }
+  constexpr auto view() const -> T { return T::decompress(c); }
   // constexpr operator T &() const { return *t; }
   constexpr auto operator=(const T &t) -> Reference & {
     t.compress(c);
@@ -21,65 +22,84 @@ template <typename T> struct Reference {
   constexpr auto operator==(const T &t) const -> bool {
     return T::decompress(c) == t;
   }
-  constexpr auto operator+=(const auto &x) -> Reference & {
+  [[gnu::always_inline]] constexpr auto operator+=(const auto &x) {
     T y{*this};
     y += x;
     y.compress(c);
-    return *this;
+    return y;
+    // return *this;
   }
-  constexpr auto operator-=(const auto &x) -> Reference & {
+  [[gnu::always_inline]] constexpr auto operator-=(const auto &x) {
+    // -> Reference & {
     T y{*this};
     y -= x;
     y.compress(c);
-    return *this;
+    return y;
+    // return *this;
   }
-  constexpr auto operator*=(const auto &x) -> Reference & {
+  [[gnu::always_inline]] constexpr auto operator*=(const auto &x) {
+    // -> Reference & {
     T y{*this};
     y *= x;
     y.compress(c);
-    return *this;
+    return y;
+    // return *this;
   }
-  constexpr auto operator/=(const auto &x) -> Reference & {
+  [[gnu::always_inline]] constexpr auto operator/=(const auto &x) {
+    // -> Reference & {
     T y{*this};
     y /= x;
     y.compress(c);
-    return *this;
+    return y;
+    // return *this;
   }
-  constexpr auto operator%=(const auto &x) -> Reference & {
+  [[gnu::always_inline]] constexpr auto operator%=(const auto &x) {
+    // -> Reference & {
     T y{*this};
     y %= x;
     y.compress(c);
-    return *this;
+    return y;
+    // return *this;
   }
-  constexpr auto operator<<=(const auto &x) -> Reference & {
+  [[gnu::always_inline]] constexpr auto operator<<=(const auto &x) {
+    // -> Reference & {
     T y{*this};
     y <<= x;
     y.compress(c);
-    return *this;
+    return y;
+    // return *this;
   }
-  constexpr auto operator>>=(const auto &x) -> Reference & {
+  [[gnu::always_inline]] constexpr auto operator>>=(const auto &x) {
+    // -> Reference & {
     T y{*this};
     y >>= x;
     y.compress(c);
-    return *this;
+    return y;
+    // return *this;
   }
-  constexpr auto operator&=(const auto &x) -> Reference & {
+  [[gnu::always_inline]] constexpr auto operator&=(const auto &x) {
+    // -> Reference & {
     T y{*this};
     y &= x;
     y.compress(c);
-    return *this;
+    return y;
+    // return *this;
   }
-  constexpr auto operator^=(const auto &x) -> Reference & {
+  [[gnu::always_inline]] constexpr auto operator^=(const auto &x) {
+    // -> Reference & {
     T y{*this};
     y ^= x;
     y.compress(c);
-    return *this;
+    return y;
+    // return *this;
   }
-  constexpr auto operator|=(const auto &x) -> Reference & {
+  [[gnu::always_inline]] constexpr auto operator|=(const auto &x) {
+    // -> Reference & {
     T y{*this};
     y |= x;
     y.compress(c);
-    return *this;
+    return y;
+    // return *this;
   }
 
   constexpr auto operator[](auto i) -> decltype(auto) {
@@ -95,9 +115,6 @@ template <typename T> struct Reference {
     return c->operator[](i, j);
   }
 
-  friend constexpr void swap(Reference x, Reference y) {
-    std::swap(*x.c, *y.c);
-  }
   // TODO:: are these really needed / can we rely on implicit conversion?
   constexpr auto operator+(const auto &x) { return T::decompress(c) + x; }
   constexpr auto operator-(const auto &x) { return T::decompress(c) - x; }
@@ -164,3 +181,10 @@ template <Compressible T>
 }
 
 } // namespace poly::utils
+
+namespace std {
+template <typename T>
+constexpr void swap(poly::utils::Reference<T> x, poly::utils::Reference<T> y) {
+  std::swap(*x.c, *y.c);
+}
+} // namespace std

@@ -41,31 +41,38 @@ using StaticDims = std::conditional_t<
                      StridedDims<M, N, calcPaddedCols<T, N, Align>()>>>;
 
 template <class T, ptrdiff_t M, ptrdiff_t N,
-          ptrdiff_t Align = alignSIMD<T, N>()>
+          ptrdiff_t Align = alignSIMD<T, N>(), bool Compress = false>
 struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Align>,
                                      StaticArray<T, M, N, Align>> {
   static constexpr ptrdiff_t PaddedCols = calcPaddedCols<T, N, Align>();
   static constexpr ptrdiff_t capacity = M * PaddedCols;
-  alignas(Align) T memory_[capacity]; // NOLINT(modernize-avoid-c-arrays)
+
+  using storage_type = std::conditional_t<Compress, utils::compressed_t<T>, T>;
+  static_assert(alignof(storage_type) <= Align);
+
+  alignas(Align) storage_type memory_[capacity];
 
   using value_type = utils::decompressed_t<T>;
-  using reference = decltype(utils::ref((T *)nullptr, 0));
-  using const_reference = decltype(utils::ref((const T *)nullptr, 0));
+  using reference = decltype(utils::ref((storage_type *)nullptr, 0));
+  using const_reference =
+    decltype(utils::ref((const storage_type *)nullptr, 0));
   using size_type = ptrdiff_t;
   using difference_type = ptrdiff_t;
-  using iterator = T *;
-  using const_iterator = const T *;
-  using pointer = T *;
-  using const_pointer = const T *;
+  using iterator = storage_type *;
+  using const_iterator = const storage_type *;
+  using pointer = storage_type *;
+  using const_pointer = const storage_type *;
   using concrete = std::true_type;
 
-  using decompressed_type = StaticArray<T, M, N, alignSIMD<T, N>()>;
+  // if Compress=false, we have a compressed_t
+  // if Compress=true, we should already be compressed
+  using compressed_type =
+    StaticArray<T, M, N, alignof(utils::compressed_t<T>), true>;
+  using decompressed_type =
+    StaticArray<value_type, M, N, alignSIMD<value_type, N>()>;
   using S = StaticDims<T, M, N, Align>;
   constexpr explicit StaticArray(){}; // NOLINT(modernize-use-equals-default)
-  constexpr explicit StaticArray(const T &x) noexcept {
-    (*this) << x;
-    // std::fill_n(data(), capacity, x);
-  }
+  constexpr explicit StaticArray(const T &x) noexcept { (*this) << x; }
   constexpr explicit StaticArray(
     const std::convertible_to<T> auto &x) noexcept {
     (*this) << x;
@@ -78,10 +85,21 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Align>,
       return;
     }
     invariant(list.size() <= size_t(capacity));
-    std::copy(list.begin(), list.end(), data());
+    std::copy_n(list.begin(), list.size(), data());
   }
   template <AbstractSimilar<S> V> constexpr StaticArray(const V &b) noexcept {
     (*this) << b;
+  }
+
+  constexpr void compress(compressed_type *p) const
+  requires(std::same_as<StaticArray, decompressed_type>)
+  {
+    *p << *this;
+  }
+  static constexpr auto decompress(const compressed_type *p) -> StaticArray
+  requires(std::same_as<StaticArray, decompressed_type>)
+  {
+    return StaticArray{*p};
   }
   [[nodiscard]] constexpr auto data() const noexcept -> const T * {
     return memory_;
@@ -114,13 +132,13 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Align>,
   //   auto
   // }
   constexpr auto operator[](Index<S> auto i) const noexcept -> decltype(auto) {
-    return index(data(), S{}, i);
+    return index<T>(data(), S{}, i);
   }
   // TODO: switch to operator[] when we enable c++23
   // for vectors, we just drop the column, essentially broadcasting
   template <class R, class C>
   constexpr auto operator[](R r, C c) const noexcept -> decltype(auto) {
-    return index(data(), S{}, r, c);
+    return index<T>(data(), S{}, r, c);
   }
   [[nodiscard]] constexpr auto minRowCol() const -> ptrdiff_t {
     return std::min(ptrdiff_t(numRow()), ptrdiff_t(numCol()));
@@ -175,10 +193,10 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Align>,
         if (r != c && (*this)(r, c) != 0) return false;
     return true;
   }
-  [[nodiscard]] constexpr auto view() const noexcept -> Array<T, S> {
-    auto ptr = data();
+  [[nodiscard]] constexpr auto view() const noexcept -> Array<T, S, Compress> {
+    const storage_type *ptr = data();
     invariant(ptr != nullptr);
-    return Array<T, S>{ptr, S{}};
+    return {ptr, S{}};
   }
 
   [[nodiscard]] constexpr auto begin() noexcept {
@@ -196,12 +214,12 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Align>,
   constexpr auto front() noexcept -> T & { return *begin(); }
   constexpr auto back() noexcept -> T & { return *(end() - 1); }
   constexpr auto operator[](Index<S> auto i) noexcept -> decltype(auto) {
-    return index(data(), S{}, i);
+    return index<T>(data(), S{}, i);
   }
   // TODO: switch to operator[] when we enable c++23
   template <class R, class C>
   constexpr auto operator[](R r, C c) noexcept -> decltype(auto) {
-    return index(data(), S{}, r, c);
+    return index<T>(data(), S{}, r, c);
   }
   constexpr void fill(T value) {
     std::fill_n(data(), ptrdiff_t(this->dim()), value);
@@ -277,7 +295,7 @@ struct StaticArray<T, M, N, size_t(VecLen<N, T>) * sizeof(T)>
   }
   constexpr auto data() -> T * { return reinterpret_cast<T *>(memory_); }
   [[nodiscard]] constexpr auto data() const -> const T * {
-    return reinterpret_cast<T *>(memory_);
+    return reinterpret_cast<const T *>(memory_);
   }
   template <AbstractSimilar<S> V> constexpr StaticArray(const V &b) noexcept {
     (*this) << b;
@@ -298,13 +316,9 @@ struct StaticArray<T, M, N, size_t(VecLen<N, T>) * sizeof(T)>
     return {};
   }
   inline auto operator[](ptrdiff_t i, ptrdiff_t j) -> T & {
-    // return reinterpret_cast<T *>(data[i].data())[j];
-    // return reinterpret_cast<T *>(data[i])[j];
     return reinterpret_cast<T *>(memory_ + i * L)[j];
   }
   inline auto operator[](ptrdiff_t i, ptrdiff_t j) const -> T {
-    // return reinterpret_cast<T *>(data[i].data())[j];
-    // return reinterpret_cast<const T *>(data[i])[j];
     return reinterpret_cast<const T *>(memory_ + i * L)[j];
   }
   template <ptrdiff_t U, typename Mask>
@@ -334,7 +348,6 @@ struct StaticArray<T, M, N, size_t(VecLen<N, T>) * sizeof(T)>
       POLYMATHFULLUNROLL
       for (ptrdiff_t u = 0; u < C; ++u)
         ret[r, u] = memory_[(i.index + r) * L + k + u];
-      // for (ptrdiff_t u = 0; u < C; ++u) ret[r, u] = data[i.index + r][k + u];
     }
     return ret;
   }
@@ -348,9 +361,7 @@ struct StaticArray<T, M, N, size_t(VecLen<N, T>) * sizeof(T)>
       for (ptrdiff_t r = 0; r < R; ++r) {
         POLYMATHFULLUNROLL
         for (ptrdiff_t u = 0; u < C; ++u)
-          parent->data[(i + r) * L + k + u] = x[r, u];
-        // for (ptrdiff_t u = 0; u < C; ++u) parent->data[i + r][k + u] = x[r,
-        // u];
+          parent->memory_[(i + r) * L + k + u] = x[r, u];
       }
       return *this;
     }
@@ -360,8 +371,8 @@ struct StaticArray<T, M, N, size_t(VecLen<N, T>) * sizeof(T)>
       POLYMATHFULLUNROLL
       for (ptrdiff_t r = 0; r < R; ++r) {
         POLYMATHFULLUNROLL
-        for (ptrdiff_t u = 0; u < C; ++u) parent->data[(i + r) * L + k + u] = x;
-        // for (ptrdiff_t u = 0; u < C; ++u) parent->data[i + r][k + u] = x;
+        for (ptrdiff_t u = 0; u < C; ++u)
+          parent->memory_[(i + r) * L + k + u] = x;
       }
       return *this;
     }
@@ -413,7 +424,7 @@ struct StaticArray<T, M, N, size_t(VecLen<N, T>) * sizeof(T)>
   constexpr auto operator==(const StaticArray &other) const -> bool {
     // masks return `true` if `any` are on
     for (ptrdiff_t i = 0; i < M * L; ++i)
-      if (simd::cmp::ne<W, T>(memory_[i], other.data[i])) return false;
+      if (simd::cmp::ne<W, T>(memory_[i], other.memory_[i])) return false;
     return true;
   }
   template <std::size_t I> [[nodiscard]] constexpr auto get() const -> T {

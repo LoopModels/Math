@@ -67,8 +67,10 @@ void print_obj(std::ostream &os, const std::pair<F, S> &x) {
 };
 using utils::Valid, utils::Optional;
 
-template <class T, Dimension S> struct Array;
-template <class T, Dimension S> struct MutArray;
+template <class T, Dimension S, bool Compress = utils::Compressible<T>>
+struct Array;
+template <class T, Dimension S, bool Compress = utils::Compressible<T>>
+struct MutArray;
 
 // Cases we need to consider:
 // 1. Slice-indexing
@@ -79,77 +81,52 @@ template <class T, Dimension S> struct MutArray;
 // 3.b.i. Vector indexing, discontig, no mask
 // 3.b.ii. Vector indexing, discontig, mask
 // all of the above for `T*` and `const T*`
-template <typename T, typename S, typename I>
-[[gnu::flatten, gnu::always_inline]] constexpr auto index(const T *ptr, S shape,
+template <typename T, typename P, typename S, typename I>
+[[gnu::flatten, gnu::always_inline]] constexpr auto index(P *ptr, S shape,
                                                           I i) noexcept
   -> decltype(auto) {
   auto offset = calcOffset(shape, i);
   auto newDim = calcNewDim(shape, i);
   invariant(ptr != nullptr);
-  if constexpr (std::same_as<decltype(newDim), Empty>)
-    if constexpr (utils::Decompressible<T>)
-      return utils::decompressed_t<T>::decompress(ptr + offset);
-    else return ptr[offset];
-  else if constexpr (simd::index::issimd<decltype(newDim)>)
-    return simd::ref(ptr + offset, newDim);
-  else return Array<T, decltype(newDim)>{ptr + offset, newDim};
+  using D = decltype(newDim);
+  if constexpr (simd::index::issimd<D>) return simd::ref(ptr + offset, newDim);
+  else {
+    constexpr bool Compress = !std::same_as<T, std::remove_const_t<P>>;
+    if constexpr (!std::same_as<D, Empty>)
+      if constexpr (std::is_const_v<P>)
+        return Array<T, D, Compress>{ptr + offset, newDim};
+      else return MutArray<T, D, Compress>{ptr + offset, newDim};
+    else if constexpr (!Compress) return ptr[offset];
+    else if constexpr (std::is_const_v<P>) return T::decompress(ptr + offset);
+    else return utils::Reference<T>{ptr + offset};
+  }
 }
 // for (row/col)vectors, we drop the row/col, essentially broadcasting
-template <typename T, typename S, typename R, typename C>
-[[gnu::flatten, gnu::always_inline]] constexpr auto index(const T *ptr, S shape,
-                                                          R wr, C wc) noexcept
+template <typename T, typename P, typename S, typename R, typename C>
+[[gnu::flatten, gnu::always_inline]] constexpr auto index(P *ptr, S shape, R wr,
+                                                          C wc) noexcept
   -> decltype(auto) {
   if constexpr (MatrixDimension<S>) {
     auto r = unwrapRow(wr);
     auto c = unwrapCol(wc);
     auto offset = calcOffset(shape, r, c);
     auto newDim = calcNewDim(shape, r, c);
-    if constexpr (std::same_as<decltype(newDim), Empty>)
-      // 3.a.i. Vector indexing, contig, no mask
-      // 3.a.ii. Vector indexing, contig, mask
-      if constexpr (utils::Decompressible<T>) return decompress(ptr + offset);
-      else return ptr[offset];
-    else if constexpr (simd::index::issimd<decltype(newDim)>)
+    using D = decltype(newDim);
+    if constexpr (simd::index::issimd<D>)
       return simd::ref(ptr + offset, newDim);
-    else return Array<T, decltype(newDim)>{ptr + offset, newDim};
+    else {
+      constexpr bool Compress = !std::same_as<T, std::remove_const_t<P>>;
+      if constexpr (!std::same_as<D, Empty>)
+        if constexpr (std::is_const_v<P>)
+          return Array<T, D, Compress>{ptr + offset, newDim};
+        else return MutArray<T, D, Compress>{ptr + offset, newDim};
+      else if constexpr (!Compress) return ptr[offset];
+      else if constexpr (std::is_const_v<P>) return T::decompress(ptr + offset);
+      else return utils::Reference<T>{ptr + offset};
+    }
   } else if constexpr (std::same_as<S, StridedRange>)
-    return index(ptr, shape, unwrapRow(wr));
-  else return index(ptr, shape, unwrapCol(wc));
-}
-
-template <typename T, typename S, typename I>
-[[gnu::flatten, gnu::always_inline]] constexpr auto index(T *ptr, S shape,
-                                                          I i) noexcept
-  -> decltype(auto) {
-  auto offset = calcOffset(shape, i);
-  auto newDim = calcNewDim(shape, i);
-  invariant(ptr != nullptr);
-  if constexpr (std::same_as<decltype(newDim), Empty>)
-    if constexpr (utils::Compressible<T>) return utils::ref(ptr, offset);
-    else return ptr[offset];
-  else if constexpr (simd::index::issimd<decltype(newDim)>)
-    return simd::ref(ptr + offset, newDim);
-  else return MutArray<T, decltype(newDim)>{ptr + offset, newDim};
-}
-// for (row/col)vectors, we drop the row/col, essentially broadcasting
-template <typename T, typename S, typename R, typename C>
-[[gnu::flatten, gnu::always_inline]] constexpr auto index(T *ptr, S shape, R r,
-                                                          C c) noexcept
-  -> decltype(auto) {
-  if constexpr (MatrixDimension<S>) {
-    auto offset = calcOffset(shape, unwrapRow(r), unwrapCol(c));
-    auto newDim = calcNewDim(shape, unwrapRow(r), unwrapCol(c));
-    if constexpr (std::same_as<decltype(newDim), Empty>)
-      // 3.a.i. Vector indexing, contig, no mask
-      // 3.a.ii. Vector indexing, contig, mask
-      if constexpr (utils::Compressible<T>) return ref(ptr + offset);
-      else return ptr[offset];
-    else if constexpr (simd::index::issimd<decltype(newDim)>)
-      return simd::ref(ptr + offset, newDim);
-    else return MutArray<T, decltype(newDim)>{ptr + offset, newDim};
-  } else if constexpr (std::same_as<S, StridedRange>)
-    return index(ptr, shape, r);
-  else return index(ptr, shape, c);
+    return index<T>(ptr, shape, unwrapRow(wr));
+  else return index<T>(ptr, shape, unwrapCol(wc));
 }
 
 template <typename T, bool Column = false> struct SliceIterator {
@@ -235,12 +212,13 @@ template <typename T, bool Column = false> struct SliceRange {
   }
 };
 /// Constant Array
-template <class T, Dimension S> struct POLY_MATH_GSL_POINTER Array {
+template <class T, Dimension S, bool Compress>
+struct POLY_MATH_GSL_POINTER Array {
   static_assert(!std::is_const_v<T>, "T shouldn't be const");
   static_assert(std::is_trivially_destructible_v<T>,
                 "maybe should add support for destroying");
 
-  using storage_type = utils::compressed_t<T>;
+  using storage_type = std::conditional_t<Compress, utils::compressed_t<T>, T>;
   using value_type = T;
   using reference = T &;
   using const_reference = const T &;
@@ -321,13 +299,13 @@ template <class T, Dimension S> struct POLY_MATH_GSL_POINTER Array {
   // }
   [[gnu::flatten, gnu::always_inline]] constexpr auto
   operator[](Index<S> auto i) const noexcept -> decltype(auto) {
-    return index(ptr, sz, i);
+    return index<T>(ptr, sz, i);
   }
   // for (row/col)vectors, we drop the row/col, essentially broadcasting
   template <class R, class C>
   [[gnu::flatten, gnu::always_inline]] constexpr auto
   operator[](R r, C c) const noexcept -> decltype(auto) {
-    return index(ptr, sz, r, c);
+    return index<T>(ptr, sz, r, c);
   }
   [[nodiscard]] constexpr auto minRowCol() const -> ptrdiff_t {
     return std::min(ptrdiff_t(numRow()), ptrdiff_t(numCol()));
@@ -472,9 +450,10 @@ template <class T, DenseLayout S>
   return M <=> N;
 };
 
-template <class T, Dimension S>
-struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
-                                        ArrayOps<T, S, MutArray<T, S>> {
+template <class T, Dimension S, bool Compress>
+struct POLY_MATH_GSL_POINTER MutArray
+  : Array<T, S, Compress>,
+    ArrayOps<T, S, MutArray<T, S, Compress>> {
   using BaseT = Array<T, S>;
   // using BaseT::BaseT;
   using BaseT::operator[], BaseT::data, BaseT::begin, BaseT::end, BaseT::rbegin,
@@ -603,14 +582,14 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
   constexpr auto back() noexcept -> T & { return *(end() - 1); }
   [[gnu::flatten, gnu::always_inline]] constexpr auto
   operator[](Index<S> auto i) noexcept -> decltype(auto) {
-    return index(data(), this->sz, i);
+    return index<T>(data(), this->sz, i);
   }
   // TODO: switch to operator[] when we enable c++23
   template <class R, class C>
   [[gnu::flatten, gnu::always_inline]] constexpr auto operator[](R r,
                                                                  C c) noexcept
     -> decltype(auto) {
-    return index(data(), this->sz, r, c);
+    return index<T>(data(), this->sz, r, c);
   }
   constexpr void fill(T value) {
     std::fill_n(this->data(), ptrdiff_t(this->dim()), value);
@@ -1213,7 +1192,7 @@ protected:
     this->capacity = res.count;
   }
   [[nodiscard]] auto firstElt() const -> const void * {
-    using AS = ArrayAlignmentAndSize<T, S, A>;
+    using AS = ArrayAlignmentAndSize<storage_type, S, A>;
 // AS is not a standard layout type, as more than one layer of the hierarchy
 // contain non-static data members. Using `offsetof` is conditionally supported
 // by some compilers as of c++17 (it was UB prior). Both Clang and GCC support

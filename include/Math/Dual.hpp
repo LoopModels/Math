@@ -372,6 +372,10 @@ constexpr auto gradient(alloc::Arena<> *arena, PtrVector<double> x,
 template <class T, ptrdiff_t N> constexpr auto value(const Dual<T, N> &x) {
   return value(x.value());
 }
+template <class T, ptrdiff_t N>
+constexpr auto value(utils::Reference<Dual<T, N>> x) {
+  return value(x.c->val);
+}
 
 /// fills the lower triangle of the hessian
 constexpr auto hessian(HessianResultCore hr, PtrVector<double> x, const auto &f,
