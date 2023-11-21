@@ -93,11 +93,9 @@ template <typename T, ptrdiff_t N, bool B>
 //   c.partials = a.value* b.partials+ b.value* a.partials;
 // }
 
-static void BM_dual8x2prod_manual(benchmark::State &state) {
+template <ptrdiff_t M, ptrdiff_t N, bool SIMDArray> auto setup_manual() {
+  using D = ManualDual<ManualDual<double, M, SIMDArray>, N>;
   std::mt19937_64 rng0;
-  constexpr ptrdiff_t M = 8;
-  constexpr ptrdiff_t N = 2;
-  using D = ManualDual<ManualDual<double, M>, N>;
   D a, b, c;
   a.value.value = URand<double>{}(rng0);
   b.value.value = URand<double>{}(rng0);
@@ -113,8 +111,12 @@ static void BM_dual8x2prod_manual(benchmark::State &state) {
       b.partials[i].partials[j] = URand<double>{}(rng0);
     }
   }
+  return std::array<D, 3>{a, b, c};
+}
+
+static void BM_dual8x2prod_manual(benchmark::State &state) {
+  auto [a, b, c] = setup_manual<8, 2, false>();
   for (auto _ : state) {
-    // prod_manual(c, a, b);
     prod(c, a, b);
     benchmark::DoNotOptimize(c);
   }
@@ -122,30 +124,40 @@ static void BM_dual8x2prod_manual(benchmark::State &state) {
 BENCHMARK(BM_dual8x2prod_manual);
 
 static void BM_dual8x2prod_simdarray(benchmark::State &state) {
-  std::mt19937_64 rng0;
-  constexpr ptrdiff_t M = 8;
-  constexpr ptrdiff_t N = 2;
-  using D = ManualDual<ManualDual<double, M, true>, N>;
-  D a, b, c;
-  a.value.value = URand<double>{}(rng0);
-  b.value.value = URand<double>{}(rng0);
-  for (ptrdiff_t j = 0; j < M; ++j) {
-    a.value.partials[j] = URand<double>{}(rng0);
-    b.value.partials[j] = URand<double>{}(rng0);
-  }
-  for (ptrdiff_t i = 0; i < N; ++i) {
-    a.partials[i].value = URand<double>{}(rng0);
-    b.partials[i].value = URand<double>{}(rng0);
-    for (ptrdiff_t j = 0; j < M; ++j) {
-      a.partials[i].partials[j] = URand<double>{}(rng0);
-      b.partials[i].partials[j] = URand<double>{}(rng0);
-    }
-  }
+  auto [a, b, c] = setup_manual<8, 2, true>();
   for (auto _ : state) {
-    // prod_manual(c, a, b);
     prod(c, a, b);
     benchmark::DoNotOptimize(c);
   }
 }
 BENCHMARK(BM_dual8x2prod_simdarray);
+
+static void BM_dual7x2prod(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D = Dual<Dual<double, 7>, 2>;
+  D a = URand<D>{}(rng0), b = URand<D>{}(rng0), c;
+  for (auto _ : state) {
+    prod(c, a, b);
+    benchmark::DoNotOptimize(c);
+  }
+}
+BENCHMARK(BM_dual7x2prod);
+
+static void BM_dual7x2prod_manual(benchmark::State &state) {
+  auto [a, b, c] = setup_manual<7, 2, false>();
+  for (auto _ : state) {
+    prod(c, a, b);
+    benchmark::DoNotOptimize(c);
+  }
+}
+BENCHMARK(BM_dual7x2prod_manual);
+
+static void BM_dual7x2prod_simdarray(benchmark::State &state) {
+  auto [a, b, c] = setup_manual<7, 2, true>();
+  for (auto _ : state) {
+    prod(c, a, b);
+    benchmark::DoNotOptimize(c);
+  }
+}
+BENCHMARK(BM_dual7x2prod_simdarray);
 

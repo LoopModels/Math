@@ -374,7 +374,7 @@ template <class T, ptrdiff_t N> constexpr auto value(const Dual<T, N> &x) {
 }
 template <class T, ptrdiff_t N>
 constexpr auto value(utils::Reference<Dual<T, N>> x) {
-  return value(x.c->val);
+  return value(x.c->value());
 }
 
 /// fills the lower triangle of the hessian
