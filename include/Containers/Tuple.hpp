@@ -3,6 +3,11 @@
 #define POLY_CONTAIERS_Tuple_hpp_INCLUDED
 
 namespace poly::containers {
+template <typename T, typename... Ts> struct Tuple;
+template <typename T, typename... Ts>
+[[gnu::always_inline]] constexpr auto cattuple(T, Tuple<Ts...>)
+  -> Tuple<T, Ts...>;
+
 template <typename T, typename... Ts> struct Tuple {
   [[no_unique_address]] T head;
   [[no_unique_address]] Tuple<Ts...> tail;
@@ -29,21 +34,21 @@ template <typename T, typename... Ts> struct Tuple {
     f(head, x.head);
     tail.apply(x.tail, f);
   }
-  constexpr auto map(const auto &f) { return Tuple(f(head), tail.map(f)); }
+  constexpr auto map(const auto &f) { return cattuple(f(head), tail.map(f)); }
   template <typename U, typename... Us>
-  inline constexpr auto operator<<(Tuple<U, Us...>)
+  inline constexpr auto operator<<(const Tuple<U, Us...>&)
   requires(sizeof...(Ts) == sizeof...(Us));
   template <typename U, typename... Us>
-  inline constexpr auto operator+=(Tuple<U, Us...>)
+  inline constexpr auto operator+=(const Tuple<U, Us...>&)
   requires(sizeof...(Ts) == sizeof...(Us));
   template <typename U, typename... Us>
-  inline constexpr auto operator-=(Tuple<U, Us...>)
+  inline constexpr auto operator-=(const Tuple<U, Us...>&)
   requires(sizeof...(Ts) == sizeof...(Us));
   template <typename U, typename... Us>
-  inline constexpr auto operator*=(Tuple<U, Us...>)
+  inline constexpr auto operator*=(const Tuple<U, Us...>&)
   requires(sizeof...(Ts) == sizeof...(Us));
   template <typename U, typename... Us>
-  inline constexpr auto operator/=(Tuple<U, Us...>)
+  inline constexpr auto operator/=(const Tuple<U, Us...>&)
   requires(sizeof...(Ts) == sizeof...(Us));
   template <typename U, typename... Us>
   constexpr auto operator=(Tuple<U, Us...> x) -> Tuple &requires(
@@ -53,6 +58,11 @@ template <typename T, typename... Ts> struct Tuple {
     return *this;
   }
 };
+template <typename T, typename... Ts>
+[[gnu::always_inline]] constexpr auto cattuple(T x, Tuple<Ts...> y)
+  -> Tuple<T, Ts...> {
+  return {x, y};
+}
 template <typename T> struct Tuple<T> {
   [[no_unique_address]] T head;
   constexpr Tuple(T head_) : head(head_){};
@@ -73,11 +83,11 @@ template <typename T> struct Tuple<T> {
   constexpr auto map(const auto &f) -> Tuple<decltype(f(head))> {
     return {f(head)};
   }
-  template <typename U> inline constexpr auto operator<<(Tuple<U>);
-  template <typename U> inline constexpr auto operator+=(Tuple<U>);
-  template <typename U> inline constexpr auto operator-=(Tuple<U>);
-  template <typename U> inline constexpr auto operator*=(Tuple<U>);
-  template <typename U> inline constexpr auto operator/=(Tuple<U>);
+  template <typename U> inline constexpr auto operator<<(const Tuple<U> &);
+  template <typename U> inline constexpr auto operator+=(const Tuple<U> &);
+  template <typename U> inline constexpr auto operator-=(const Tuple<U> &);
+  template <typename U> inline constexpr auto operator*=(const Tuple<U> &);
+  template <typename U> inline constexpr auto operator/=(const Tuple<U> &);
 
   template <typename U>
   constexpr auto operator=(Tuple<U> x)

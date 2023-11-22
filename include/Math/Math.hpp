@@ -114,25 +114,6 @@ template <typename Op, typename A> struct Elementwise {
 };
 template <typename Op, typename A> Elementwise(Op, A) -> Elementwise<Op, A>;
 
-// scalars broadcast
-template <typename S>
-[[gnu::always_inline]] constexpr auto get(const auto &s, auto) {
-  return s;
-}
-template <typename S>
-[[gnu::always_inline]] constexpr auto get(const auto &s, auto, auto) {
-  return s;
-}
-template <typename S, LinearlyIndexable<S> V>
-[[gnu::always_inline]] constexpr auto get(const V &v, auto i) {
-  return v[i];
-}
-template <typename S, CartesianIndexable<S> V>
-[[gnu::always_inline]] constexpr auto get(const V &v, auto i, auto j) {
-
-  return v[i, j];
-}
-
 constexpr auto size(const std::integral auto) -> ptrdiff_t { return 1; }
 constexpr auto size(const std::floating_point auto) -> ptrdiff_t { return 1; }
 constexpr auto size(const AbstractVector auto &x) -> ptrdiff_t {
