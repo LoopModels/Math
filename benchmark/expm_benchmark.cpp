@@ -93,18 +93,19 @@ template <typename T> constexpr void expm(MutSquarePtrMatrix<T> A) {
       if (s > 0) A2 *= (t * t);
       // here we take an estrin (instead of horner) approach to cut down flops
       SquareMatrix<T> A4{A2 * A2}, A6{A2 * A4};
-      B << A6 * (A6 + 16380 * A4 + 40840800 * A2) +
-             (33522128640 * A6 + 10559470521600 * A4 + 1187353796428800 * A2) +
-             32382376266240000 * I;
+      B << A6 * (A6 + 16380.0 * A4 + 40840800.0 * A2) +
+             (33522128640.0 * A6 + 10559470521600.0 * A4 +
+              1187353796428800.0 * A2) +
+             32382376266240000.0 * I;
       U << A * B;
       if (s & 1) {  // we have an odd number of swaps at the end
         A << U * t; // copy data to `A`, so we can swap and make it even
         std::swap(A, U);
       } else if (s > 0) U *= t;
-      A << A6 * (182 * A6 + 960960 * A4 + 1323241920 * A2) +
-             (670442572800 * A6 + 129060195264000 * A4 +
-              7771770303897600 * A2) +
-             64764752532480000 * I;
+      A << A6 * (182.0 * A6 + 960960.0 * A4 + 1323241920.0 * A2) +
+             (670442572800.0 * A6 + 129060195264000.0 * A4 +
+              7771770303897600.0 * A2) +
+             64764752532480000.0 * I;
     }
   }
   for (auto &&[a, u] : std::ranges::zip_view(A, U))
@@ -171,6 +172,23 @@ static void BM_expm_dual7x2(benchmark::State &state) {
   for (auto b : state) expbench(A);
 }
 BENCHMARK(BM_expm_dual7x2)->DenseRange(2, 10, 1);
+static void BM_expm_dual6(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D = Dual<double, 6>;
+  SquareMatrix<D> A{SquareDims{{state.range(0)}}};
+  for (auto &&a : A) a = URand<D>{}(rng0);
+  for (auto b : state) expbench(A);
+}
+BENCHMARK(BM_expm_dual6)->DenseRange(2, 10, 1);
+
+static void BM_expm_dual6x2(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D = Dual<Dual<double, 6>, 2>;
+  SquareMatrix<D> A{SquareDims{{state.range(0)}}};
+  for (auto &&a : A) a = URand<D>{}(rng0);
+  for (auto b : state) expbench(A);
+}
+BENCHMARK(BM_expm_dual6x2)->DenseRange(2, 10, 1);
 /*
 using D8D2 = Dual<Dual<double, 8>, 2>;
 using SMDD = SquareMatrix<D8D2>;

@@ -7,7 +7,9 @@ template <typename T, typename... Ts> struct Tuple {
   [[no_unique_address]] T head;
   [[no_unique_address]] Tuple<Ts...> tail;
   constexpr Tuple(T head_, Ts... tail_) : head(head_), tail(tail_...){};
+  constexpr Tuple(T head_, Tuple<Ts...> tail_) : head(head_), tail(tail_){};
 
+  constexpr Tuple(const Tuple &) = default;
   template <size_t I> auto get() -> auto & {
     if constexpr (I == 0) return head;
     else return tail.template get<I - 1>();
@@ -16,6 +18,11 @@ template <typename T, typename... Ts> struct Tuple {
     if constexpr (I == 0) return head;
     else return tail.template get<I - 1>();
   }
+  constexpr void apply(const auto &f) {
+    f(head);
+    tail.apply(f);
+  }
+  constexpr auto map(const auto &f) { return Tuple(f(head), tail.map(f)); }
   template <typename U, typename... Us>
   constexpr auto operator=(Tuple<U, Us...> x) -> Tuple &requires(
     std::assignable_from<T, U> &&... &&std::assignable_from<Ts, Us>) {
@@ -27,6 +34,7 @@ template <typename T, typename... Ts> struct Tuple {
 template <typename T> struct Tuple<T> {
   [[no_unique_address]] T head;
   constexpr Tuple(T head_) : head(head_){};
+  constexpr Tuple(const Tuple &) = default;
   template <size_t I> auto get() -> T & {
     static_assert(I == 0);
     return head;
@@ -36,6 +44,10 @@ template <typename T> struct Tuple<T> {
     return head;
   }
   constexpr auto operator=(const Tuple &) -> Tuple & = default;
+  constexpr void apply(const auto &f) { f(head); }
+  constexpr auto map(const auto &f) -> Tuple<decltype(f(head))> {
+    return {f(head)};
+  }
   template <typename U>
   constexpr auto operator=(Tuple<U> x)
     -> Tuple &requires(std::assignable_from<T, U>) {

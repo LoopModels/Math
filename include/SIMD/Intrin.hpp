@@ -24,6 +24,31 @@ namespace poly::simd {
 template <typename T>
 concept SIMDSupported = std::same_as<T, int64_t> || std::same_as<T, double>;
 
+template <ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto vbroadcast(Vec<W, T> v) -> Vec<W, T> {
+  if constexpr (W == 2) return __builtin_shufflevector(v, v, 0, 0);
+  else if constexpr (W == 4) return __builtin_shufflevector(v, v, 0, 0, 0, 0);
+  else if constexpr (W == 8)
+    return __builtin_shufflevector(v, v, 0, 0, 0, 0, 0, 0, 0, 0);
+  else if constexpr (W == 16)
+    return __builtin_shufflevector(v, v, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                   0, 0, 0);
+  else if constexpr (W == 32)
+    return __builtin_shufflevector(v, v, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                   0, 0, 0, 0);
+  else if constexpr (W == 64)
+    return __builtin_shufflevector(
+      v, v, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  else static_assert(false);
+}
+template <ptrdiff_t W, typename T>
+[[gnu::always_inline]] constexpr auto vbroadcast(T x) -> Vec<W, T> {
+  return vbroadcast<W, T>(Vec<W, T>{x});
+}
+
 #ifdef __x86_64__
 
 // TODO: make `consteval` when clang supports it

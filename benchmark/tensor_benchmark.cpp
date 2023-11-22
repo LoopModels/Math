@@ -110,7 +110,7 @@ static void BM_dual7x2dApI(benchmark::State &state) {
   static_assert(poly::utils::Compressible<Dual<double, 7>>);
   static_assert(poly::utils::Compressible<D>);
   static_assert(sizeof(poly::utils::compressed_t<D>) == (24 * sizeof(double)));
-  // static_assert(sizeof(D) == sizeof(Dual<Dual<double, 8>, 2>));
+  static_assert(sizeof(D) == (24 * sizeof(double)));
   ptrdiff_t dim = state.range(0);
   SquareMatrix<D> A{SquareDims{{dim}}};
   SquareMatrix<D> B{SquareDims{{dim}}};
@@ -150,4 +150,54 @@ static void BM_dual7x2BmApI_manual(benchmark::State &state) {
   for (auto b : state) BtimesAplusdI(C, A, B, 60.0);
 }
 BENCHMARK(BM_dual7x2BmApI_manual)->DenseRange(2, 10, 1);
+
+static void BM_dual6x2dApI(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D = Dual<Dual<double, 6>, 2>;
+  static_assert(poly::utils::Compressible<Dual<double, 6>>);
+  static_assert(poly::utils::Compressible<D>);
+  static_assert(sizeof(poly::utils::compressed_t<D>) == (21 * sizeof(double)));
+  static_assert(sizeof(D) == (24 * sizeof(double)));
+  // static_assert(sizeof(D) == sizeof(Dual<Dual<double, 8>, 2>));
+  ptrdiff_t dim = state.range(0);
+  SquareMatrix<D> A{SquareDims{{dim}}};
+  SquareMatrix<D> B{SquareDims{{dim}}};
+  for (auto &&a : A) a = URand<D>{}(rng0);
+  for (auto b : state) benchmark::DoNotOptimize(B << 12.0 * A + 120.0 * I);
+}
+BENCHMARK(BM_dual6x2dApI)->DenseRange(2, 10, 1);
+
+static void BM_dual6x2BmApI(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D = Dual<Dual<double, 6>, 2>;
+  ptrdiff_t dim = state.range(0);
+  SquareMatrix<D> A{SquareDims{{dim}}};
+  SquareMatrix<D> B{SquareDims{{dim}}};
+  SquareMatrix<D> C{SquareDims{{dim}}};
+  for (auto &&a : A) a = URand<D>{}(rng0);
+  for (auto &&b : B) b = URand<D>{}(rng0);
+  for (auto b : state) benchmark::DoNotOptimize(C << B * (A + 60.0 * I));
+}
+BENCHMARK(BM_dual6x2BmApI)->DenseRange(2, 10, 1);
+
+static void BM_dual6x2BmApI_manual(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  constexpr size_t Dcount = 6;
+  constexpr size_t N = Dcount + 1;
+  using D = std::array<std::array<double, N>, 3>;
+  ptrdiff_t dim = state.range(0);
+  SquareMatrix<D> A{SquareDims{{dim}}};
+  SquareMatrix<D> B{SquareDims{{dim}}};
+  SquareMatrix<D> C{SquareDims{{dim}}};
+  for (ptrdiff_t i = 0, L = dim * dim; i < L; ++i) {
+    for (ptrdiff_t j = 0; j < 3; ++j) {
+      for (size_t k = 0; k < N; ++k) {
+        A[i][j][k] = URand<double>{}(rng0);
+        B[i][j][k] = URand<double>{}(rng0);
+      }
+    }
+  }
+  for (auto b : state) BtimesAplusdI(C, A, B, 60.0);
+}
+BENCHMARK(BM_dual6x2BmApI_manual)->DenseRange(2, 10, 1);
 

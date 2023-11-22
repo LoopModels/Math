@@ -182,28 +182,32 @@ struct ElementwiseBinaryOp {
   requires LinearlyIndexableOrConvertible<A, common> &&
            LinearlyIndexableOrConvertible<B, common>
   {
-    return op(get<common>(a, i), get<common>(b, i));
+    if constexpr (LinearlyIndexable<A, common>)
+      if constexpr (LinearlyIndexable<B, common>) return op(a[i], b[i]);
+      else return op(a[i], b);
+    else if constexpr (LinearlyIndexable<B, common>) return op(a, b[i]);
+    else return op(a, b);
   }
   constexpr auto operator[](auto i, auto j) const {
-    if constexpr (CartesianIndexableOrConvertible<A, common>) {
-      if constexpr (CartesianIndexableOrConvertible<B, common>)
-        return op(get<common>(a, i, j), get<common>(b, i, j));
-      else if constexpr (RowVector<B>)
-        return op(get<common>(a, i, j), get<common>(b, j));
-      else return op(get<common>(a, i, j), get<common>(b, i));
-    } else if constexpr (RowVector<A>) {
-      if constexpr (CartesianIndexableOrConvertible<B, common>)
-        return op(get<common>(a, j), get<common>(b, i, j));
-      else if constexpr (RowVector<B>)
-        return op(get<common>(a, j), get<common>(b, j));
-      else return op(get<common>(a, j), get<common>(b, i));
-    } else {
-      if constexpr (CartesianIndexableOrConvertible<B, common>)
-        return op(get<common>(a, i), get<common>(b, i, j));
-      else if constexpr (RowVector<B>)
-        return op(get<common>(a, i), get<common>(b, j));
-      else return op(get<common>(a, i), get<common>(b, i));
-    }
+    if constexpr (CartesianIndexable<A, common>)
+      if constexpr (CartesianIndexable<B, common>) return op(a[i, j], b[i, j]);
+      else if constexpr (std::convertible_to<B, common>) return op(a[i, j], b);
+      else if constexpr (RowVector<B>) return op(a[i, j], b[j]);
+      else return op(a[i, j], b[i]);
+    else if constexpr (std::convertible_to<A, common>)
+      if constexpr (CartesianIndexable<B, common>) return op(a, b[i, j]);
+      else if constexpr (std::convertible_to<B, common>) return op(a, b);
+      else if constexpr (RowVector<B>) return op(a, b[j]);
+      else return op(a, b[i]);
+    else if constexpr (RowVector<A>)
+      if constexpr (CartesianIndexable<B, common>) return op(a[j], b[i, j]);
+      else if constexpr (std::convertible_to<B, common>) return op(a[j], b);
+      else if constexpr (RowVector<B>) return op(a[j], b[j]);
+      else return op(a[j], b[i]);
+    else if constexpr (CartesianIndexable<B, common>) return op(a[i], b[i, j]);
+    else if constexpr (std::convertible_to<B, common>) return op(a[i], b);
+    else if constexpr (RowVector<B>) return op(a[i], b[j]);
+    else return op(a[i], b[i]);
   }
 
   [[nodiscard]] constexpr auto numRow() const
@@ -370,7 +374,7 @@ struct Conditional : public AbstractSelect<C, A, B> {
       auto c = get<bool>(this->c, i);
       using V = simd::Vec<W, value_type>;
       value_type x_ = get<value_type>(this->a, i);
-      V x = V{} + x_;
+      V x = simd::vbroadcast<W, value_type>(x_);
       simd::Unroll<1, U, W, value_type> y = op(x, get<value_type>(this->b, i));
       POLYMATHFULLUNROLL
       for (ptrdiff_t u = 0; u < U; ++u)
@@ -382,7 +386,8 @@ struct Conditional : public AbstractSelect<C, A, B> {
       using V = simd::Vec<W, value_type>;
       value_type x_ = get<value_type>(this->a, i);
       value_type y_ = op(x_, get<value_type>(this->b, i));
-      V x = V{} + x_, y = V{} + y_;
+      V x = simd::vbroadcast<W, value_type>(x_),
+        y = simd::vbroadcast<W, value_type>(y_);
       simd::Unroll<1, U, W, value_type> z;
       POLYMATHFULLUNROLL
       for (ptrdiff_t u = 0; u < U; ++u) z.data[u] = c.data[u] ? y : x;

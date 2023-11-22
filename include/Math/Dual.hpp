@@ -316,11 +316,16 @@ struct Dual<T, N, false> {
     return {data.data() + partial_offset, {}};
   }
   [[nodiscard]] constexpr auto value() const -> T { return data[value_idx]; }
+  // zeros out partial part of the vector
   [[nodiscard]] constexpr auto vvalue() const -> V {
     // return data[value_idx];
     return (simd::range<W, int64_t>() == simd::Vec<W, int64_t>{})
              ? data.memory_[0]
              : V{};
+  }
+  // broadcasts value across register
+  [[nodiscard]] constexpr auto vbvalue() const -> V {
+    return simd::vbroadcast<W, T>(data.memory_[0]);
   }
   [[nodiscard]] constexpr auto gradient() const
     -> Array<T, std::integral_constant<ptrdiff_t, N>> {
@@ -338,10 +343,9 @@ struct Dual<T, N, false> {
     // TODO: either update remaining methods to match this style,
     // or figure out how to get `conditional`'s codegen quality to match
     Dual ret;
-    V vt = vvalue(), vo = other.vvalue(), x = vt * other.data.memory_[0];
-    ret.data.memory_[0] = (simd::range<W, int64_t>() == simd::Vec<W, int64_t>{})
-                            ? x
-                            : x + vo * data.memory_[0];
+    V vt = vbvalue(), vo = other.vbvalue(), x = vt * other.data.memory_[0];
+    x = simd::firstoff<W, int64_t>() ? x + vo * data.memory_[0] : x;
+    ret.data.memory_[0] = x;
     POLYMATHFULLUNROLL
     for (ptrdiff_t i = 1; i < data_type::L; ++i)
       ret.data.memory_[i] = vt * other.data.memory_[i] + vo * data.memory_[i];
@@ -351,15 +355,25 @@ struct Dual<T, N, false> {
     //                     value() * other.data, data * other.value())};
   }
   constexpr auto operator/(const Dual &other) const -> Dual {
+    Dual ret;
+    V vt = vbvalue(), vo = other.vbvalue(), vo2 = vo * vo,
+      x = vo * data.memory_[0];
+    ret.data.memory_[0] =
+      (simd::firstoff<W, int64_t>() ? x - vt * other.data.memory_[0] : x) / vo2;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t i = 1; i < data_type::L; ++i)
+      ret.data.memory_[i] =
+        (vo * data.memory_[i] - vt * other.data.memory_[i]) / vo2;
+    return ret;
     // val = value() / other.value()
     // partials = (other.value() * gradient() - value() * other.gradient()) /
     // (other.value() * other.value())
     // partials = (gradient()) / (other.value())
     //  - (value() * other.gradient()) / (other.value() * other.value())
-    T v{other.value()};
-    return {conditional(std::minus<>{},
-                        elementwise_not_equal(_(0, N + 1), value_idx), data / v,
-                        value() * other.data / (v * v))};
+    // T v{other.value()};
+    // return {conditional(std::minus<>{},
+    //                     elementwise_not_equal(_(0, N + 1), value_idx), data /
+    //                     v, value() * other.data / (v * v))};
   }
   constexpr auto operator+=(const Dual &other) -> Dual & {
     data += other.data;
@@ -370,16 +384,30 @@ struct Dual<T, N, false> {
     return *this;
   }
   constexpr auto operator*=(const Dual &other) -> Dual & {
-    data << conditional(std::plus<>{},
-                        elementwise_not_equal(_(0, N + 1), value_idx),
-                        value() * other.data, data * other.value());
+    V vt = vbvalue(), vo = other.vbvalue(), x = vt * other.data.memory_[0];
+    data.memory_[0] =
+      simd::firstoff<W, int64_t>() ? x + vo * data.memory_[0] : x;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t i = 1; i < data_type::L; ++i)
+      data.memory_[i] = vt * other.data.memory_[i] + vo * data.memory_[i];
+    // data << conditional(std::plus<>{},
+    //                     elementwise_not_equal(_(0, N + 1), value_idx),
+    //                     value() * other.data, data * other.value());
     return *this;
   }
   constexpr auto operator/=(const Dual &other) -> Dual & {
-    T v{other.value()};
-    data << conditional(std::minus<>{},
-                        elementwise_not_equal(_(0, N + 1), value_idx), data / v,
-                        value() * other.data / (v * v));
+    V vt = vbvalue(), vo = other.vbvalue(), vo2 = vo * vo,
+      x = vo * data.memory_[0];
+    data.memory_[0] =
+      (simd::firstoff<W, int64_t>() ? x - vt * other.data.memory_[0] : x) / vo2;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t i = 1; i < data_type::L; ++i)
+      data.memory_[i] =
+        (vo * data.memory_[i] - vt * other.data.memory_[i]) / vo2;
+    // T v{other.value()};
+    // data << conditional(std::minus<>{},
+    //                     elementwise_not_equal(_(0, N + 1), value_idx), data /
+    //                     v, value() * other.data / (v * v));
     return *this;
   }
   constexpr auto operator+(double other) const & -> Dual {
@@ -466,11 +494,20 @@ struct Dual<T, N, false> {
   friend constexpr auto operator*(double other, Dual x) -> Dual {
     return {other * x.data};
   }
-  friend constexpr auto operator/(double other, Dual x) -> Dual {
-    T v = other / x.value();
-    return {conditional(std::multiplies<>{},
-                        elementwise_not_equal(_(0, N + 1), value_idx), v,
-                        -x.data / x.value())};
+  friend constexpr auto operator/(double a, Dual b) -> Dual {
+    Dual ret;
+    V vt = simd::vbroadcast<W, double>(a), vo = b.vbvalue(), vo2 = vo * vo,
+      x = vo * simd::Vec<W, double>{a};
+    ret.data.memory_[0] =
+      (simd::firstoff<W, int64_t>() ? x - vt * b.data.memory_[0] : x) / vo2;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t i = 1; i < data_type::L; ++i)
+      ret.data.memory_[i] = (-vt * b.data.memory_[i]) / vo2;
+    return ret;
+    // T v = other / x.value();
+    // return {conditional(std::multiplies<>{},
+    //                     elementwise_not_equal(_(0, N + 1), value_idx), v,
+    //                     -x.data / x.value())};
     // return {v, -v * x.gradient() / (x.value())};
   }
   constexpr void compress(compressed_type *p) const { p->data << data; }

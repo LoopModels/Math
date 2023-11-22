@@ -161,3 +161,34 @@ static void BM_dual7x2prod_simdarray(benchmark::State &state) {
 }
 BENCHMARK(BM_dual7x2prod_simdarray);
 
+static void BM_dual6x2prod(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D = Dual<Dual<double, 6>, 2>;
+  // static_assert(sizeof(D) == sizeof(Dual<Dual<double, 8>, 2>));
+  static_assert(poly::utils::Compressible<D>);
+  D a = URand<D>{}(rng0), b = URand<D>{}(rng0), c;
+  for (auto _ : state) {
+    prod(c, a, b);
+    benchmark::DoNotOptimize(c);
+  }
+}
+BENCHMARK(BM_dual6x2prod);
+
+static void BM_dual6x2prod_manual(benchmark::State &state) {
+  auto [a, b, c] = setup_manual<6, 2, false>();
+  for (auto _ : state) {
+    prod(c, a, b);
+    benchmark::DoNotOptimize(c);
+  }
+}
+BENCHMARK(BM_dual6x2prod_manual);
+
+static void BM_dual6x2prod_simdarray(benchmark::State &state) {
+  auto [a, b, c] = setup_manual<6, 2, true>();
+  for (auto _ : state) {
+    prod(c, a, b);
+    benchmark::DoNotOptimize(c);
+  }
+}
+BENCHMARK(BM_dual6x2prod_simdarray);
+

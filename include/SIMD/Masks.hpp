@@ -30,6 +30,11 @@ consteval auto range() -> Vec<W, I> {
     return r;
   }
 }
+template <ptrdiff_t W,
+          typename I = std::conditional_t<W == 2, int64_t, int32_t>>
+consteval auto firstoff() -> Vec<W, I> {
+  return range<W, I>() != Vec<W, I>{};
+}
 
 namespace mask {
 template <ptrdiff_t W> struct None {
