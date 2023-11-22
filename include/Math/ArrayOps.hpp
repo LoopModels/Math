@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Containers/Tuple.hpp"
 #include "Math/Indexing.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/UniformScaling.hpp"
@@ -270,4 +271,146 @@ public:
     return Self();
   }
 };
+
 } // namespace poly::math
+
+namespace poly::containers {
+
+namespace tupletensorops {
+// FIXME:
+// Need to do all loads before all stores!!!
+// This is because we want to support fusing loops where we may be overwriting
+// inputs, e.g. `tie(x,y) << Tuple(x - y, x + y);`
+template <typename A, typename... As, typename B, typename... Bs, typename I,
+          typename R, typename Op>
+[[gnu::always_inline]] static void vcopyToSIMD(Tuple<A, As...> &dst,
+                                               const Tuple<B, Bs...> &src, I L,
+                                               R row, Op op) {
+  // TODO: if `R` is a row index, maybe don't fully unroll static `L`
+  // We're going for very short SIMD vectors to focus on small sizes
+  using T = std::common_type<utils::eltype_t<A>, utils::eltype_t<As>...,
+                             utils::eltype_t<B>, utils::eltype_t<Bs>...>;
+  if constexpr (math::StaticInt<I>) {
+    constexpr ptrdiff_t SL = ptrdiff_t(L);
+    constexpr std::array<ptrdiff_t, 3> vdr = simd::VectorDivRem<SL, T>();
+    constexpr ptrdiff_t W = vdr[0];
+    constexpr ptrdiff_t fulliter = vdr[1];
+    constexpr ptrdiff_t remainder = vdr[2];
+    if constexpr (remainder > 0) {
+      auto u{simd::index::unrollmask<fulliter + 1, W>(L, 0)};
+      dst.apply(
+        src, [=](auto &d, const auto &s) { utils::assign(d, s, row, u, op); });
+    } else {
+      simd::index::Unroll<fulliter, W> u{0};
+      dst.apply(
+        src, [=](auto &d, const auto &s) { utils::assign(d, s, row, u, op); });
+    }
+  } else {
+    constexpr ptrdiff_t W = simd::Width<T>;
+    for (ptrdiff_t i = 0;; i += W) {
+      auto u{simd::index::unrollmask<1, W>(L, i)};
+      if (!u) break;
+      dst.apply(
+        src, [=](auto &d, const auto &s) { utils::assign(d, s, row, u, op); });
+    }
+  }
+}
+
+template <typename A, typename B>
+[[gnu::always_inline]] constexpr auto promote_shape(const Tuple<A> &a,
+                                                    const Tuple<B> &b) {
+  return math::promote_shape(a.head, b.head);
+}
+template <typename A, typename... As, typename B, typename... Bs>
+[[gnu::always_inline]] constexpr auto promote_shape(const Tuple<A, As...> &a,
+                                                    const Tuple<B, Bs...> &b) {
+  auto [Mh, Nh] = math::promote_shape(a.head, b.head);
+  auto [Mt, Nt] = promote_shape(a.tail, b.tail);
+  return math::CartesianIndex(math::check_sizes(Mh, Mt),
+                              math::check_sizes(Nh, Nt));
+}
+template <typename A, typename... As, typename B, typename... Bs, typename Op>
+void vcopyTo(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src, Op op) {
+  using T = std::common_type<utils::eltype_t<A>, utils::eltype_t<As>...,
+                             utils::eltype_t<B>, utils::eltype_t<Bs>...>;
+  static_assert(sizeof(T) <= 8);
+  auto [M, N] = promote_shape(dst, src);
+  if constexpr (simd::SIMDSupported<T>) {
+    if constexpr (math::IsOne<decltype(M)>)
+      vcopyToSIMD(dst, src, N, utils::NoRowIndex{}, op);
+    else if constexpr (math::IsOne<decltype(N)>)
+      vcopyToSIMD(dst, src, M, utils::NoRowIndex{}, op);
+    else if constexpr (math::StaticInt<decltype(M)>) {
+      constexpr std::array<ptrdiff_t, 2> UIR = math::unrollf<ptrdiff_t(M)>();
+      constexpr ptrdiff_t U = UIR[0];
+      if constexpr (U != 0)
+        for (ptrdiff_t r = 0; r < (M - U + 1); r += U)
+          vcopyToSIMD(dst, src, N, simd::index::Unroll<U>{r}, op);
+      constexpr ptrdiff_t R = UIR[1];
+      if constexpr (R != 0)
+        vcopyToSIMD(dst, src, N, simd::index::Unroll<R>{M - R}, op);
+    } else {
+      ptrdiff_t r = 0;
+      for (; r < (M - 3); r += 4)
+        vcopyToSIMD(dst, src, N, simd::index::Unroll<4>{r}, op);
+      switch (M & 3) {
+      case 0: return;
+      case 1: return vcopyToSIMD(dst, src, N, simd::index::Unroll<1>{r}, op);
+      case 2: return vcopyToSIMD(dst, src, N, simd::index::Unroll<2>{r}, op);
+      default: return vcopyToSIMD(dst, src, N, simd::index::Unroll<3>{r}, op);
+      }
+    }
+  } else if constexpr (math::AbstractVector<A>) {
+    ptrdiff_t L = math::IsOne<decltype(N)> ? M : N;
+    if constexpr (!std::is_copy_assignable_v<T> &&
+                  std::same_as<Op, utils::CopyAssign>) {
+      POLYMATHVECTORIZE
+      for (ptrdiff_t j = 0; j < L; ++j)
+        dst.apply(src, [=](auto d, auto s) {
+          if constexpr (std::convertible_to<decltype(s), T>) d[j] = auto{s};
+          else d[j] = auto{s[j]};
+        });
+    } else {
+      POLYMATHVECTORIZE
+      for (ptrdiff_t j = 0; j < L; ++j)
+        dst.apply(src, [=](auto &d, const auto &s) {
+          utils::assign(d, s, utils::NoRowIndex{}, j, op);
+        });
+    }
+  } else {
+    ptrdiff_t R = ptrdiff_t(M), C = ptrdiff_t(N);
+    POLYMATHNOVECTORIZE
+    for (ptrdiff_t i = 0; i < R; ++i) {
+      if constexpr (!std::is_copy_assignable_v<T> &&
+                    std::same_as<Op, utils::CopyAssign>) {
+        POLYMATHVECTORIZE
+        for (ptrdiff_t j = 0; j < C; ++j)
+          dst.apply(src, [=](auto &d, const auto &s) {
+            if constexpr (std::convertible_to<decltype(s), T>)
+              d[i, j] = auto{s};
+            else if constexpr (math::RowVector<decltype(s)>)
+              d[i, j] = auto{s[j]};
+            else if constexpr (math::ColVector<decltype(s)>)
+              d[i, j] = auto{s[i]};
+            else d[i, j] = auto{s[i, j]};
+          });
+      } else {
+        POLYMATHVECTORIZE
+        for (ptrdiff_t j = 0; j < C; ++j)
+          dst.apply(src, [=](auto &d, const auto &s) {
+            utils::assign(d, s, i, j, op);
+          });
+      }
+    }
+  }
+}
+}; // namespace tupletensorops
+
+template <typename A, typename... As>
+template <typename B, typename... Bs>
+constexpr auto containers::Tuple<A, As...>::operator<<(Tuple<B, Bs...> x)
+requires(sizeof...(As) == sizeof...(Bs))
+{}
+
+} // namespace poly::containers
+

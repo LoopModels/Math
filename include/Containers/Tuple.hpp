@@ -22,7 +22,29 @@ template <typename T, typename... Ts> struct Tuple {
     f(head);
     tail.apply(f);
   }
+  template <typename U, typename... Us>
+  constexpr void apply(Tuple<U, Us...> x, const auto &f)
+  requires(sizeof...(Ts) == sizeof...(Us))
+  {
+    f(head, x.head);
+    tail.apply(x.tail, f);
+  }
   constexpr auto map(const auto &f) { return Tuple(f(head), tail.map(f)); }
+  template <typename U, typename... Us>
+  inline constexpr auto operator<<(Tuple<U, Us...>)
+  requires(sizeof...(Ts) == sizeof...(Us));
+  template <typename U, typename... Us>
+  inline constexpr auto operator+=(Tuple<U, Us...>)
+  requires(sizeof...(Ts) == sizeof...(Us));
+  template <typename U, typename... Us>
+  inline constexpr auto operator-=(Tuple<U, Us...>)
+  requires(sizeof...(Ts) == sizeof...(Us));
+  template <typename U, typename... Us>
+  inline constexpr auto operator*=(Tuple<U, Us...>)
+  requires(sizeof...(Ts) == sizeof...(Us));
+  template <typename U, typename... Us>
+  inline constexpr auto operator/=(Tuple<U, Us...>)
+  requires(sizeof...(Ts) == sizeof...(Us));
   template <typename U, typename... Us>
   constexpr auto operator=(Tuple<U, Us...> x) -> Tuple &requires(
     std::assignable_from<T, U> &&... &&std::assignable_from<Ts, Us>) {
@@ -45,9 +67,18 @@ template <typename T> struct Tuple<T> {
   }
   constexpr auto operator=(const Tuple &) -> Tuple & = default;
   constexpr void apply(const auto &f) { f(head); }
+  template <typename U> constexpr void apply(Tuple<U> x, const auto &f) {
+    f(head, x.head);
+  }
   constexpr auto map(const auto &f) -> Tuple<decltype(f(head))> {
     return {f(head)};
   }
+  template <typename U> inline constexpr auto operator<<(Tuple<U>);
+  template <typename U> inline constexpr auto operator+=(Tuple<U>);
+  template <typename U> inline constexpr auto operator-=(Tuple<U>);
+  template <typename U> inline constexpr auto operator*=(Tuple<U>);
+  template <typename U> inline constexpr auto operator/=(Tuple<U>);
+
   template <typename U>
   constexpr auto operator=(Tuple<U> x)
     -> Tuple &requires(std::assignable_from<T, U>) {

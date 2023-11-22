@@ -116,11 +116,11 @@ template <typename Op, typename A> Elementwise(Op, A) -> Elementwise<Op, A>;
 
 // scalars broadcast
 template <typename S>
-[[gnu::always_inline]] constexpr auto get(const S &s, auto) -> S {
+[[gnu::always_inline]] constexpr auto get(const auto &s, auto) {
   return s;
 }
 template <typename S>
-[[gnu::always_inline]] constexpr auto get(const S &s, auto, auto) -> S {
+[[gnu::always_inline]] constexpr auto get(const auto &s, auto, auto) {
   return s;
 }
 template <typename S, LinearlyIndexable<S> V>
@@ -309,20 +309,30 @@ struct Select : public AbstractSelect<C, A, B> {
   static constexpr bool has_reduction_loop =
     HasInnerReduction<A> || HasInnerReduction<B>;
   constexpr auto operator[](auto i) const
-  requires LinearlyIndexableOrConvertible<C, bool> &&
+  requires LinearlyIndexable<C, bool> &&
            LinearlyIndexableOrConvertible<A, value_type> &&
            LinearlyIndexableOrConvertible<B, value_type>
   {
-    return get<bool>(this->c, i) ? get<value_type>(this->a, i)
-                                 : get<value_type>(this->b, i);
+    if constexpr (LinearlyIndexable<A, value_type>)
+      if constexpr (LinearlyIndexable<B, value_type>)
+        return this->c[i] ? this->a[i] : this->b[i];
+      else return this->c[i] ? this->a[i] : this->b;
+    else if constexpr (LinearlyIndexable<B, value_type>)
+      return this->c[i] ? this->a : this->b[i];
+    else return this->c[i] ? this->a : this->b;
   }
   constexpr auto operator[](auto i, auto j) const
   requires CartesianIndexableOrConvertible<C, bool> &&
            CartesianIndexableOrConvertible<A, value_type> &&
            CartesianIndexableOrConvertible<B, value_type>
   {
-    return get<bool>(this->c, i, j) ? get<value_type>(this->a, i, j)
-                                    : get<value_type>(this->b, i, j);
+    if constexpr (CartesianIndexable<A, value_type>)
+      if constexpr (CartesianIndexable<B, value_type>)
+        return this->c[i, j] ? this->a[i, j] : this->b[i, j];
+      else return this->c[i, j] ? this->a[i, j] : this->b;
+    else if constexpr (CartesianIndexable<B, value_type>)
+      return this->c[i, j] ? this->a : this->b[i, j];
+    else return this->c[i, j] ? this->a : this->b;
   }
   [[nodiscard]] constexpr auto view() const -> Select { return *this; };
 };
@@ -345,8 +355,13 @@ struct Conditional : public AbstractSelect<C, A, B> {
            LinearlyIndexableOrConvertible<A, value_type> &&
            LinearlyIndexableOrConvertible<B, value_type>
   {
-    auto x = get<value_type>(this->a, i);
-    return get<bool>(this->c, i) ? op(x, get<value_type>(this->b, i)) : x;
+    if constexpr (LinearlyIndexable<A, value_type>)
+      if constexpr (LinearlyIndexable<B, value_type>)
+        return this->c[i] ? op(this->a[i], this->b[i]) : this->a[i];
+      else return this->c[i] ? op(this->a[i], this->b) : this->a[i];
+    else if constexpr (LinearlyIndexable<B, value_type>)
+      return this->c[i] ? op(this->a, this->b[i]) : this->a;
+    else return this->c[i] ? op(this->a, this->b) : this->a;
   }
   template <ptrdiff_t U, ptrdiff_t W, typename M>
   constexpr auto operator[](simd::index::Unroll<U, W, M> i) const
@@ -355,7 +370,7 @@ struct Conditional : public AbstractSelect<C, A, B> {
            LinearlyIndexableOrConvertible<B, value_type>
   {
     if constexpr (W == 1) {
-      auto c = get<bool>(this->c, i);
+      auto c = this->c[i];
       simd::Unroll<U, 1, 1, value_type> x = get<value_type>(this->a, i),
                                         y = op(x, get<value_type>(this->b, i));
       POLYMATHFULLUNROLL
@@ -371,7 +386,7 @@ struct Conditional : public AbstractSelect<C, A, B> {
         x.data[u] = c.data[u] ? y.data[u] : x.data[u];
       return x;
     } else if constexpr (LinearlyIndexable<B, value_type>) {
-      auto c = get<bool>(this->c, i);
+      auto c = this->c[i];
       using V = simd::Vec<W, value_type>;
       value_type x_ = get<value_type>(this->a, i);
       V x = simd::vbroadcast<W, value_type>(x_);
@@ -382,7 +397,7 @@ struct Conditional : public AbstractSelect<C, A, B> {
           y.data[u] = c.data[u] ? y.data[u] : x;
       return y;
     } else {
-      auto c = get<bool>(this->c, i);
+      auto c = this->c[i];
       using V = simd::Vec<W, value_type>;
       value_type x_ = get<value_type>(this->a, i);
       value_type y_ = op(x_, get<value_type>(this->b, i));
@@ -412,8 +427,13 @@ struct Conditional : public AbstractSelect<C, A, B> {
            CartesianIndexableOrConvertible<A, value_type> &&
            CartesianIndexableOrConvertible<B, value_type>
   {
-    auto x = get<value_type>(this->a, i, j);
-    return get<bool>(this->c, i, j) ? op(x, get<value_type>(this->b, i, j)) : x;
+    if constexpr (LinearlyIndexable<A, value_type>)
+      if constexpr (LinearlyIndexable<B, value_type>)
+        return this->c[i, j] ? op(this->a[i, j], this->b[i, j]) : this->a[i, j];
+      else return this->c[i, j] ? op(this->a[i, j], this->b) : this->a[i, j];
+    else if constexpr (LinearlyIndexable<B, value_type>)
+      return this->c[i, j] ? op(this->a, this->b[i, j]) : this->a;
+    else return this->c[i, j] ? op(this->a, this->b) : this->a;
   }
   [[nodiscard]] constexpr auto view() const -> Conditional { return *this; };
 };
