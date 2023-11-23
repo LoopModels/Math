@@ -28,27 +28,35 @@ template <typename T, typename... Ts> struct Tuple {
     tail.apply(f);
   }
   template <typename U, typename... Us>
-  constexpr void apply(Tuple<U, Us...> x, const auto &f)
+  constexpr void apply(const Tuple<U, Us...> &x, const auto &f)
   requires(sizeof...(Ts) == sizeof...(Us))
   {
     f(head, x.head);
     tail.apply(x.tail, f);
   }
-  constexpr auto map(const auto &f) { return cattuple(f(head), tail.map(f)); }
+  constexpr auto map(const auto &f) const {
+    return cattuple(f(head), tail.map(f));
+  }
   template <typename U, typename... Us>
-  inline constexpr auto operator<<(const Tuple<U, Us...>&)
+  constexpr auto map(const Tuple<U, Us...> &x, const auto &f) const
+  requires(sizeof...(Ts) == sizeof...(Us))
+  {
+    return cattuple(f(head, x.head), tail.map(x.tail, f));
+  }
+  template <typename U, typename... Us>
+  inline constexpr void operator<<(const Tuple<U, Us...> &)
   requires(sizeof...(Ts) == sizeof...(Us));
   template <typename U, typename... Us>
-  inline constexpr auto operator+=(const Tuple<U, Us...>&)
+  inline constexpr void operator+=(const Tuple<U, Us...> &)
   requires(sizeof...(Ts) == sizeof...(Us));
   template <typename U, typename... Us>
-  inline constexpr auto operator-=(const Tuple<U, Us...>&)
+  inline constexpr void operator-=(const Tuple<U, Us...> &)
   requires(sizeof...(Ts) == sizeof...(Us));
   template <typename U, typename... Us>
-  inline constexpr auto operator*=(const Tuple<U, Us...>&)
+  inline constexpr void operator*=(const Tuple<U, Us...> &)
   requires(sizeof...(Ts) == sizeof...(Us));
   template <typename U, typename... Us>
-  inline constexpr auto operator/=(const Tuple<U, Us...>&)
+  inline constexpr void operator/=(const Tuple<U, Us...> &)
   requires(sizeof...(Ts) == sizeof...(Us));
   template <typename U, typename... Us>
   constexpr auto operator=(Tuple<U, Us...> x) -> Tuple &requires(
@@ -77,17 +85,22 @@ template <typename T> struct Tuple<T> {
   }
   constexpr auto operator=(const Tuple &) -> Tuple & = default;
   constexpr void apply(const auto &f) { f(head); }
-  template <typename U> constexpr void apply(Tuple<U> x, const auto &f) {
+  template <typename U> constexpr void apply(const Tuple<U> &x, const auto &f) {
     f(head, x.head);
   }
-  constexpr auto map(const auto &f) -> Tuple<decltype(f(head))> {
+  constexpr auto map(const auto &f) const -> Tuple<decltype(f(head))> {
     return {f(head)};
   }
-  template <typename U> inline constexpr auto operator<<(const Tuple<U> &);
-  template <typename U> inline constexpr auto operator+=(const Tuple<U> &);
-  template <typename U> inline constexpr auto operator-=(const Tuple<U> &);
-  template <typename U> inline constexpr auto operator*=(const Tuple<U> &);
-  template <typename U> inline constexpr auto operator/=(const Tuple<U> &);
+  template <typename U>
+  constexpr auto map(const Tuple<U> &x, const auto &f) const
+    -> Tuple<decltype(f(head, x.head))> {
+    return {f(head, x.head)};
+  }
+  template <typename U> inline constexpr void operator<<(const Tuple<U> &);
+  template <typename U> inline constexpr void operator+=(const Tuple<U> &);
+  template <typename U> inline constexpr void operator-=(const Tuple<U> &);
+  template <typename U> inline constexpr void operator*=(const Tuple<U> &);
+  template <typename U> inline constexpr void operator/=(const Tuple<U> &);
 
   template <typename U>
   constexpr auto operator=(Tuple<U> x)

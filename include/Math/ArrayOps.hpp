@@ -38,6 +38,12 @@ template <typename S, OnlyLinearlyIndexable<S> V>
   else return v[i];
 }
 
+template <typename T> struct ScalarizeViaCast {
+  using type = void;
+};
+template<typename T>
+using scalarize_via_cast_to_t = typename ScalarizeViaCast<T>::type;
+
 // returns Unroll, Iters, Remainder
 template <ptrdiff_t R> consteval auto unrollf() -> std::array<ptrdiff_t, 2> {
   if (R <= 5) return {0, R};
@@ -52,9 +58,10 @@ template <ptrdiff_t R> consteval auto unrollf() -> std::array<ptrdiff_t, 2> {
 template <typename D, typename S>
 constexpr void fastCopy(D *d, const S *s, size_t N) {
   if (!N) return;
-  if constexpr (std::same_as<D, S> && std::is_trivially_copyable_v<D>)
-    std::memcpy(d, s, N * sizeof(D));
-  else std::copy_n(s, N, d);
+  // if constexpr (std::same_as<D, S> && std::is_trivially_copyable_v<D>)
+  //   std::memcpy(d, s, N * sizeof(D));
+  // else
+  std::copy_n(s, N, d);
 }
 
 template <typename T>
@@ -151,12 +158,13 @@ template <class T, class S, class P> class ArrayOps {
     static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     P &self{Self()};
     auto [M, N] = promote_shape(self, B);
-    if constexpr (std::same_as<Op, utils::CopyAssign> && DenseLayout<S> &&
-                  DenseTensor<std::remove_cvref_t<decltype(B)>>) {
-      if constexpr (std::is_trivially_copyable_v<T>)
-        std::memcpy(data_(), B.begin(), M * N * sizeof(T));
-      else std::copy_n(B.begin(), M * N, data_());
-    } else if constexpr (simd::SIMDSupported<T>) {
+    // if constexpr (std::same_as<Op, utils::CopyAssign> && DenseLayout<S> &&
+    //               DenseTensor<std::remove_cvref_t<decltype(B)>>) {
+    //   if constexpr (std::is_trivially_copyable_v<T>)
+    //     std::memcpy(data_(), B.begin(), M * N * sizeof(T));
+    //   else std::copy_n(B.begin(), M * N, data_());
+    // } else
+    if constexpr (simd::SIMDSupported<T>) {
       if constexpr (IsOne<decltype(M)>)
         vcopyToSIMD(self, B, N, utils::NoRowIndex{}, op);
       else if constexpr (IsOne<decltype(N)>)
@@ -352,18 +360,24 @@ vcopyToSIMD(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src, I L, R row) {
   }
 }
 
-template <typename A, typename B>
-[[gnu::always_inline]] constexpr auto promote_shape(const Tuple<A> &a,
-                                                    const Tuple<B> &b) {
-  return math::promote_shape(a.head, b.head);
-}
+// template <typename A, typename B>
+// [[gnu::always_inline]] constexpr auto promote_shape(const Tuple<A> &a,
+//                                                     const Tuple<B> &b) {
+//   return math::promote_shape(a.head, b.head);
+// }
 template <typename A, typename... As, typename B, typename... Bs>
 [[gnu::always_inline]] constexpr auto promote_shape(const Tuple<A, As...> &a,
-                                                    const Tuple<B, Bs...> &b) {
-  auto [Mh, Nh] = math::promote_shape(a.head, b.head);
-  auto [Mt, Nt] = promote_shape(a.tail, b.tail);
-  return math::CartesianIndex(math::check_sizes(Mh, Mt),
-                              math::check_sizes(Nh, Nt));
+                                                    const Tuple<B, Bs...> &b)
+requires(sizeof...(As) == sizeof...(Bs))
+{
+  auto h = math::promote_shape(a.head, b.head);
+  if constexpr (sizeof...(As) == 0) return h;
+  else {
+    auto [Mh, Nh] = h;
+    auto [Mt, Nt] = promote_shape(a.tail, b.tail);
+    return math::CartesianIndex(math::check_sizes(Mh, Mt),
+                                math::check_sizes(Nh, Nt));
+  }
 }
 template <typename A, typename... As, typename B, typename... Bs>
 void vcopyTo(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src) {
@@ -488,7 +502,7 @@ void scopyTo(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src) {
 
 template <typename A, typename... As>
 template <typename B, typename... Bs>
-inline constexpr auto Tuple<A, As...>::operator<<(const Tuple<B, Bs...> &src)
+inline constexpr void Tuple<A, As...>::operator<<(const Tuple<B, Bs...> &src)
 requires(sizeof...(As) == sizeof...(Bs))
 {
   using T = std::common_type<utils::eltype_t<A>, utils::eltype_t<As>...,
@@ -500,6 +514,34 @@ requires(sizeof...(As) == sizeof...(Bs))
       tupletensorops::vcopyTo(*this, src);
     else tupletensorops::scopyTo(*this, src);
   }
+}
+template <typename A, typename... As>
+template <typename B, typename... Bs>
+inline constexpr void Tuple<A, As...>::operator+=(const Tuple<B, Bs...> &src)
+requires(sizeof...(As) == sizeof...(Bs))
+{
+  (*this) << map(src, [](const auto &d, const auto &s) { return d + s; });
+}
+template <typename A, typename... As>
+template <typename B, typename... Bs>
+inline constexpr void Tuple<A, As...>::operator-=(const Tuple<B, Bs...> &src)
+requires(sizeof...(As) == sizeof...(Bs))
+{
+  (*this) << map(src, [](const auto &d, const auto &s) { return d - s; });
+}
+template <typename A, typename... As>
+template <typename B, typename... Bs>
+inline constexpr void Tuple<A, As...>::operator*=(const Tuple<B, Bs...> &src)
+requires(sizeof...(As) == sizeof...(Bs))
+{
+  (*this) << map(src, [](const auto &d, const auto &s) { return d * s; });
+}
+template <typename A, typename... As>
+template <typename B, typename... Bs>
+inline constexpr void Tuple<A, As...>::operator/=(const Tuple<B, Bs...> &src)
+requires(sizeof...(As) == sizeof...(Bs))
+{
+  (*this) << map(src, [](const auto &d, const auto &s) { return d / s; });
 }
 
 } // namespace poly::containers

@@ -746,23 +746,35 @@ constexpr auto operator*(const AbstractTensor auto &a,
 }
 template <AbstractVector M, utils::ElementOf<M> S>
 constexpr auto operator*(const M &b, S a) {
-  return ElementwiseBinaryOp(std::multiplies<>{}, view(b),
-                             utils::eltype_t<M>(a));
+  using T = utils::eltype_t<M>;
+  if constexpr (sizeof(T) <= 8)
+    return ElementwiseBinaryOp(std::multiplies<>{}, view(b),
+                               utils::eltype_t<M>(a));
+  else return ElementwiseBinaryOp(std::multiplies<>{}, view(b), a);
 }
 template <AbstractVector M, utils::ElementOf<M> S>
 constexpr auto operator*(S a, const M &b) {
-  return ElementwiseBinaryOp(std::multiplies<>{}, utils::eltype_t<M>(a),
-                             view(b));
+  using T = utils::eltype_t<M>;
+  if constexpr (sizeof(T) <= 8)
+    return ElementwiseBinaryOp(std::multiplies<>{}, utils::eltype_t<M>(a),
+                               view(b));
+  else return ElementwiseBinaryOp(std::multiplies<>{}, a, view(b));
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
 constexpr auto operator*(S a, const M &b) {
-  return ElementwiseBinaryOp(std::multiplies<>{}, utils::eltype_t<M>(a),
-                             view(b));
+  using T = utils::eltype_t<M>;
+  if constexpr (sizeof(T) <= 8)
+    return ElementwiseBinaryOp(std::multiplies<>{}, utils::eltype_t<M>(a),
+                               view(b));
+  else return ElementwiseBinaryOp(std::multiplies<>{}, a, view(b));
 }
 template <AbstractMatrix M, utils::ElementOf<M> S>
 constexpr auto operator*(const M &b, S a) {
-  return ElementwiseBinaryOp(std::multiplies<>{}, view(b),
-                             utils::eltype_t<M>(a));
+  using T = utils::eltype_t<M>;
+  if constexpr (sizeof(T) <= 8)
+    return ElementwiseBinaryOp(std::multiplies<>{}, view(b),
+                               utils::eltype_t<M>(a));
+  else return ElementwiseBinaryOp(std::multiplies<>{}, view(b), a);
 }
 
 template <class A, Compatible<A> B>

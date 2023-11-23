@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Containers/Tuple.hpp"
 #include "Math/Array.hpp"
 #include "Math/Comparisons.hpp"
 #include "Math/Constructors.hpp"
@@ -14,6 +15,7 @@
 #include <cstdint>
 
 namespace poly::math::NormalForm {
+using containers::Tuple, containers::tie;
 
 constexpr auto gcdxScale(int64_t a, int64_t b) -> std::array<int64_t, 4> {
   if (constexpr_abs(a) == 1) return {a, 0, a, b};
@@ -29,32 +31,46 @@ constexpr void zeroSupDiagonal(MutPtrMatrix<int64_t> A,
     int64_t Aii = A[i, i];
     if (int64_t Aji = A[j, i]) {
       const auto [p, q, Aiir, Aijr] = gcdxScale(Aii, Aji);
-      for (ptrdiff_t k = 0; k < minMN; ++k) {
-        int64_t Aki = A[i, k];
-        int64_t Akj = A[j, k];
-        int64_t Kki = K[i, k];
-        int64_t Kkj = K[j, k];
-        // when k == i, then
-        // p * Aii + q * Akj == r, so we set A(i,i) = r
-        A[i, k] = p * Aki + q * Akj;
-        // Aii/r * Akj - Aij/r * Aki = 0
-        A[j, k] = Aiir * Akj - Aijr * Aki;
-        // Mirror for K
-        K[i, k] = p * Kki + q * Kkj;
-        K[j, k] = Aiir * Kkj - Aijr * Kki;
+
+      {
+        MutPtrVector<int64_t> Ai{A[i, _(0, minMN)]}, Aj{A[j, _(0, minMN)]},
+          Ki{K[i, _(0, minMN)]}, Kj{K[j, _(0, minMN)]};
+        tie(Ai, Aj, Ki, Kj) << Tuple(p * Ai + q * Aj, Aiir * Aj - Aijr * Ai,
+                                     p * Ki + q * Kj, Aiir * Kj - Aijr * Ki);
       }
-      for (auto k = ptrdiff_t(N); k < M; ++k) {
-        int64_t Kki = K[i, k];
-        int64_t Kkj = K[j, k];
-        K[i, k] = p * Kki + q * Kkj;
-        K[j, k] = Aiir * Kkj - Aijr * Kki;
+      if (ptrdiff_t(M) > ptrdiff_t(N)) {
+        MutPtrVector<int64_t> Ki{K[i, _(N, M)]}, Kj{K[j, _(N, M)]};
+        tie(Ki, Kj) << Tuple(p * Ki + q * Kj, Aiir * Kj - Aijr * Ki);
+      } else if (ptrdiff_t(N) > ptrdiff_t(M)) {
+        MutPtrVector<int64_t> Ai{A[i, _(M, N)]}, Aj{A[j, _(M, N)]};
+        tie(Ai, Aj) << Tuple(p * Ai + q * Aj, Aiir * Aj - Aijr * Ai);
       }
-      for (auto k = ptrdiff_t(M); k < N; ++k) {
-        int64_t Aki = A[i, k];
-        int64_t Akj = A[j, k];
-        A[i, k] = p * Aki + q * Akj;
-        A[j, k] = Aiir * Akj - Aijr * Aki;
-      }
+      // for (ptrdiff_t k = 0; k < minMN; ++k) {
+      //   int64_t Aki = A[i, k];
+      //   int64_t Akj = A[j, k];
+      //   int64_t Kki = K[i, k];
+      //   int64_t Kkj = K[j, k];
+      //   // when k == i, then
+      //   // p * Aii + q * Akj == r, so we set A(i,i) = r
+      //   A[i, k] = p * Aki + q * Akj;
+      //   // Aii/r * Akj - Aij/r * Aki = 0
+      //   A[j, k] = Aiir * Akj - Aijr * Aki;
+      //   // Mirror for K
+      //   K[i, k] = p * Kki + q * Kkj;
+      //   K[j, k] = Aiir * Kkj - Aijr * Kki;
+      // }
+      // for (auto k = ptrdiff_t(N); k < M; ++k) {
+      //   int64_t Kki = K[i, k];
+      //   int64_t Kkj = K[j, k];
+      //   K[i, k] = p * Kki + q * Kkj;
+      //   K[j, k] = Aiir * Kkj - Aijr * Kki;
+      // }
+      // for (auto k = ptrdiff_t(M); k < N; ++k) {
+      //   int64_t Aki = A[i, k];
+      //   int64_t Akj = A[j, k];
+      //   A[i, k] = p * Aki + q * Akj;
+      //   A[j, k] = Aiir * Akj - Aijr * Aki;
+      // }
     }
   }
 }
@@ -70,20 +86,24 @@ constexpr void zeroSubDiagonal(MutPtrMatrix<int64_t> A,
   } else {
     invariant(Akk == 1);
   }
-  ptrdiff_t minMN = std::min(ptrdiff_t(M), ptrdiff_t(N));
+  ptrdiff_t Mi = ptrdiff_t(M), Ni = ptrdiff_t(N), minMN = std::min(Mi, Ni);
   for (ptrdiff_t z = 0; z < k; ++z) {
     // eliminate `A(k,z)`
-    if (int64_t Akz = A[z, k]) {
-      // A(k, k) == 1, so A(k,z) -= Akz * 1;
-      // A(z,_) -= Akz * A(k,_);
-      // K(z,_) -= Akz * K(k,_);
-      for (ptrdiff_t i = 0; i < minMN; ++i) {
-        A[z, i] -= Akz * A[k, i];
-        K[z, i] -= Akz * K[k, i];
-      }
-      for (auto i = ptrdiff_t(N); i < M; ++i) K[z, i] -= Akz * K[k, i];
-      for (auto i = ptrdiff_t(M); i < N; ++i) A[z, i] -= Akz * A[k, i];
-    }
+    int64_t Akz = A[z, k];
+    if (!Akz) continue;
+    // A(k, k) == 1, so A(k,z) -= Akz * 1;
+    // A(z,_) -= Akz * A(k,_);
+    // K(z,_) -= Akz * K(k,_);
+    Tuple(A[z, _(0, minMN)], K[z, _(0, minMN)]) -=
+      Tuple(Akz * A[k, _(0, minMN)], Akz * K[k, _(0, minMN)]);
+    if (Mi > Ni) K[z, _(Ni, Mi)] -= Akz * K[k, _(Ni, Mi)];
+    else if (Ni > Mi) A[z, _(Mi, Ni)] -= Akz * A[k, _(Mi, Ni)];
+    // for (ptrdiff_t i = 0; i < minMN; ++i) {
+    //   A[z, i] -= Akz * A[k, i];
+    //   K[z, i] -= Akz * K[k, i];
+    // }
+    // for (auto i = ptrdiff_t(N); i < M; ++i) K[z, i] -= Akz * K[k, i];
+    // for (auto i = ptrdiff_t(M); i < N; ++i) A[z, i] -= Akz * A[k, i];
   }
 }
 
@@ -119,8 +139,8 @@ constexpr auto pivotRows(MutPtrMatrix<int64_t> A, ptrdiff_t i, Row<> N)
 constexpr void dropCol(MutPtrMatrix<int64_t> A, ptrdiff_t i, Row<> M, Col<> N) {
   // if any rows are left, we shift them up to replace it
   if (N <= i) return;
-  for (ptrdiff_t m = 0; m < M; ++m)
-    for (ptrdiff_t n = i; n < N; ++n) A[m, n] = A[m, n + 1];
+  for (ptrdiff_t m = 0; m < M; ++m) A[m, _(i, N)] << A[m, _(i, N) + 1];
+  // for (ptrdiff_t n = i; n < N; ++n) A[m, n] = A[m, n + 1];
 }
 
 constexpr auto orthogonalizeBang(MutDensePtrMatrix<int64_t> &A)
@@ -498,12 +518,13 @@ constexpr void bareiss(MutPtrMatrix<int64_t> A,
   for (ptrdiff_t r = 0, c = 0; c < N && r < M; ++c) {
     if (auto piv = pivotRowsBareiss(A, c, Row<>{M}, Row<>{r})) {
       pivots[pivInd++] = *piv;
+      auto j{_(c + 1, N)};
       for (ptrdiff_t k = r + 1; k < M; ++k) {
-        for (ptrdiff_t j = c + 1; j < N; ++j) {
-          auto uAkj = A[r, c] * A[k, j] - A[k, c] * A[r, j], Akj = uAkj / prev;
-          invariant(uAkj, Akj * prev);
-          A[k, j] = Akj;
-        }
+        A[k, j] << (A[r, c] * A[k, j] - A[k, c] * A[r, j]) / prev;
+        // for (ptrdiff_t j = c + 1; j < N; ++j) {
+        //   auto uAkj = A[r, c] * A[k, j] - A[k, c] * A[r, j], Akj = uAkj /
+        //   prev; invariant(uAkj, Akj * prev); A[k, j] = Akj;
+        // }
         A[k, r] = 0;
       }
       prev = A[r++, c];

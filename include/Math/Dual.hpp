@@ -537,6 +537,62 @@ static_assert(
                   std::multiplies<void>>,
                 std::plus<void>>>);
 
+template <typename T> struct IsDualImpl : std::false_type {};
+template <typename T, ptrdiff_t N, bool Compress>
+struct IsDualImpl<Dual<T, N, Compress>> : std::true_type {};
+template <typename T>
+concept IsDual = IsDualImpl<T>::value;
+
+// We want to support casting compressed `Dual` arrays to `double`
+// when possible as a performance optimization.
+// This is possible with
+// 1. Dual<T,N> (+/-) Dual<T,N>
+// 2. Dual<T,N> * double or double * Dual<T,N>
+// 3. Dual<T,N> / double
+// 4. Simple copies
+template <typename T, ptrdiff_t N> struct ScalarizeViaCast<Dual<T, N, true>> {
+  using type = std::conditional_t<std::same_as<T, double>, double,
+                                  scalarize_via_cast_to_t<T>>;
+};
+
+template <typename T> struct ScalarizeViaCast<Elementwise<std::negate<>, T>> {
+  using type = scalarize_via_cast_to_t<T>;
+};
+template <typename T>
+concept AdditiveOp =
+  std::same_as<T, std::plus<>> || std::same_as<T, std::minus<>>;
+template <typename T>
+concept MultiplicativeOp =
+  std::same_as<T, std::multiplies<>> || std::same_as<T, std::divides<>>;
+template <typename T>
+concept EltIsDual = IsDual<utils::eltype_t<T>>;
+
+template <typename T, typename S> struct ScalarizeViaCast<Array<T, S, true>> {
+  using type = scalarize_via_cast_to_t<utils::compressed_t<T>>;
+};
+
+template <typename T>
+concept EltCastableDual =
+  EltIsDual<T> && std::same_as<scalarize_via_cast_to_t<T>, double>;
+template <AdditiveOp Op, EltCastableDual A, EltCastableDual B>
+struct ScalarizeViaCast<ElementwiseBinaryOp<A, B, Op>> {
+  // when we cast, we expand into rows, thus col vectors don't work
+  // as they'd have to become matrices, and then number of rows
+  // won't match up, unless both inputs were a ColVector
+  // It is unclear if the case where both inputs are ColVectors is worth
+  // the complexity, as the benefit from this optimization is being
+  // able to handle things contiguously, which we in that case.
+  using type = std::conditional_t<ColVector<A> || ColVector<B>, void, double>;
+};
+template <MultiplicativeOp Op, EltCastableDual A>
+struct ScalarizeViaCast<ElementwiseBinaryOp<A, double, Op>> {
+  using type = double;
+};
+template <EltCastableDual B>
+struct ScalarizeViaCast<ElementwiseBinaryOp<double, B, std::multiplies<>>> {
+  using type = double;
+};
+
 template <class T, ptrdiff_t N> Dual(T, SVector<T, N>) -> Dual<T, N>;
 
 template <class T, ptrdiff_t N>
