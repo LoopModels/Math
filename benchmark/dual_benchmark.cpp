@@ -133,7 +133,7 @@ BENCHMARK(BM_dual8x2prod_simdarray);
 static void BM_dual7x2prod(benchmark::State &state) {
   std::mt19937_64 rng0;
   using D = Dual<Dual<double, 7>, 2>;
-  static_assert(std::same_as<double, poly::math::scalarize_via_cast_to_t<
+  static_assert(std::same_as<double, poly::math::scalarize_elt_cast_t<
                                        Dual<Dual<double, 7, true>, 2, true>>>);
   // static_assert(sizeof(D) == sizeof(Dual<Dual<double, 8>, 2>));
   static_assert(poly::utils::Compressible<D>);

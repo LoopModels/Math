@@ -550,13 +550,19 @@ concept IsDual = IsDualImpl<T>::value;
 // 2. Dual<T,N> * double or double * Dual<T,N>
 // 3. Dual<T,N> / double
 // 4. Simple copies
-template <typename T, ptrdiff_t N> struct ScalarizeViaCast<Dual<T, N, true>> {
+template <typename T> struct ScalarizeEltViaCast {
+  using type = void;
+};
+template <typename T>
+using scalarize_elt_cast_t = typename ScalarizeEltViaCast<T>::type;
+template <typename T, ptrdiff_t N>
+struct ScalarizeEltViaCast<Dual<T, N, true>> {
   using type = std::conditional_t<std::same_as<T, double>, double,
-                                  scalarize_via_cast_to_t<T>>;
+                                  scalarize_elt_cast_t<T>>;
 };
 
 template <typename T> struct ScalarizeViaCast<Elementwise<std::negate<>, T>> {
-  using type = scalarize_via_cast_to_t<T>;
+  using type = scalarize_via_cast_t<T>;
 };
 template <typename T>
 concept AdditiveOp =
@@ -568,12 +574,12 @@ template <typename T>
 concept EltIsDual = IsDual<utils::eltype_t<T>>;
 
 template <typename T, typename S> struct ScalarizeViaCast<Array<T, S, true>> {
-  using type = scalarize_via_cast_to_t<utils::compressed_t<T>>;
+  using type = scalarize_elt_cast_t<utils::compressed_t<T>>;
 };
 
 template <typename T>
 concept EltCastableDual =
-  EltIsDual<T> && std::same_as<scalarize_via_cast_to_t<T>, double>;
+  EltIsDual<T> && std::same_as<scalarize_via_cast_t<T>, double>;
 template <AdditiveOp Op, EltCastableDual A, EltCastableDual B>
 struct ScalarizeViaCast<ElementwiseBinaryOp<A, B, Op>> {
   // when we cast, we expand into rows, thus col vectors don't work
@@ -584,12 +590,12 @@ struct ScalarizeViaCast<ElementwiseBinaryOp<A, B, Op>> {
   // able to handle things contiguously, which we in that case.
   using type = std::conditional_t<ColVector<A> || ColVector<B>, void, double>;
 };
-template <MultiplicativeOp Op, EltCastableDual A>
-struct ScalarizeViaCast<ElementwiseBinaryOp<A, double, Op>> {
+template <MultiplicativeOp Op, EltCastableDual A, std::convertible_to<double> T>
+struct ScalarizeViaCast<ElementwiseBinaryOp<A, T, Op>> {
   using type = double;
 };
-template <EltCastableDual B>
-struct ScalarizeViaCast<ElementwiseBinaryOp<double, B, std::multiplies<>>> {
+template <EltCastableDual B, std::convertible_to<double> T>
+struct ScalarizeViaCast<ElementwiseBinaryOp<T, B, std::multiplies<>>> {
   using type = double;
 };
 

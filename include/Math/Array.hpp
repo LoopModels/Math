@@ -408,6 +408,39 @@ struct POLY_MATH_GSL_POINTER Array {
     return ret;
     // return std::reduce(begin(), end());
   }
+  // interpret a bigger object as smaller
+  template <typename U> [[nodiscard]] auto reinterpret() const {
+    static_assert(sizeof(storage_type) % sizeof(U) == 0);
+    static_assert(std::same_as<U, double>);
+    if constexpr (std::same_as<U, T>) return *this;
+    else {
+      auto r = unwrapRow(numRow());
+      auto c = unwrapCol(numCol());
+      constexpr auto ratio = sizeof(storage_type) / sizeof(U);
+#ifdef __cpp_lib_start_lifetime_as
+      U *p = std::start_lifetime_as_array(reinterpret_cast<const U *>(data()),
+                                          ratio * ptrdiff_t(rowStride()) * r);
+#else
+      const U *p = std::launder(reinterpret_cast<const U *>(data()));
+#endif
+      if constexpr (IsOne<decltype(r)>) {
+        if constexpr (StaticInt<decltype(c)>)
+          return Array<U, std::integral_constant<ptrdiff_t, c * ratio>>{p, {}};
+        else return Array<U, ptrdiff_t>{p, c * ratio};
+      } else if constexpr (DenseLayout<S>) {
+        return Array<U, DenseDims<>>(p, DenseDims(row(r), col(c * ratio)));
+      } else {
+        ptrdiff_t stride = ptrdiff_t(rowStride()) * ratio;
+        if constexpr (IsOne<decltype(c)>) {
+          constexpr auto sr = std::integral_constant<ptrdiff_t, ratio>{};
+          return Array<U, StridedDims<-1, ratio, -1>>(
+            p, StridedDims(row(r), col(sr), rowStride(stride)));
+        } else
+          return Array<U, StridedDims<>>(
+            p, StridedDims(row(r), col(c * ratio), rowStride(stride)));
+      }
+    }
+  }
   friend inline void PrintTo(const Array &x, ::std::ostream *os) { *os << x; }
 #ifndef NDEBUG
   [[gnu::used]] void dump() const {
@@ -534,7 +567,7 @@ struct POLY_MATH_GSL_POINTER MutArray
 
   template <class... Args>
   constexpr MutArray(Args &&...args)
-    : Array<T, S>(std::forward<Args>(args)...) {}
+    : Array<T, S, Compress>(std::forward<Args>(args)...) {}
 
   template <std::convertible_to<T> U, std::convertible_to<S> V>
   constexpr MutArray(Array<U, V> a) : Array<T, S>(a) {}
@@ -702,12 +735,54 @@ struct POLY_MATH_GSL_POINTER MutArray
     return {data(), ptrdiff_t(Row(this->sz)), ptrdiff_t(RowStride(this->sz)),
             ptrdiff_t(Col(this->sz))};
   }
+  template <typename U> [[nodiscard]] auto reinterpret() {
+    static_assert(sizeof(storage_type) % sizeof(U) == 0);
+    static_assert(std::same_as<U, double>);
+    if constexpr (std::same_as<U, T>) return *this;
+    else {
+      auto r = unwrapRow(this->numRow());
+      auto c = unwrapCol(this->numCol());
+      constexpr size_t ratio = sizeof(storage_type) / sizeof(U);
+#ifdef __cpp_lib_start_lifetime_as
+      U *p = std::start_lifetime_as_array(reinterpret_cast<const U *>(data()),
+                                          ratio * ptrdiff_t(rowStride()) * r);
+#else
+      U *p = std::launder(reinterpret_cast<U *>(data()));
+#endif
+      if constexpr (IsOne<decltype(r)>) {
+        if constexpr (StaticInt<decltype(c)>)
+          return MutArray<U, std::integral_constant<ptrdiff_t, c * ratio>>(
+            p, std::integral_constant<ptrdiff_t, c * ratio>{});
+        else return MutArray<U, ptrdiff_t>{p, c * ratio};
+      } else if constexpr (DenseLayout<S>) {
+        return MutArray<U, DenseDims<>>(p, DenseDims(row(r), col(c * ratio)));
+      } else {
+        ptrdiff_t stride = ptrdiff_t(this->rowStride()) * ratio;
+        if constexpr (IsOne<decltype(c)>) {
+          constexpr auto sr = std::integral_constant<ptrdiff_t, ratio>{};
+          return MutArray<U, StridedDims<-1, ratio, -1>>(
+            p, StridedDims(row(r), col(sr), rowStride(stride)));
+        } else
+          return MutArray<U, StridedDims<>>(
+            p, StridedDims(row(r), col(c * ratio), rowStride(stride)));
+      }
+    }
+  }
 };
 
 template <typename T, typename S>
 MutArray(T *, S) -> MutArray<utils::decompressed_t<T>, S>;
 
 template <typename T, typename S> MutArray(MutArray<T, S>) -> MutArray<T, S>;
+
+template <typename T, typename U, typename S>
+constexpr auto reinterpret(Array<U, S> x) {
+  return x.template reinterpret<T>();
+}
+template <typename T, typename U, typename S>
+constexpr auto reinterpret(MutArray<U, S> x) {
+  return x.template reinterpret<T>();
+}
 
 static_assert(std::convertible_to<Array<int64_t, SquareDims<>>,
                                   Array<int64_t, DenseDims<>>>);

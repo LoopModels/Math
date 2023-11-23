@@ -352,15 +352,6 @@ requires(W != 1)
   return (typename Unroll<R, C, W, T>::VT{} + b) / a;
 }
 
-template <typename T>
-constexpr auto load(const T *p, mask::None<1>) -> const T & {
-  return *p;
-}
-template <typename T>
-constexpr auto load(const T *p, mask::None<1>, int32_t) -> const T & {
-  return *p;
-}
-
 template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t N, typename T, ptrdiff_t X,
           size_t NM, typename MT = mask::None<N>>
 [[gnu::always_inline]] constexpr auto

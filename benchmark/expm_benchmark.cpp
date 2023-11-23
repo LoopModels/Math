@@ -137,7 +137,6 @@ static void BM_expm(benchmark::State &state) {
   for (auto &&a : A) a = URand<double>{}(rng0);
   for (auto b : state) expbench(A);
 }
-BENCHMARK(BM_expm)->DenseRange(2, 10, 1);
 static void BM_expm_dual8(benchmark::State &state) {
   std::mt19937_64 rng0;
   using D = Dual<double, 8>;
@@ -145,7 +144,6 @@ static void BM_expm_dual8(benchmark::State &state) {
   for (auto &&a : A) a = URand<D>{}(rng0);
   for (auto b : state) expbench(A);
 }
-BENCHMARK(BM_expm_dual8)->DenseRange(2, 10, 1);
 
 static void BM_expm_dual8x2(benchmark::State &state) {
   std::mt19937_64 rng0;
@@ -154,7 +152,6 @@ static void BM_expm_dual8x2(benchmark::State &state) {
   for (auto &&a : A) a = URand<D>{}(rng0);
   for (auto b : state) expbench(A);
 }
-BENCHMARK(BM_expm_dual8x2)->DenseRange(2, 10, 1);
 static void BM_expm_dual7(benchmark::State &state) {
   std::mt19937_64 rng0;
   using D = Dual<double, 7>;
@@ -162,8 +159,6 @@ static void BM_expm_dual7(benchmark::State &state) {
   for (auto &&a : A) a = URand<D>{}(rng0);
   for (auto b : state) expbench(A);
 }
-BENCHMARK(BM_expm_dual7)->DenseRange(2, 10, 1);
-
 static void BM_expm_dual7x2(benchmark::State &state) {
   std::mt19937_64 rng0;
   using D = Dual<Dual<double, 7>, 2>;
@@ -174,25 +169,25 @@ static void BM_expm_dual7x2(benchmark::State &state) {
                    poly::math::Array<D, SquareDims<>, true>, std::plus<>>,
                  decltype(A + A)>);
   static_assert(
-    std::same_as<double, poly::math::scalarize_via_cast_to_t<
+    std::same_as<double, poly::math::scalarize_via_cast_t<
                            poly::math::Array<D, SquareDims<>, true>>>);
   static_assert(
-    std::same_as<double, poly::math::scalarize_via_cast_to_t<decltype(A + A)>>);
+    std::same_as<double, poly::math::scalarize_via_cast_t<decltype(A + A)>>);
   static_assert(
-    std::same_as<poly::math::ElementwiseBinaryOp<
-                   poly::math::Array<D, SquareDims<>, true>,
-                   double, std::multiplies<>>,
-                 decltype(A*2.3)>);
+    std::same_as<
+      poly::math::ElementwiseBinaryOp<poly::math::Array<D, SquareDims<>, true>,
+                                      double, std::multiplies<>>,
+      decltype(A * 2.3)>);
   static_assert(
-    std::same_as<double,
-                 poly::math::scalarize_via_cast_to_t<decltype(A * 2.3)>>);
+    std::same_as<double, poly::math::scalarize_via_cast_t<decltype(A * 2.3)>>);
   static_assert(
-    std::same_as<double,
-                 poly::math::scalarize_via_cast_to_t<decltype(2.3 * A)>>);
+    std::same_as<double, poly::math::scalarize_via_cast_t<decltype(2.3 * A)>>);
+  static_assert(poly::math::ScalarizeViaCastTo<
+                poly::math::scalarize_via_cast_t<decltype(view(A))>,
+                decltype(2.3 * A)>());
   for (auto &&a : A) a = URand<D>{}(rng0);
   for (auto b : state) expbench(A);
 }
-BENCHMARK(BM_expm_dual7x2)->DenseRange(2, 10, 1);
 static void BM_expm_dual6(benchmark::State &state) {
   std::mt19937_64 rng0;
   using D = Dual<double, 6>;
@@ -200,8 +195,6 @@ static void BM_expm_dual6(benchmark::State &state) {
   for (auto &&a : A) a = URand<D>{}(rng0);
   for (auto b : state) expbench(A);
 }
-BENCHMARK(BM_expm_dual6)->DenseRange(2, 10, 1);
-
 static void BM_expm_dual6x2(benchmark::State &state) {
   std::mt19937_64 rng0;
   using D = Dual<Dual<double, 6>, 2>;
@@ -209,7 +202,93 @@ static void BM_expm_dual6x2(benchmark::State &state) {
   for (auto &&a : A) a = URand<D>{}(rng0);
   for (auto b : state) expbench(A);
 }
+static void BM_expm_dual5(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D = Dual<double, 5>;
+  SquareMatrix<D> A{SquareDims{{state.range(0)}}};
+  for (auto &&a : A) a = URand<D>{}(rng0);
+  for (auto b : state) expbench(A);
+}
+static void BM_expm_dual5x2(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D = Dual<Dual<double, 5>, 2>;
+  SquareMatrix<D> A{SquareDims{{state.range(0)}}};
+  for (auto &&a : A) a = URand<D>{}(rng0);
+  for (auto b : state) expbench(A);
+}
+static void BM_expm_dual4(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D = Dual<double, 4>;
+  SquareMatrix<D> A{SquareDims{{state.range(0)}}};
+  for (auto &&a : A) a = URand<D>{}(rng0);
+  for (auto b : state) expbench(A);
+}
+static void BM_expm_dual4x2(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D = Dual<Dual<double, 4>, 2>;
+  SquareMatrix<D> A{SquareDims{{state.range(0)}}};
+  for (auto &&a : A) a = URand<D>{}(rng0);
+  for (auto b : state) expbench(A);
+}
+static void BM_expm_dual3(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D = Dual<double, 3>;
+  SquareMatrix<D> A{SquareDims{{state.range(0)}}};
+  for (auto &&a : A) a = URand<D>{}(rng0);
+  for (auto b : state) expbench(A);
+}
+static void BM_expm_dual3x2(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D = Dual<Dual<double, 3>, 2>;
+  SquareMatrix<D> A{SquareDims{{state.range(0)}}};
+  for (auto &&a : A) a = URand<D>{}(rng0);
+  for (auto b : state) expbench(A);
+}
+static void BM_expm_dual2(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D = Dual<double, 2>;
+  SquareMatrix<D> A{SquareDims{{state.range(0)}}};
+  for (auto &&a : A) a = URand<D>{}(rng0);
+  for (auto b : state) expbench(A);
+}
+static void BM_expm_dual2x2(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D = Dual<Dual<double, 2>, 2>;
+  SquareMatrix<D> A{SquareDims{{state.range(0)}}};
+  for (auto &&a : A) a = URand<D>{}(rng0);
+  for (auto b : state) expbench(A);
+}
+static void BM_expm_dual1(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D = Dual<double, 1>;
+  SquareMatrix<D> A{SquareDims{{state.range(0)}}};
+  for (auto &&a : A) a = URand<D>{}(rng0);
+  for (auto b : state) expbench(A);
+}
+static void BM_expm_dual1x2(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D = Dual<Dual<double, 1>, 2>;
+  SquareMatrix<D> A{SquareDims{{state.range(0)}}};
+  for (auto &&a : A) a = URand<D>{}(rng0);
+  for (auto b : state) expbench(A);
+}
+BENCHMARK(BM_expm)->DenseRange(2, 10, 1);
+BENCHMARK(BM_expm_dual1)->DenseRange(2, 10, 1);
+BENCHMARK(BM_expm_dual2)->DenseRange(2, 10, 1);
+BENCHMARK(BM_expm_dual3)->DenseRange(2, 10, 1);
+BENCHMARK(BM_expm_dual4)->DenseRange(2, 10, 1);
+BENCHMARK(BM_expm_dual5)->DenseRange(2, 10, 1);
+BENCHMARK(BM_expm_dual6)->DenseRange(2, 10, 1);
+BENCHMARK(BM_expm_dual7)->DenseRange(2, 10, 1);
+BENCHMARK(BM_expm_dual8)->DenseRange(2, 10, 1);
+BENCHMARK(BM_expm_dual1x2)->DenseRange(2, 10, 1);
+BENCHMARK(BM_expm_dual2x2)->DenseRange(2, 10, 1);
+BENCHMARK(BM_expm_dual3x2)->DenseRange(2, 10, 1);
+BENCHMARK(BM_expm_dual4x2)->DenseRange(2, 10, 1);
+BENCHMARK(BM_expm_dual5x2)->DenseRange(2, 10, 1);
 BENCHMARK(BM_expm_dual6x2)->DenseRange(2, 10, 1);
+BENCHMARK(BM_expm_dual7x2)->DenseRange(2, 10, 1);
+BENCHMARK(BM_expm_dual8x2)->DenseRange(2, 10, 1);
 /*
 using D8D2 = Dual<Dual<double, 8>, 2>;
 using SMDD = SquareMatrix<D8D2>;

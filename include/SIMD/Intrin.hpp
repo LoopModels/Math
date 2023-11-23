@@ -49,6 +49,25 @@ template <ptrdiff_t W, typename T>
   return vbroadcast<W, T>(Vec<W, T>{x});
 }
 
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline auto load(const T *p,
+                                                         mask::None<1>) -> T {
+  return *p;
+}
+template <typename T>
+constexpr auto load(const T *p, mask::None<1>, int32_t) -> const T & {
+  return *p;
+}
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline void store(T *p, mask::None<1>,
+                                                          T x) {
+  *p = x;
+}
+template <typename T>
+[[gnu::always_inline, gnu::artificial]] inline void store(T *p, mask::None<1>,
+                                                          T x, int32_t) {
+  *p = x;
+}
 #ifdef __x86_64__
 
 // TODO: make `consteval` when clang supports it

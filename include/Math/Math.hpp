@@ -120,6 +120,11 @@ constexpr auto size(const AbstractVector auto &x) -> ptrdiff_t {
   return x.size();
 }
 
+template <typename T, typename Op, typename A>
+constexpr auto reinterpret(Elementwise<Op, A> op) {
+  return Elementwise(op.op, reinterpret<T>(op.a));
+}
+
 static_assert(utils::ElementOf<int, DenseMatrix<int64_t>>);
 static_assert(utils::ElementOf<int64_t, DenseMatrix<int64_t>>);
 static_assert(utils::ElementOf<int64_t, DenseMatrix<double>>);
@@ -619,6 +624,10 @@ static_assert(Trivial<MatMatMul<PtrMatrix<int64_t>, PtrMatrix<int64_t>>>);
 template <TriviallyCopyable OP, Trivial A, Trivial B>
 ElementwiseBinaryOp(OP, A, B) -> ElementwiseBinaryOp<A, B, OP>;
 
+template <typename T, typename Op, typename A, typename B>
+constexpr auto reinterpret(ElementwiseBinaryOp<A, B, Op> op) {
+  return ElementwiseBinaryOp(op.op, reinterpret<T>(op.a), reinterpret<T>(op.b));
+}
 constexpr auto bin2(std::integral auto x) { return (x * (x - 1)) >> 1; }
 
 template <typename T>

@@ -41,8 +41,17 @@ template <typename S, OnlyLinearlyIndexable<S> V>
 template <typename T> struct ScalarizeViaCast {
   using type = void;
 };
-template<typename T>
-using scalarize_via_cast_to_t = typename ScalarizeViaCast<T>::type;
+template <typename T>
+using scalarize_via_cast_t = typename ScalarizeViaCast<T>::type;
+template <typename To, typename From>
+constexpr bool ScalarizeViaCastToImpl =
+  std::same_as<To, scalarize_via_cast_t<std::remove_cvref_t<From>>>;
+template <typename To, typename... U>
+consteval auto ScalarizeViaCastTo() -> bool {
+  return (... && ScalarizeViaCastToImpl<To, U>);
+}
+
+template <typename T> constexpr auto reinterpret(T x) { return x; }
 
 // returns Unroll, Iters, Remainder
 template <ptrdiff_t R> consteval auto unrollf() -> std::array<ptrdiff_t, 2> {
@@ -267,6 +276,17 @@ template <class T, class S, class P> class ArrayOps {
     } else {
       if constexpr (sizeof(T) <= sizeof(double)) vcopyTo(B, op);
       else scopyTo(B, op);
+      // else {
+      //   using C = math::scalarize_via_cast_t<
+      //     std::remove_cvref_t<decltype(std::declval<P>().view())>>;
+      //   if constexpr (!std::same_as<C, void> &&
+      //                 math::ScalarizeViaCastTo<C, decltype(B)>()) {
+      //     auto d{reinterpret<C>(Self())};
+      //     if constexpr (std::same_as<Op, utils::CopyAssign>)
+      //       d << reinterpret<C>(B);
+      //     else d << op(d, reinterpret<C>(B));
+      //   } else scopyTo(B, op);
+      // }
     }
   }
 
@@ -513,6 +533,16 @@ requires(sizeof...(As) == sizeof...(Bs))
     if constexpr (sizeof(T) <= sizeof(double))
       tupletensorops::vcopyTo(*this, src);
     else tupletensorops::scopyTo(*this, src);
+    // else {
+    //   using C = math::scalarize_via_cast_t<
+    //     std::remove_cvref_t<decltype(std::declval<A>().view())>>;
+    //   if constexpr (!std::same_as<C, void> &&
+    //                 math::ScalarizeViaCastTo<
+    //                   C, As..., decltype(std::declval<B>().view()), Bs...>()) {
+    //     map([](auto &d) { return math::reinterpret<C>(d); })
+    //       << map([](const auto &s) { return math::reinterpret<C>(s); });
+    //   } else tupletensorops::scopyTo(*this, src);
+    // }
   }
 }
 template <typename A, typename... As>
