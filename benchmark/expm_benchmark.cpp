@@ -179,7 +179,16 @@ static void BM_expm_dual7x2(benchmark::State &state) {
   static_assert(
     std::same_as<double, poly::math::scalarize_via_cast_to_t<decltype(A + A)>>);
   static_assert(
-    std::same_as<double, poly::math::scalarize_via_cast_to_t<decltype(A * 2.3)>>);
+    std::same_as<poly::math::ElementwiseBinaryOp<
+                   poly::math::Array<D, SquareDims<>, true>,
+                   double, std::multiplies<>>,
+                 decltype(A*2.3)>);
+  static_assert(
+    std::same_as<double,
+                 poly::math::scalarize_via_cast_to_t<decltype(A * 2.3)>>);
+  static_assert(
+    std::same_as<double,
+                 poly::math::scalarize_via_cast_to_t<decltype(2.3 * A)>>);
   for (auto &&a : A) a = URand<D>{}(rng0);
   for (auto b : state) expbench(A);
 }
