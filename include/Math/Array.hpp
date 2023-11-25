@@ -775,15 +775,6 @@ MutArray(T *, S) -> MutArray<utils::decompressed_t<T>, S>;
 
 template <typename T, typename S> MutArray(MutArray<T, S>) -> MutArray<T, S>;
 
-template <typename T, typename U, typename S>
-constexpr auto reinterpret(Array<U, S> x) {
-  return x.template reinterpret<T>();
-}
-template <typename T, typename U, typename S>
-constexpr auto reinterpret(MutArray<U, S> x) {
-  return x.template reinterpret<T>();
-}
-
 static_assert(std::convertible_to<Array<int64_t, SquareDims<>>,
                                   Array<int64_t, DenseDims<>>>);
 static_assert(std::convertible_to<Array<int64_t, DenseDims<8, 8>>,

@@ -111,6 +111,10 @@ template <typename Op, typename A> struct Elementwise {
     return a.numCol();
   }
   [[nodiscard]] constexpr auto view() const { return *this; };
+  template <typename T> constexpr auto reinterpret() {
+    auto ra = math::reinterpret<T>(a);
+    return Elementwise<Op, decltype(ra)>(op, ra);
+  }
 };
 template <typename Op, typename A> Elementwise(Op, A) -> Elementwise<Op, A>;
 
@@ -118,11 +122,6 @@ constexpr auto size(const std::integral auto) -> ptrdiff_t { return 1; }
 constexpr auto size(const std::floating_point auto) -> ptrdiff_t { return 1; }
 constexpr auto size(const AbstractVector auto &x) -> ptrdiff_t {
   return x.size();
-}
-
-template <typename T, typename Op, typename A>
-constexpr auto reinterpret(Elementwise<Op, A> op) {
-  return Elementwise(op.op, reinterpret<T>(op.a));
 }
 
 static_assert(utils::ElementOf<int, DenseMatrix<int64_t>>);
@@ -230,6 +229,11 @@ struct ElementwiseBinaryOp {
     else return b.size();
   }
   [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
+  template <typename T> constexpr auto reinterpret() {
+    auto ra = math::reinterpret<T>(a);
+    auto rb = math::reinterpret<T>(b);
+    return ElementwiseBinaryOp<decltype(ra), decltype(rb), Op>(op, ra, rb);
+  }
 };
 
 template <TrivialTensor C, Trivial A, Trivial B> struct AbstractSelect {
@@ -624,10 +628,6 @@ static_assert(Trivial<MatMatMul<PtrMatrix<int64_t>, PtrMatrix<int64_t>>>);
 template <TriviallyCopyable OP, Trivial A, Trivial B>
 ElementwiseBinaryOp(OP, A, B) -> ElementwiseBinaryOp<A, B, OP>;
 
-template <typename T, typename Op, typename A, typename B>
-constexpr auto reinterpret(ElementwiseBinaryOp<A, B, Op> op) {
-  return ElementwiseBinaryOp(op.op, reinterpret<T>(op.a), reinterpret<T>(op.b));
-}
 constexpr auto bin2(std::integral auto x) { return (x * (x - 1)) >> 1; }
 
 template <typename T>

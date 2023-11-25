@@ -29,11 +29,7 @@ if(benchmark_ADDED)
   set_target_properties(benchmark PROPERTIES CXX_STANDARD 11)
 endif()
 
-# FetchContent_Declare(
-#   Math
-#   GIT_REPOSITORY git@github.com:LoopModels/Math.git
-#   GIT_TAG origin/main
-# )
+# FetchContent_Declare( Math GIT_REPOSITORY git@github.com:LoopModels/Math.git GIT_TAG origin/main )
 # FetchContent_MakeAvailable(Math)
 
 # file(GLOB_RECURSE headers CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
@@ -46,7 +42,7 @@ message(STATUS "PROJECT_SOURCE_DIR: ${PROJECT_SOURCE_DIR}")
 message(STATUS "LLVM_INCLUDE_DIRS: ${LLVM_INCLUDE_DIRS}")
 
 target_include_directories(
-  ${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/../include #${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/../include # ${PROJECT_SOURCE_DIR}/include
 )
 if(ENABLE_OPENMP)
   find_package(OpenMP)
@@ -106,6 +102,7 @@ target_compile_options(
           -Wshadow
           -Wextra
           -save-temps
+          -Werror
 )
 if(ENABLE_OPENMP)
   if(CMAKE_CXX_COMPILER_ID MATCHES "IntelLLVM")

@@ -576,6 +576,9 @@ concept EltIsDual = IsDual<utils::eltype_t<T>>;
 template <typename T, typename S> struct ScalarizeViaCast<Array<T, S, true>> {
   using type = scalarize_elt_cast_t<utils::compressed_t<T>>;
 };
+template <typename T, typename S> struct ScalarizeViaCast<MutArray<T, S, true>> {
+  using type = scalarize_elt_cast_t<utils::compressed_t<T>>;
+};
 
 template <typename T>
 concept EltCastableDual =

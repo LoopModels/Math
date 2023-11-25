@@ -51,7 +51,10 @@ consteval auto ScalarizeViaCastTo() -> bool {
   return (... && ScalarizeViaCastToImpl<To, U>);
 }
 
-template <typename T> constexpr auto reinterpret(T x) { return x; }
+template <typename T, typename U> constexpr auto reinterpret(U x) {
+  if constexpr (std::same_as<T, U>) return x;
+  else return x.template reinterpret<T>();
+}
 
 // returns Unroll, Iters, Remainder
 template <ptrdiff_t R> consteval auto unrollf() -> std::array<ptrdiff_t, 2> {
@@ -164,7 +167,7 @@ template <class T, class S, class P> class ArrayOps {
   }
 
   template <typename Op> void vcopyTo(const auto &B, Op op) {
-    static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
+    // static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     P &self{Self()};
     auto [M, N] = promote_shape(self, B);
     // if constexpr (std::same_as<Op, utils::CopyAssign> && DenseLayout<S> &&
@@ -202,12 +205,12 @@ template <class T, class S, class P> class ArrayOps {
       ptrdiff_t L = IsOne<decltype(N)> ? M : N;
       if constexpr (!std::is_copy_assignable_v<T> &&
                     std::same_as<Op, utils::CopyAssign>) {
-        POLYMATHVECTORIZE
+        POLYMATHIVDEP
         for (ptrdiff_t j = 0; j < L; ++j)
           if constexpr (std::convertible_to<decltype(B), T>) self[j] = auto{B};
           else self[j] = auto{B[j]};
       } else {
-        POLYMATHVECTORIZE
+        POLYMATHIVDEP
         for (ptrdiff_t j = 0; j < L; ++j)
           utils::assign(self, B, utils::NoRowIndex{}, j, op);
       }
@@ -217,7 +220,7 @@ template <class T, class S, class P> class ArrayOps {
       for (ptrdiff_t i = 0; i < R; ++i) {
         if constexpr (!std::is_copy_assignable_v<T> &&
                       std::same_as<Op, utils::CopyAssign>) {
-          POLYMATHVECTORIZE
+          POLYMATHIVDEP
           for (ptrdiff_t j = 0; j < C; ++j)
             if constexpr (std::convertible_to<decltype(B), T>)
               self[i, j] = auto{B};
@@ -225,70 +228,24 @@ template <class T, class S, class P> class ArrayOps {
             else if constexpr (ColVector<decltype(B)>) self[i, j] = auto{B[i]};
             else self[i, j] = auto{B[i, j]};
         } else {
-          POLYMATHVECTORIZE
+          POLYMATHIVDEP
           for (ptrdiff_t j = 0; j < C; ++j) utils::assign(self, B, i, j, op);
         }
       }
     }
   }
-  template <typename Op> constexpr void scopyTo(const auto &B, Op op) {
-    P &self{Self()};
-    auto [M, N] = promote_shape(self, B);
-    if constexpr (std::same_as<Op, utils::CopyAssign> && DenseLayout<S> &&
-                  DenseTensor<std::remove_cvref_t<decltype(B)>>) {
-      fastCopy(data_(), B.begin(), M * N);
-    } else if constexpr (AbstractVector<P>) {
-      ptrdiff_t L = IsOne<decltype(N)> ? M : N;
-      if constexpr (!std::is_copy_assignable_v<T> &&
-                    std::same_as<Op, utils::CopyAssign>) {
-        POLYMATHIVDEP
-        for (ptrdiff_t j = 0; j < L; ++j)
-          if constexpr (std::convertible_to<decltype(B), T>) self[j] = auto{B};
-          else self[j] = auto{B[j]};
-      } else {
-        // POLYMATHIVDEP
-        for (ptrdiff_t j = 0; j < L; ++j)
-          utils::assign(self, B, utils::NoRowIndex{}, j, op);
-      }
-    } else {
-      POLYMATHNOVECTORIZE
-      for (ptrdiff_t i = 0; i < M; ++i) {
-        if constexpr (!std::is_copy_assignable_v<T> &&
-                      std::same_as<Op, utils::CopyAssign>) {
-          POLYMATHIVDEP
-          for (ptrdiff_t j = 0; j < N; ++j)
-            if constexpr (std::convertible_to<decltype(B), T>)
-              self[i, j] = auto{B};
-            else if constexpr (RowVector<decltype(B)>) self[i, j] = auto{B[j]};
-            else if constexpr (ColVector<decltype(B)>) self[i, j] = auto{B[i]};
-            else self[i, j] = auto{B[i, j]};
-        } else {
-          POLYMATHIVDEP
-          for (ptrdiff_t j = 0; j < N; ++j) utils::assign(self, B, i, j, op);
-        }
-      }
-    }
-  }
-
-  template <typename Op> constexpr void copyTo(const auto &B, Op op) {
-    if consteval {
-      scopyTo(B, op);
-    } else {
-      if constexpr (sizeof(T) <= sizeof(double)) vcopyTo(B, op);
-      else scopyTo(B, op);
-      // else {
-      //   using C = math::scalarize_via_cast_t<
-      //     std::remove_cvref_t<decltype(std::declval<P>().view())>>;
-      //   if constexpr (!std::same_as<C, void> &&
-      //                 math::ScalarizeViaCastTo<C, decltype(B)>()) {
-      //     auto d{reinterpret<C>(Self())};
-      //     if constexpr (std::same_as<Op, utils::CopyAssign>)
-      //       d << reinterpret<C>(B);
-      //     else d << op(d, reinterpret<C>(B));
-      //   } else scopyTo(B, op);
-      // }
-    }
-  }
+  // template <typename Op> constexpr void copyTo(const auto &B, Op op) {
+  //   using C = math::scalarize_via_cast_t<
+  //     std::remove_cvref_t<decltype(std::declval<P>().view())>>;
+  //   if constexpr (!std::same_as<C, void> &&
+  //                 ((math::ScalarizeViaCastTo<C, decltype(B)>()) ||
+  //                  (std::same_as<std::remove_cvref_t<decltype(B)>, double> &&
+  //                   std::same_as<Op, std::multiplies<>>))) {
+  //     auto d{reinterpret<C>(Self())};
+  //     if constexpr (std::same_as<Op, utils::CopyAssign>) d <<
+  //     reinterpret<C>(B); else d << op(d, reinterpret<C>(B));
+  //   } else vcopyTo(B, op);
+  // }
 
 public:
   template <std::convertible_to<T> Y>
@@ -303,24 +260,23 @@ public:
     -> P &;
 
   [[gnu::flatten]] constexpr auto operator<<(const auto &B) -> P & {
-    copyTo(B, utils::CopyAssign{});
+    vcopyTo(B, utils::CopyAssign{});
     return Self();
   }
-
   [[gnu::flatten]] constexpr auto operator+=(const auto &B) -> P & {
-    copyTo(B, std::plus<>{});
+    vcopyTo(B, std::plus<>{});
     return Self();
   }
   [[gnu::flatten]] constexpr auto operator-=(const auto &B) -> P & {
-    copyTo(B, std::minus<>{});
+    vcopyTo(B, std::minus<>{});
     return Self();
   }
   [[gnu::flatten]] constexpr auto operator*=(const auto &B) -> P & {
-    copyTo(B, std::multiplies<>{});
+    vcopyTo(B, std::multiplies<>{});
     return Self();
   }
   [[gnu::flatten]] constexpr auto operator/=(const auto &B) -> P & {
-    copyTo(B, std::divides<>{});
+    vcopyTo(B, std::divides<>{});
     return Self();
   }
 };
@@ -403,7 +359,7 @@ template <typename A, typename... As, typename B, typename... Bs>
 void vcopyTo(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src) {
   using T = std::common_type<utils::eltype_t<A>, utils::eltype_t<As>...,
                              utils::eltype_t<B>, utils::eltype_t<Bs>...>;
-  static_assert(sizeof(T) <= 8);
+  // static_assert(sizeof(T) <= 8);
   auto [M, N] = promote_shape(dst, src);
   if constexpr (simd::SIMDSupported<T>) {
     if constexpr (math::IsOne<decltype(M)>)
@@ -433,7 +389,7 @@ void vcopyTo(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src) {
   } else if constexpr (math::AbstractVector<A>) {
     ptrdiff_t L = math::IsOne<decltype(N)> ? M : N;
     if constexpr (!std::is_copy_assignable_v<T>) {
-      POLYMATHVECTORIZE
+      POLYMATHIVDEP
       for (ptrdiff_t j = 0; j < L; ++j)
         dst.apply(
           src,
@@ -443,7 +399,7 @@ void vcopyTo(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src) {
           },
           [=](auto &d, auto s) { d[j] = s; });
     } else {
-      POLYMATHVECTORIZE
+      POLYMATHIVDEP
       for (ptrdiff_t j = 0; j < L; ++j)
         dst.apply(src.map([=](const auto &s) { return s[j]; }),
                   [=](auto &d, const auto &s) { d[j] = s; });
@@ -453,7 +409,7 @@ void vcopyTo(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src) {
     POLYMATHNOVECTORIZE
     for (ptrdiff_t i = 0; i < R; ++i) {
       if constexpr (!std::is_copy_assignable_v<T>) {
-        POLYMATHVECTORIZE
+        POLYMATHIVDEP
         for (ptrdiff_t j = 0; j < C; ++j)
           dst.apply(src.map([=](const auto &s) {
             if constexpr (std::convertible_to<decltype(s), T>) return auto{s};
@@ -463,54 +419,7 @@ void vcopyTo(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src) {
           }),
                     [=](auto &d, const auto &s) { d[i, j] = s; });
       } else {
-        POLYMATHVECTORIZE
-        for (ptrdiff_t j = 0; j < C; ++j)
-          dst.apply(src.map([=](const auto &s) { return s[i, j]; }),
-                    [=](auto &d, const auto &s) { d[i, j] = s; });
-      }
-    }
-  }
-}
-template <typename A, typename... As, typename B, typename... Bs>
-void scopyTo(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src) {
-  using T = std::common_type<utils::eltype_t<A>, utils::eltype_t<As>...,
-                             utils::eltype_t<B>, utils::eltype_t<Bs>...>;
-  static_assert(sizeof(T) <= 8);
-  auto [M, N] = promote_shape(dst, src);
-  if constexpr (math::AbstractVector<A>) {
-    ptrdiff_t L = math::IsOne<decltype(N)> ? M : N;
-    if constexpr (!std::is_copy_assignable_v<T>) {
-      POLYMATHVECTORIZE
-      for (ptrdiff_t j = 0; j < L; ++j)
-        dst.apply(
-          src,
-          [=](const auto &s) {
-            if constexpr (std::convertible_to<decltype(s), T>) return s;
-            else return s[j];
-          },
-          [=](auto &d, auto s) { d[j] = s; });
-    } else {
-      POLYMATHVECTORIZE
-      for (ptrdiff_t j = 0; j < L; ++j)
-        dst.apply(src.map([=](const auto &s) { return s[j]; }),
-                  [=](auto &d, const auto &s) { d[j] = s; });
-    }
-  } else {
-    ptrdiff_t R = ptrdiff_t(M), C = ptrdiff_t(N);
-    POLYMATHNOVECTORIZE
-    for (ptrdiff_t i = 0; i < R; ++i) {
-      if constexpr (!std::is_copy_assignable_v<T>) {
-        POLYMATHVECTORIZE
-        for (ptrdiff_t j = 0; j < C; ++j)
-          dst.apply(src.map([=](const auto &s) {
-            if constexpr (std::convertible_to<decltype(s), T>) return s;
-            else if constexpr (math::RowVector<decltype(s)>) return s[j];
-            else if constexpr (math::ColVector<decltype(s)>) return s[i];
-            else return s[i, j];
-          }),
-                    [=](auto &d, auto s) { d[i, j] = s; });
-      } else {
-        POLYMATHVECTORIZE
+        POLYMATHIVDEP
         for (ptrdiff_t j = 0; j < C; ++j)
           dst.apply(src.map([=](const auto &s) { return s[i, j]; }),
                     [=](auto &d, const auto &s) { d[i, j] = s; });
@@ -525,25 +434,15 @@ template <typename B, typename... Bs>
 inline constexpr void Tuple<A, As...>::operator<<(const Tuple<B, Bs...> &src)
 requires(sizeof...(As) == sizeof...(Bs))
 {
-  using T = std::common_type<utils::eltype_t<A>, utils::eltype_t<As>...,
-                             utils::eltype_t<B>, utils::eltype_t<Bs>...>;
-  if consteval {
-    tupletensorops::scopyTo(*this, src);
-  } else {
-    if constexpr (sizeof(T) <= sizeof(double))
-      tupletensorops::vcopyTo(*this, src);
-    else tupletensorops::scopyTo(*this, src);
-    // else {
-    //   using C = math::scalarize_via_cast_t<
-    //     std::remove_cvref_t<decltype(std::declval<A>().view())>>;
-    //   if constexpr (!std::same_as<C, void> &&
-    //                 math::ScalarizeViaCastTo<
-    //                   C, As..., decltype(std::declval<B>().view()), Bs...>()) {
-    //     map([](auto &d) { return math::reinterpret<C>(d); })
-    //       << map([](const auto &s) { return math::reinterpret<C>(s); });
-    //   } else tupletensorops::scopyTo(*this, src);
-    // }
-  }
+  tupletensorops::vcopyTo(*this, src);
+  // using C = math::scalarize_via_cast_t<
+  //   std::remove_cvref_t<decltype(std::declval<A>().view())>>;
+  // if constexpr (!std::same_as<C, void> &&
+  //               math::ScalarizeViaCastTo<
+  //                 C, As..., decltype(std::declval<B>().view()), Bs...>()) {
+  //   map([](auto &d) { return math::reinterpret<C>(d); })
+  //     << map([](const auto &s) { return math::reinterpret<C>(s); });
+  // } else tupletensorops::vcopyTo(*this, src);
 }
 template <typename A, typename... As>
 template <typename B, typename... Bs>
