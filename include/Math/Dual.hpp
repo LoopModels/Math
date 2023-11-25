@@ -576,7 +576,8 @@ concept EltIsDual = IsDual<utils::eltype_t<T>>;
 template <typename T, typename S> struct ScalarizeViaCast<Array<T, S, true>> {
   using type = scalarize_elt_cast_t<utils::compressed_t<T>>;
 };
-template <typename T, typename S> struct ScalarizeViaCast<MutArray<T, S, true>> {
+template <typename T, typename S>
+struct ScalarizeViaCast<MutArray<T, S, true>> {
   using type = scalarize_elt_cast_t<utils::compressed_t<T>>;
 };
 
@@ -591,7 +592,10 @@ struct ScalarizeViaCast<ElementwiseBinaryOp<A, B, Op>> {
   // It is unclear if the case where both inputs are ColVectors is worth
   // the complexity, as the benefit from this optimization is being
   // able to handle things contiguously, which we in that case.
-  using type = std::conditional_t<ColVector<A> || ColVector<B>, void, double>;
+  using type = std::conditional_t<
+    (ColVector<A> || ColVector<B>) ||
+      (!std::same_as<utils::eltype_t<A>, utils::eltype_t<B>>),
+    void, double>;
 };
 template <MultiplicativeOp Op, EltCastableDual A, std::convertible_to<double> T>
 struct ScalarizeViaCast<ElementwiseBinaryOp<A, T, Op>> {

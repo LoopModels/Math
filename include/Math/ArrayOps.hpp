@@ -11,6 +11,8 @@
 #include <cstring>
 #include <type_traits>
 
+#define CASTTOSCALARIZE
+
 namespace poly::math {
 // scalars broadcast
 template <typename S>
@@ -176,7 +178,20 @@ template <class T, class S, class P> class ArrayOps {
     //     std::memcpy(data_(), B.begin(), M * N * sizeof(T));
     //   else std::copy_n(B.begin(), M * N, data_());
     // } else
+#ifdef CASTTOSCALARIZE
+    using E = math::scalarize_via_cast_t<
+      std::remove_cvref_t<decltype(std::declval<P>().view())>>;
+    if constexpr (!std::same_as<E, void> &&
+                  ((math::ScalarizeViaCastTo<E, decltype(B)>()) ||
+                   (std::same_as<std::remove_cvref_t<decltype(B)>, double> &&
+                    std::same_as<Op, std::multiplies<>>))) {
+      auto d{reinterpret<E>(Self())};
+      if constexpr (std::same_as<Op, utils::CopyAssign>) d << reinterpret<E>(B);
+      else d << op(d, reinterpret<E>(B));
+    } else if constexpr (simd::SIMDSupported<T>) {
+#else
     if constexpr (simd::SIMDSupported<T>) {
+#endif
       if constexpr (IsOne<decltype(M)>)
         vcopyToSIMD(self, B, N, utils::NoRowIndex{}, op);
       else if constexpr (IsOne<decltype(N)>)
@@ -292,12 +307,12 @@ namespace tupletensorops {
 // inputs, e.g. `tie(x,y) << Tuple(x - y, x + y);`
 template <typename A, typename... As, typename B, typename... Bs, typename I,
           typename R>
-[[gnu::always_inline]] static void
+[[gnu::always_inline]] inline void
 vcopyToSIMD(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src, I L, R row) {
   // TODO: if `R` is a row index, maybe don't fully unroll static `L`
   // We're going for very short SIMD vectors to focus on small sizes
-  using T = std::common_type<utils::eltype_t<A>, utils::eltype_t<As>...,
-                             utils::eltype_t<B>, utils::eltype_t<Bs>...>;
+  using T = std::common_type_t<utils::eltype_t<A>, utils::eltype_t<As>...,
+                               utils::eltype_t<B>, utils::eltype_t<Bs>...>;
   if constexpr (math::StaticInt<I>) {
     constexpr ptrdiff_t SL = ptrdiff_t(L);
     constexpr std::array<ptrdiff_t, 3> vdr = simd::VectorDivRem<SL, T>();
@@ -342,8 +357,8 @@ vcopyToSIMD(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src, I L, R row) {
 //   return math::promote_shape(a.head, b.head);
 // }
 template <typename A, typename... As, typename B, typename... Bs>
-[[gnu::always_inline]] constexpr auto promote_shape(const Tuple<A, As...> &a,
-                                                    const Tuple<B, Bs...> &b)
+[[gnu::always_inline]] inline constexpr auto
+promote_shape(const Tuple<A, As...> &a, const Tuple<B, Bs...> &b)
 requires(sizeof...(As) == sizeof...(Bs))
 {
   auto h = math::promote_shape(a.head, b.head);
@@ -356,12 +371,13 @@ requires(sizeof...(As) == sizeof...(Bs))
   }
 }
 template <typename A, typename... As, typename B, typename... Bs>
-void vcopyTo(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src) {
-  using T = std::common_type<utils::eltype_t<A>, utils::eltype_t<As>...,
-                             utils::eltype_t<B>, utils::eltype_t<Bs>...>;
+[[gnu::always_inline]] inline constexpr void
+vcopyTo(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src) {
+  using T = std::common_type_t<utils::eltype_t<A>, utils::eltype_t<As>...,
+                               utils::eltype_t<B>, utils::eltype_t<Bs>...>;
   // static_assert(sizeof(T) <= 8);
   auto [M, N] = promote_shape(dst, src);
-  if constexpr (simd::SIMDSupported<T>) {
+  if constexpr (simd::SIMDSupported<std::remove_cvref_t<T>>) {
     if constexpr (math::IsOne<decltype(M)>)
       vcopyToSIMD(dst, src, N, utils::NoRowIndex{});
     else if constexpr (math::IsOne<decltype(N)>)
@@ -428,46 +444,61 @@ void vcopyTo(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src) {
   }
 }
 }; // namespace tupletensorops
-
+// Note: these are inlined, because we want
+// the compiler to be exposed to which arrays
+// are identical, in case of re-use, so that
+// they can share pointers.
 template <typename A, typename... As>
 template <typename B, typename... Bs>
-inline constexpr void Tuple<A, As...>::operator<<(const Tuple<B, Bs...> &src)
+[[gnu::flatten, gnu::always_inline]] inline constexpr void
+Tuple<A, As...>::operator<<(const Tuple<B, Bs...> &src)
 requires(sizeof...(As) == sizeof...(Bs))
 {
+#ifndef CASTTOSCALARIZE
   tupletensorops::vcopyTo(*this, src);
-  // using C = math::scalarize_via_cast_t<
-  //   std::remove_cvref_t<decltype(std::declval<A>().view())>>;
-  // if constexpr (!std::same_as<C, void> &&
-  //               math::ScalarizeViaCastTo<
-  //                 C, As..., decltype(std::declval<B>().view()), Bs...>()) {
-  //   map([](auto &d) { return math::reinterpret<C>(d); })
-  //     << map([](const auto &s) { return math::reinterpret<C>(s); });
-  // } else tupletensorops::vcopyTo(*this, src);
+#else
+  using C = math::scalarize_via_cast_t<
+    std::remove_cvref_t<decltype(std::declval<A>().view())>>;
+  if constexpr ((!std::same_as<C, void>)&&math::ScalarizeViaCastTo<
+                  C, As..., decltype(std::declval<B>().view()), Bs...>()) {
+    using T = std::common_type_t<utils::eltype_t<A>, utils::eltype_t<As>...,
+                                 utils::eltype_t<B>, utils::eltype_t<Bs>...>;
+    if constexpr ((sizeof(T) % (sizeof(C) * simd::Width<C>)) != 0) {
+      auto dst{map([](auto &d) { return math::reinterpret<C>(d); })};
+      tupletensorops::vcopyTo(
+        dst, src.map([](const auto &s) { return math::reinterpret<C>(s); }));
+    } else tupletensorops::vcopyTo(*this, src);
+  } else tupletensorops::vcopyTo(*this, src);
+#endif
 }
 template <typename A, typename... As>
 template <typename B, typename... Bs>
-inline constexpr void Tuple<A, As...>::operator+=(const Tuple<B, Bs...> &src)
+[[gnu::always_inline]] inline constexpr void
+Tuple<A, As...>::operator+=(const Tuple<B, Bs...> &src)
 requires(sizeof...(As) == sizeof...(Bs))
 {
   (*this) << map(src, [](const auto &d, const auto &s) { return d + s; });
 }
 template <typename A, typename... As>
 template <typename B, typename... Bs>
-inline constexpr void Tuple<A, As...>::operator-=(const Tuple<B, Bs...> &src)
+[[gnu::always_inline]] inline constexpr void
+Tuple<A, As...>::operator-=(const Tuple<B, Bs...> &src)
 requires(sizeof...(As) == sizeof...(Bs))
 {
   (*this) << map(src, [](const auto &d, const auto &s) { return d - s; });
 }
 template <typename A, typename... As>
 template <typename B, typename... Bs>
-inline constexpr void Tuple<A, As...>::operator*=(const Tuple<B, Bs...> &src)
+[[gnu::always_inline]] inline constexpr void
+Tuple<A, As...>::operator*=(const Tuple<B, Bs...> &src)
 requires(sizeof...(As) == sizeof...(Bs))
 {
   (*this) << map(src, [](const auto &d, const auto &s) { return d * s; });
 }
 template <typename A, typename... As>
 template <typename B, typename... Bs>
-inline constexpr void Tuple<A, As...>::operator/=(const Tuple<B, Bs...> &src)
+[[gnu::always_inline]] inline constexpr void
+Tuple<A, As...>::operator/=(const Tuple<B, Bs...> &src)
 requires(sizeof...(As) == sizeof...(Bs))
 {
   (*this) << map(src, [](const auto &d, const auto &s) { return d / s; });
