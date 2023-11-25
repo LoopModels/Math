@@ -14,8 +14,8 @@ namespace poly::math {
 
 template <class T, ptrdiff_t N, bool Compress = false> struct Dual {
   static_assert(Compress);
-  T val{};
-  SVector<T, N, true> partials{T{}};
+  utils::compressed_t<T> val{};
+  SVector<utils::compressed_t<T>, N, true> partials{T{}};
 
   using decompressed_type = Dual<utils::decompressed_t<T>, N, false>;
   constexpr operator decompressed_type() const {
@@ -55,10 +55,10 @@ template <class T, ptrdiff_t N, bool Compress = false> struct Dual {
   }
 };
 
-template <class T, ptrdiff_t N>
+template <simd::SIMDSupported T, ptrdiff_t N>
 requires(std::popcount(size_t(N)) > 1)
 struct Dual<T, N, true> {
-  SVector<T, N + 1, true> data{T{}};
+  SVector<utils::compressed_t<T>, N + 1, true> data{T{}};
 
   using decompressed_type = Dual<utils::decompressed_t<T>, N, false>;
   constexpr operator decompressed_type() const {
@@ -161,11 +161,7 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
   [[gnu::always_inline]] constexpr auto operator*(const T &other) const -> Dual
   requires(!std::same_as<T, double>)
   {
-    // Dual res;
-    // res.val = val * other.val;
-    // res.partials << val * other.partials + other.val * partials;
-    // return res;
-    return {val * other, other * partials};
+    return {val * other, partials * other};
   }
   [[gnu::always_inline]] constexpr auto operator/(const T &other) const -> Dual
   requires(!std::same_as<T, double>)
@@ -205,7 +201,7 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
     return {val - other, partials};
   }
   [[gnu::always_inline]] constexpr auto operator*(double other) const -> Dual {
-    return {val * other, other * partials};
+    return {val * other, partials * other};
   }
   [[gnu::always_inline]] constexpr auto operator/(double other) const -> Dual {
     return {val / other, partials / other};
@@ -236,12 +232,6 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
     -> bool {
     return val != other.val; // || grad != other.grad;
   }
-  constexpr auto operator==(double other) const -> bool { return val == other; }
-  constexpr auto operator!=(double other) const -> bool { return val != other; }
-  constexpr auto operator<(double other) const -> bool { return val < other; }
-  constexpr auto operator>(double other) const -> bool { return val > other; }
-  constexpr auto operator<=(double other) const -> bool { return val <= other; }
-  constexpr auto operator>=(double other) const -> bool { return val >= other; }
   constexpr auto operator<(const Dual &other) const -> bool {
     return val < other.val;
   }
@@ -253,6 +243,42 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
   }
   constexpr auto operator>=(const Dual &other) const -> bool {
     return val >= other.val;
+  }
+  constexpr auto operator==(double other) const -> bool { return val == other; }
+  constexpr auto operator!=(double other) const -> bool { return val != other; }
+  constexpr auto operator<(double other) const -> bool { return val < other; }
+  constexpr auto operator>(double other) const -> bool { return val > other; }
+  constexpr auto operator<=(double other) const -> bool { return val <= other; }
+  constexpr auto operator>=(double other) const -> bool { return val >= other; }
+  constexpr auto operator==(T other) const -> bool
+  requires(!std::same_as<T, double>)
+  {
+    return val == other;
+  }
+  constexpr auto operator!=(T other) const -> bool
+  requires(!std::same_as<T, double>)
+  {
+    return val != other;
+  }
+  constexpr auto operator<(T other) const -> bool
+  requires(!std::same_as<T, double>)
+  {
+    return val < other;
+  }
+  constexpr auto operator>(T other) const -> bool
+  requires(!std::same_as<T, double>)
+  {
+    return val > other;
+  }
+  constexpr auto operator<=(T other) const -> bool
+  requires(!std::same_as<T, double>)
+  {
+    return val <= other;
+  }
+  constexpr auto operator>=(T other) const -> bool
+  requires(!std::same_as<T, double>)
+  {
+    return val >= other;
   }
   constexpr void compress(compressed_type *p) const {
     utils::compress(val, &(p->val));

@@ -43,27 +43,12 @@ TEST(DualTest, BasicAssertions) {
   EXPECT_TRUE(norm2(B - hxx) < 1e-10);
 };
 
-constexpr ptrdiff_t L = 16;
 template <typename T>
-constexpr auto evalpoly(MutSquarePtrMatrix<T> C, const auto &p) {
-  using U = eltype_t<T>;
-  using S = SquareMatrix<U, L>;
-  assert(C.numRow() == C.numCol());
-  S B{SquareDims{C.numRow()}};
-  evalpoly(B, C, p);
-  return B;
-}
-template <typename T>
-constexpr void evalpoly(MutSquarePtrMatrix<T> B, SquarePtrMatrix<T> C,
-                        const auto &p) {
-  using S = SquareMatrix<T, L>;
+constexpr void evalpoly(MutSquarePtrMatrix<T> B, MutSquarePtrMatrix<T> A,
+                        SquarePtrMatrix<T> C, const auto &p) {
   ptrdiff_t N = p.size();
   invariant(N > 0);
-  invariant(ptrdiff_t(C.numRow()), ptrdiff_t(C.numCol()));
-  invariant(ptrdiff_t(B.numRow()), ptrdiff_t(B.numCol()));
   invariant(ptrdiff_t(B.numRow()), ptrdiff_t(C.numRow()));
-  S Atm{SquareDims{N == 2 ? Row<>{0} : B.numRow()}};
-  MutSquarePtrMatrix<T> A{Atm};
   if (N & 1) std::swap(A, B);
   B << p[0] * C + p[1] * I;
   for (ptrdiff_t i = 2; i < N; ++i) {
@@ -74,15 +59,16 @@ constexpr void evalpoly(MutSquarePtrMatrix<T> B, SquarePtrMatrix<T> C,
 
 template <AbstractMatrix T> constexpr auto opnorm1(const T &A) {
   using S = decltype(value(std::declval<eltype_t<T>>()));
-  ptrdiff_t n = ptrdiff_t(A.numRow());
-  invariant(n > 0);
-  Vector<S> v;
-  v.resizeForOverwrite(n);
-  invariant(A.numRow() > 0);
-  for (ptrdiff_t j = 0; j < n; ++j) v[j] = std::abs(value(A[0, j]));
-  for (ptrdiff_t i = 1; i < n; ++i)
-    for (ptrdiff_t j = 0; j < n; ++j) v[j] += std::abs(value(A[i, j]));
-  return *std::max_element(v.begin(), v.end());
+  auto [M, N] = shape(A);
+  invariant(M > 0);
+  invariant(N > 0);
+  S a{};
+  for (ptrdiff_t n = 0; n < N; ++n) {
+    S s{};
+    for (ptrdiff_t m = 0; m < M; ++m) s += std::abs(value(A[m, n]));
+    a = std::max(a, s);
+  }
+  return a;
 }
 
 /// computes ceil(log2(x)) for x >= 1
@@ -92,66 +78,60 @@ constexpr auto log2ceil(double x) -> unsigned {
   return (u >> 52) - 1022;
 }
 
-template <typename T>
-constexpr void expm(MutSquarePtrMatrix<T> V, SquarePtrMatrix<T> A) {
-  invariant(ptrdiff_t(V.numRow()), ptrdiff_t(A.numRow()));
-  ptrdiff_t n = ptrdiff_t(A.numRow());
-  auto nA = opnorm1(A);
-  SquareMatrix<T, L> prodA{A * A}, Utm{SquareDims<>{{n}}};
-  MutSquarePtrMatrix<T> A2{prodA}, U{Utm};
-  unsigned int s = 0;
-  if (nA <= 2.1) {
-    poly::containers::TinyVector<double, 5> p0, p1;
-    if (nA > 0.95) {
-      p0 = {1.0, 3960.0, 2162160.0, 302702400.0, 8821612800.0};
-      p1 = {90.0, 110880.0, 3.027024e7, 2.0756736e9, 1.76432256e10};
-    } else if (nA > 0.25) {
-      p0 = {1.0, 1512.0, 277200.0, 8.64864e6};
-      p1 = {56.0, 25200.0, 1.99584e6, 1.729728e7};
-    } else if (nA > 0.015) {
-      p0 = {1.0, 420.0, 15120.0};
-      p1 = {30.0, 3360.0, 30240.0};
-    } else {
-      p0 = {1.0, 60.0};
-      p1 = {12.0, 120.0};
-    }
-    evalpoly(V, A2, p0);
-    U << A * V;
-    evalpoly(V, A2, p1);
+template <typename T> constexpr void expmimpl(MutSquarePtrMatrix<T> A) {
+  ptrdiff_t n = ptrdiff_t(A.numRow()), s = 0;
+  SquareMatrix<T> A2{A * A}, U_{SquareDims<>{{n}}};
+  MutSquarePtrMatrix<T> U{U_};
+  if (double nA = opnorm1(A); nA <= 0.015) {
+    U << A * (A2 + 60.0 * I);
+    A << 12.0 * A2 + 120.0 * I;
   } else {
-    // s = std::max(unsigned(std::ceil(std::log2(nA / 5.4))), unsigned(0));
-    s = nA > 5.4 ? log2ceil(nA / 5.4) : unsigned(0);
-    double t = 1.0;
-    if (s > 0) {
-      t = 1.0 / poly::math::exp2(s);
-      A2 *= (t * t);
-      if (s & 1) std::swap(U, V);
+    SquareMatrix<T> B{SquareDims<>{{n}}};
+    if (nA <= 2.1) {
+      poly::containers::TinyVector<double, 5> p0, p1;
+      if (nA > 0.95) {
+        p0 = {1.0, 3960.0, 2162160.0, 302702400.0, 8821612800.0};
+        p1 = {90.0, 110880.0, 3.027024e7, 2.0756736e9, 1.76432256e10};
+      } else if (nA > 0.25) {
+        p0 = {1.0, 1512.0, 277200.0, 8.64864e6};
+        p1 = {56.0, 25200.0, 1.99584e6, 1.729728e7};
+      } else {
+        p0 = {1.0, 420.0, 15120.0};
+        p1 = {30.0, 3360.0, 30240.0};
+      }
+      evalpoly(B, U, A2, p0);
+      U << A * B;
+      evalpoly(A, B, A2, p1);
+    } else {
+      // s = std::max(unsigned(std::ceil(std::log2(nA / 5.4))), 0);
+      s = nA > 5.4 ? log2ceil(nA / 5.4) : 0;
+      double t = (s > 0) ? exp2(-s) : 0.0;
+      if (s > 0) A2 *= (t * t);
+      // here we take an estrin (instead of horner) approach to cut down flops
+      SquareMatrix<T> A4{A2 * A2}, A6{A2 * A4};
+      B << A6 * (A6 + 16380 * A4 + 40840800 * A2) +
+             (33522128640 * A6 + 10559470521600 * A4 + 1187353796428800 * A2) +
+             32382376266240000 * I;
+      U << A * B;
+      if (s & 1) {  // we have an odd number of swaps at the end
+        A << U * t; // copy data to `A`, so we can swap and make it even
+        std::swap(A, U);
+      } else if (s > 0) U *= t;
+      A << A6 * (182 * A6 + 960960 * A4 + 1323241920 * A2) +
+             (670442572800 * A6 + 129060195264000 * A4 +
+              7771770303897600 * A2) +
+             64764752532480000 * I;
     }
-    SquareMatrix<T, L> A4{A2 * A2}, A6{A2 * A4};
-
-    V << A6 * (A6 + 16380 * A4 + 40840800 * A2) +
-           (33522128640 * A6 + 10559470521600 * A4 + 1187353796428800 * A2) +
-           32382376266240000 * I;
-    U << A * V;
-    if (s > 0) U *= t;
-    V << A6 * (182 * A6 + 960960 * A4 + 1323241920 * A2) +
-           (670442572800 * A6 + 129060195264000 * A4 + 7771770303897600 * A2) +
-           64764752532480000 * I;
   }
-  for (auto v = V.begin(), u = U.begin(), e = V.end(); v != e; ++v, ++u) {
-    auto &&d = *v - *u;
-    *v += *u;
-    *u = d;
-  }
-  LU::ldiv(U, MutPtrMatrix<T>(V));
-  for (; s--;) {
-    U << V * V;
-    std::swap(U, V);
-  }
+  poly::containers::tie(A, U) << poly::containers::Tuple(A + U, A - U);
+  LU::ldiv(U, MutPtrMatrix<T>(A));
+  for (; s--; std::swap(A, U)) U << A * A;
 }
+
 template <typename T> constexpr auto expm(SquarePtrMatrix<T> A) {
-  SquareMatrix<T, L> V{SquareDims{A.numRow()}};
-  expm(V, A);
+  SquareMatrix<T> V{SquareDims{A.numRow()}};
+  V << A;
+  expmimpl(V);
   return V;
 }
 constexpr auto dualDeltaCmp(double x, double y) -> bool { return x < y; }
@@ -165,7 +145,7 @@ constexpr auto dualDeltaCmp(Dual<T, N> x, double y) -> bool {
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(ExpMatTest, BasicAssertions) {
-  SquareMatrix<double, L> A(4);
+  SquareMatrix<double> A(4);
   A[0, 0] = 0.13809508135032297;
   A[0, 1] = -0.10597225613986219;
   A[0, 2] = -0.5623996136438215;
@@ -182,7 +162,7 @@ TEST(ExpMatTest, BasicAssertions) {
   A[3, 1] = 0.6550780207685463;
   A[3, 2] = -0.6227535845719466;
   A[3, 3] = 0.2280514374580733;
-  SquareMatrix<double, L> B(4);
+  SquareMatrix<double> B(4);
   B[0, 0] = 0.2051199361909877;
   B[0, 1] = -0.049831094437687434;
   B[0, 2] = -0.3980657896416266;
@@ -202,7 +182,7 @@ TEST(ExpMatTest, BasicAssertions) {
   EXPECT_LE(norm2(B - expm(A)), 1e-10);
 
   static_assert(poly::utils::Compressible<Dual<double, 2>>);
-  SquareMatrix<Dual<double, 2>, L> Ad(4);
+  SquareMatrix<Dual<double, 2>> Ad(4);
   Ad[0, 0] = Dual<double, 2>{
     0.13809508135032297,
     SVector<double, 2>{0.23145585885555967, 0.6736099502056541}};
@@ -251,7 +231,7 @@ TEST(ExpMatTest, BasicAssertions) {
   Ad[3, 3] = Dual<double, 2>{
     0.2280514374580733,
     SVector<double, 2>{-1.2001994532706792, 0.03274459682369542}};
-  SquareMatrix<Dual<double, 2>, L> Bd(4);
+  SquareMatrix<Dual<double, 2>> Bd(4);
   Bd[0, 0] = Dual<double, 2>{
     0.20511993619098767,
     SVector<double, 2>{0.09648410552837837, -2.2538795735050865}};

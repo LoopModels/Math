@@ -407,13 +407,11 @@ vcopyTo(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src) {
     if constexpr (!std::is_copy_assignable_v<T>) {
       POLYMATHIVDEP
       for (ptrdiff_t j = 0; j < L; ++j)
-        dst.apply(
-          src,
-          [=](const auto &s) {
-            if constexpr (std::convertible_to<decltype(s), T>) return s;
-            else return s[j];
-          },
-          [=](auto &d, auto s) { d[j] = s; });
+        dst.apply(src.map([=](const auto &s) {
+          if constexpr (std::convertible_to<decltype(s), T>) return s;
+          else return s[j];
+        }),
+                  [=](auto &d, auto s) { d[j] = s; });
     } else {
       POLYMATHIVDEP
       for (ptrdiff_t j = 0; j < L; ++j)

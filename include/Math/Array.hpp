@@ -771,6 +771,8 @@ struct POLY_MATH_GSL_POINTER MutArray
 };
 
 template <typename T, typename S>
+Array(T *, S) -> Array<utils::decompressed_t<T>, S>;
+template <typename T, typename S>
 MutArray(T *, S) -> MutArray<utils::decompressed_t<T>, S>;
 
 template <typename T, typename S> MutArray(MutArray<T, S>) -> MutArray<T, S>;
