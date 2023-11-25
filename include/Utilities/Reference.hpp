@@ -23,7 +23,7 @@ template <typename T> struct Reference {
     return T::decompress(c) == t;
   }
   [[gnu::always_inline]] constexpr auto operator+=(const auto &x) {
-    T y{*this};
+    T y{T::decompress(c)};
     y += x;
     y.compress(c);
     return y;
@@ -31,7 +31,7 @@ template <typename T> struct Reference {
   }
   [[gnu::always_inline]] constexpr auto operator-=(const auto &x) {
     // -> Reference & {
-    T y{*this};
+    T y{T::decompress(c)};
     y -= x;
     y.compress(c);
     return y;
@@ -39,7 +39,7 @@ template <typename T> struct Reference {
   }
   [[gnu::always_inline]] constexpr auto operator*=(const auto &x) {
     // -> Reference & {
-    T y{*this};
+    T y{T::decompress(c)};
     y *= x;
     y.compress(c);
     return y;
@@ -47,7 +47,7 @@ template <typename T> struct Reference {
   }
   [[gnu::always_inline]] constexpr auto operator/=(const auto &x) {
     // -> Reference & {
-    T y{*this};
+    T y{T::decompress(c)};
     y /= x;
     y.compress(c);
     return y;
@@ -55,7 +55,7 @@ template <typename T> struct Reference {
   }
   [[gnu::always_inline]] constexpr auto operator%=(const auto &x) {
     // -> Reference & {
-    T y{*this};
+    T y{T::decompress(c)};
     y %= x;
     y.compress(c);
     return y;
@@ -63,7 +63,7 @@ template <typename T> struct Reference {
   }
   [[gnu::always_inline]] constexpr auto operator<<=(const auto &x) {
     // -> Reference & {
-    T y{*this};
+    T y{T::decompress(c)};
     y <<= x;
     y.compress(c);
     return y;
@@ -71,7 +71,7 @@ template <typename T> struct Reference {
   }
   [[gnu::always_inline]] constexpr auto operator>>=(const auto &x) {
     // -> Reference & {
-    T y{*this};
+    T y{T::decompress(c)};
     y >>= x;
     y.compress(c);
     return y;
@@ -79,7 +79,7 @@ template <typename T> struct Reference {
   }
   [[gnu::always_inline]] constexpr auto operator&=(const auto &x) {
     // -> Reference & {
-    T y{*this};
+    T y{T::decompress(c)};
     y &= x;
     y.compress(c);
     return y;
@@ -87,7 +87,7 @@ template <typename T> struct Reference {
   }
   [[gnu::always_inline]] constexpr auto operator^=(const auto &x) {
     // -> Reference & {
-    T y{*this};
+    T y{T::decompress(c)};
     y ^= x;
     y.compress(c);
     return y;
@@ -95,7 +95,7 @@ template <typename T> struct Reference {
   }
   [[gnu::always_inline]] constexpr auto operator|=(const auto &x) {
     // -> Reference & {
-    T y{*this};
+    T y{T::decompress(c)};
     y |= x;
     y.compress(c);
     return y;

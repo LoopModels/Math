@@ -15,7 +15,7 @@ namespace poly::math {
 template <class T, ptrdiff_t N, bool Compress = false> struct Dual {
   static_assert(Compress);
   utils::compressed_t<T> val{};
-  SVector<utils::compressed_t<T>, N, true> partials{T{}};
+  SVector<T, N, true> partials{T{}};
 
   using decompressed_type = Dual<utils::decompressed_t<T>, N, false>;
   constexpr operator decompressed_type() const {
@@ -58,7 +58,7 @@ template <class T, ptrdiff_t N, bool Compress = false> struct Dual {
 template <simd::SIMDSupported T, ptrdiff_t N>
 requires(std::popcount(size_t(N)) > 1)
 struct Dual<T, N, true> {
-  SVector<utils::compressed_t<T>, N + 1, true> data{T{}};
+  SVector<T, N + 1, true> data{T{}};
 
   using decompressed_type = Dual<utils::decompressed_t<T>, N, false>;
   constexpr operator decompressed_type() const {
@@ -136,10 +136,6 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
   }
   [[gnu::always_inline]] constexpr auto operator*(const Dual &other) const
     -> Dual {
-    // Dual res;
-    // res.val = val * other.val;
-    // res.partials << val * other.partials + other.val * partials;
-    // return res;
     return {val * other.val, val * other.partials + other.val * partials};
   }
   [[gnu::always_inline]] constexpr auto operator/(const Dual &other) const
@@ -156,7 +152,7 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
   [[gnu::always_inline]] constexpr auto operator-(const T &other) const -> Dual
   requires(!std::same_as<T, double>)
   {
-    return {val - other.val, partials - other.partials};
+    return {val - other, partials};
   }
   [[gnu::always_inline]] constexpr auto operator*(const T &other) const -> Dual
   requires(!std::same_as<T, double>)
@@ -182,15 +178,15 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
   }
   [[gnu::always_inline]] constexpr auto operator*=(const Dual &other)
     -> Dual & {
-    val *= other.val;
     partials << val * other.partials + other.val * partials;
+    val *= other.val;
     return *this;
   }
   [[gnu::always_inline]] constexpr auto operator/=(const Dual &other)
     -> Dual & {
-    val /= other.val;
     partials << (other.val * partials - val * other.partials) /
                   (other.val * other.val);
+    val /= other.val;
     return *this;
   }
   [[gnu::always_inline]] constexpr auto
