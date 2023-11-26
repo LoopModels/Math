@@ -80,14 +80,16 @@ constexpr auto log2ceil(double x) -> unsigned {
 
 template <typename T> constexpr void expmimpl(MutSquarePtrMatrix<T> A) {
   ptrdiff_t n = ptrdiff_t(A.numRow()), s = 0;
-  SquareMatrix<T> A2{A * A}, U_{SquareDims<>{{n}}};
+  SquareMatrix<T> A2{SquareDims<>{{n}}}, U_{SquareDims<>{{n}}};
   MutSquarePtrMatrix<T> U{U_};
   if (double nA = opnorm1(A); nA <= 0.015) {
+    A2 << A * A;
     U << A * (A2 + 60.0 * I);
     A << 12.0 * A2 + 120.0 * I;
   } else {
     SquareMatrix<T> B{SquareDims<>{{n}}};
     if (nA <= 2.1) {
+      A2 << A * A;
       poly::containers::TinyVector<double, 5> p0, p1;
       if (nA > 0.95) {
         p0 = {1.0, 3960.0, 2162160.0, 302702400.0, 8821612800.0};
@@ -105,18 +107,17 @@ template <typename T> constexpr void expmimpl(MutSquarePtrMatrix<T> A) {
     } else {
       // s = std::max(unsigned(std::ceil(std::log2(nA / 5.4))), 0);
       s = nA > 5.4 ? log2ceil(nA / 5.4) : 0;
-      double t = (s > 0) ? exp2(-s) : 0.0;
-      if (s > 0) A2 *= (t * t);
+      if (s & 1) {       // we'll swap `U` and `A` an odd number of times
+        std::swap(A, U); // so let them switch places
+        A << U * exp2(-s);
+      } else if (s > 0) A *= exp2(-s);
+      A2 << A * A;
       // here we take an estrin (instead of horner) approach to cut down flops
       SquareMatrix<T> A4{A2 * A2}, A6{A2 * A4};
       B << A6 * (A6 + 16380 * A4 + 40840800 * A2) +
              (33522128640 * A6 + 10559470521600 * A4 + 1187353796428800 * A2) +
              32382376266240000 * I;
       U << A * B;
-      if (s & 1) {  // we have an odd number of swaps at the end
-        A << U * t; // copy data to `A`, so we can swap and make it even
-        std::swap(A, U);
-      } else if (s > 0) U *= t;
       A << A6 * (182 * A6 + 960960 * A4 + 1323241920 * A2) +
              (670442572800 * A6 + 129060195264000 * A4 +
               7771770303897600 * A2) +
