@@ -24,4 +24,3 @@ static void BM_normal_form(benchmark::State &state) {
   }
 }
 BENCHMARK(BM_normal_form)->DenseRange(2, 10, 1);
-

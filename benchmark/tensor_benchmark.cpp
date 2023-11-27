@@ -200,4 +200,3 @@ static void BM_dual6x2BmApI_manual(benchmark::State &state) {
   for (auto b : state) BtimesAplusdI(C, A, B, 60.0);
 }
 BENCHMARK(BM_dual6x2BmApI_manual)->DenseRange(2, 10, 1);
-

@@ -147,4 +147,3 @@ BENCHMARK(BM_dualMxNdoublemul<5, 2>)->DenseRange(2, 10, 1);
 BENCHMARK(BM_dualMxNdoublemul<6, 2>)->DenseRange(2, 10, 1);
 BENCHMARK(BM_dualMxNdoublemul<7, 2>)->DenseRange(2, 10, 1);
 BENCHMARK(BM_dualMxNdoublemul<8, 2>)->DenseRange(2, 10, 1);
-

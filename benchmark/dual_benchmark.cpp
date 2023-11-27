@@ -193,4 +193,3 @@ static void BM_dual6x2prod_simdarray(benchmark::State &state) {
   }
 }
 BENCHMARK(BM_dual6x2prod_simdarray);
-

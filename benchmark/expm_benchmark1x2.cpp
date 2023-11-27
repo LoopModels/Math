@@ -8,4 +8,3 @@ static void BM_expm_dual1x2(benchmark::State &state) {
   for (auto b : state) expbench(A);
 }
 BENCHMARK(BM_expm_dual1x2)->DenseRange(2, 10, 1);
-
