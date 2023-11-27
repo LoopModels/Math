@@ -185,6 +185,11 @@ public:
     inCanonicalForm = false;
 #endif
     auto C{getConstraints()};
+#ifndef NDEBUG
+    for (ptrdiff_t r = 0, R = ptrdiff_t(numRows(C)); r < R; ++r)
+      for (ptrdiff_t c = 0, N = ptrdiff_t(numCols(C)); c < N; ++c)
+        invariant(C[r, c] != std::numeric_limits<int64_t>::min());
+#endif
     NormalForm::solveSystemSkip(C);
     truncateConstraints(ptrdiff_t(NormalForm::numNonZeroRows(C)));
   }
@@ -683,7 +688,7 @@ public:
                              A[_, _(1, end)], B[_, _(1, end)]);
     auto consts{simplex->getConstants()};
     consts[_(0, numSlack)] << A[_, 0];
-    consts[_(numSlack, numSlack + numStrict)] << B[_, 0];
+    if (numStrict) consts[_(numSlack, numSlack + numStrict)] << B[_, 0];
     // for (ptrdiff_t i = 0; i < numSlack; ++i) consts[i] = A(i, 0);
     // for (ptrdiff_t i = 0; i < numStrict; ++i) consts[i + numSlack] = B(i, 0);
     if (!simplex->initiateFeasible()) return simplex;
@@ -782,7 +787,7 @@ public:
     // subSimp.tableau(0, 1) = 0;
     auto fC{getTableau()};
     auto sC{subSimp->getTableau()};
-    sC[_, 0] << fC[_, 0] - fC[_, _(1 + off, 1 + off + numFix)] * x;
+    sC[_, 0] << fC[_, 0] - fC[_, _(1 + off, 1 + off + numFix)] * x.t();
     // sC(_, 0) = fC(_, 0);
     // for (ptrdiff_t i = 0; i < numFix; ++i)
     //     sC(_, 0) -= x(i) * fC(_, i + 1 + off);
@@ -812,7 +817,7 @@ public:
     auto fC{getConstraints()};
     auto sC{subSimp->getConstraints()};
     sC[_, 0] << fC[_(begin, numRow), 0] -
-                  fC[_(begin, numRow), _(off, off + numFix)] * x;
+                  fC[_(begin, numRow), _(off, off + numFix)] * x.t();
     sC[_, _(1, off)] << fC[_(begin, numRow), _(1, off)];
     return subSimp->initiateFeasible();
   }

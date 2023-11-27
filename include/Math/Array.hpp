@@ -9,9 +9,10 @@
 #include "Math/Matrix.hpp"
 #include "Math/MatrixDimensions.hpp"
 #include "Math/Rational.hpp"
-#include "Math/Vector.hpp"
 #include "Utilities/Invariant.hpp"
 #include "Utilities/Optional.hpp"
+#include "Utilities/Reference.hpp"
+#include "Utilities/TypeCompression.hpp"
 #include "Utilities/TypePromotion.hpp"
 #include "Utilities/Valid.hpp"
 #include <algorithm>
@@ -47,8 +48,12 @@
 #endif
 
 namespace poly::math {
-template <class T, class S, ptrdiff_t N = PreAllocStorage<T, S>(),
-          class A = alloc::Mallocator<T>>
+template <typename S>
+concept Dimension = VectorDimension<S> != MatrixDimension<S>;
+template <class T, Dimension S,
+          ptrdiff_t N =
+            containers::PreAllocStorage<utils::compressed_t<T>, S>(),
+          class A = alloc::Mallocator<utils::compressed_t<T>>>
 struct ManagedArray;
 
 template <typename T>
@@ -63,8 +68,67 @@ void print_obj(std::ostream &os, const std::pair<F, S> &x) {
 };
 using utils::Valid, utils::Optional;
 
-template <class T, class S> struct Array;
-template <class T, class S> struct MutArray;
+template <class T, Dimension S, bool Compress = utils::Compressible<T>>
+struct Array;
+template <class T, Dimension S, bool Compress = utils::Compressible<T>>
+struct MutArray;
+
+// Cases we need to consider:
+// 1. Slice-indexing
+// 2.a. `ptrdiff_t` indexing, not compressed
+// 2.b. `ptrdiff_t` indexing, compressed
+// 3.a.i. Vector indexing, contig, no mask
+// 3.a.ii. Vector indexing, contig, mask
+// 3.b.i. Vector indexing, discontig, no mask
+// 3.b.ii. Vector indexing, discontig, mask
+// all of the above for `T*` and `const T*`
+template <typename T, typename P, typename S, typename I>
+[[gnu::flatten, gnu::always_inline]] constexpr auto index(P *ptr, S shape,
+                                                          I i) noexcept
+  -> decltype(auto) {
+  auto offset = calcOffset(shape, i);
+  auto newDim = calcNewDim(shape, i);
+  invariant(ptr != nullptr);
+  using D = decltype(newDim);
+  if constexpr (simd::index::issimd<D>) return simd::ref(ptr + offset, newDim);
+  else {
+    constexpr bool Compress = !std::same_as<T, std::remove_const_t<P>>;
+    if constexpr (!std::same_as<D, Empty>)
+      if constexpr (std::is_const_v<P>)
+        return Array<T, D, Compress>{ptr + offset, newDim};
+      else return MutArray<T, D, Compress>{ptr + offset, newDim};
+    else if constexpr (!Compress) return ptr[offset];
+    else if constexpr (std::is_const_v<P>) return T::decompress(ptr + offset);
+    else return utils::Reference<T>{ptr + offset};
+  }
+}
+// for (row/col)vectors, we drop the row/col, essentially broadcasting
+template <typename T, typename P, typename S, typename R, typename C>
+[[gnu::flatten, gnu::always_inline]] constexpr auto index(P *ptr, S shape, R wr,
+                                                          C wc) noexcept
+  -> decltype(auto) {
+  if constexpr (MatrixDimension<S>) {
+    auto r = unwrapRow(wr);
+    auto c = unwrapCol(wc);
+    auto offset = calcOffset(shape, r, c);
+    auto newDim = calcNewDim(shape, r, c);
+    using D = decltype(newDim);
+    if constexpr (simd::index::issimd<D>)
+      return simd::ref(ptr + offset, newDim);
+    else {
+      constexpr bool Compress = !std::same_as<T, std::remove_const_t<P>>;
+      if constexpr (!std::same_as<D, Empty>)
+        if constexpr (std::is_const_v<P>)
+          return Array<T, D, Compress>{ptr + offset, newDim};
+        else return MutArray<T, D, Compress>{ptr + offset, newDim};
+      else if constexpr (!Compress) return ptr[offset];
+      else if constexpr (std::is_const_v<P>) return T::decompress(ptr + offset);
+      else return utils::Reference<T>{ptr + offset};
+    }
+  } else if constexpr (std::same_as<S, StridedRange>)
+    return index<T>(ptr, shape, unwrapRow(wr));
+  else return index<T>(ptr, shape, unwrapCol(wc));
+}
 
 template <typename T, bool Column = false> struct SliceIterator {
   using stride_type = std::conditional_t<Column, StridedRange, ptrdiff_t>;
@@ -72,7 +136,8 @@ template <typename T, bool Column = false> struct SliceIterator {
     std::conditional_t<std::is_const_v<T>,
                        Array<std::remove_cvref_t<T>, stride_type>,
                        MutArray<std::remove_reference_t<T>, stride_type>>;
-  T *data;
+  using storage_type = utils::compressed_t<T>;
+  storage_type *data;
   ptrdiff_t len;
   ptrdiff_t rowStride;
   ptrdiff_t idx;
@@ -148,39 +213,48 @@ template <typename T, bool Column = false> struct SliceRange {
   }
 };
 /// Constant Array
-template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
+template <class T, Dimension S, bool Compress>
+struct POLY_MATH_GSL_POINTER Array {
   static_assert(!std::is_const_v<T>, "T shouldn't be const");
   static_assert(std::is_trivially_destructible_v<T>,
                 "maybe should add support for destroying");
+
+  using storage_type = std::conditional_t<Compress, utils::compressed_t<T>, T>;
   using value_type = T;
   using reference = T &;
   using const_reference = const T &;
   using size_type = ptrdiff_t;
   using difference_type = int;
-  using iterator = T *;
-  using const_iterator = const T *;
-  using pointer = T *;
-  using const_pointer = const T *;
+  using iterator = storage_type *;
+  using const_iterator = const storage_type *;
+  using pointer = storage_type *;
+  using const_pointer = const storage_type *;
   using concrete = std::true_type;
+
+  static constexpr bool isdense =
+    std::convertible_to<S, ptrdiff_t> || std::convertible_to<S, DenseDims<>>;
+  static constexpr bool flatstride = isdense || std::same_as<S, StridedRange>;
+  static_assert(flatstride != std::same_as<S, StridedDims<>>);
 
   constexpr Array() = default;
   constexpr Array(const Array &) = default;
   constexpr Array(Array &&) noexcept = default;
   constexpr auto operator=(const Array &) -> Array & = default;
   constexpr auto operator=(Array &&) noexcept -> Array & = default;
-  constexpr Array(const T *p, S s) : ptr(p), sz(s) {}
-  constexpr Array(Valid<const T> p, S s) : ptr(p), sz(s) {}
+  constexpr Array(const storage_type *p, S s) : ptr(p), sz(s) {}
+  constexpr Array(Valid<const storage_type> p, S s) : ptr(p), sz(s) {}
   template <ptrdiff_t R, ptrdiff_t C>
-  constexpr Array(const T *p, Row<R> r, Col<C> c) : ptr(p), sz(S{r, c}) {}
+  constexpr Array(const storage_type *p, Row<R> r, Col<C> c)
+    : ptr(p), sz(S{r, c}) {}
   template <ptrdiff_t R, ptrdiff_t C>
-  constexpr Array(Valid<const T> p, Row<R> r, Col<C> c)
+  constexpr Array(Valid<const storage_type> p, Row<R> r, Col<C> c)
     : ptr(p), sz(dimension<S>(r, c)) {}
   template <std::convertible_to<S> V>
   constexpr Array(Array<T, V> a) : ptr(a.data()), sz(a.dim()) {}
   template <size_t N>
   constexpr Array(const std::array<T, N> &a) : ptr(a.data()), sz(N) {}
   [[nodiscard, gnu::returns_nonnull]] constexpr auto data() const noexcept
-    -> const T * {
+    -> const storage_type * {
     invariant(ptr != nullptr);
     return ptr;
   }
@@ -190,26 +264,33 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
     -> StridedIterator<const T>
   requires(std::is_same_v<S, StridedRange>)
   {
-    const T *p = ptr;
+    const storage_type *p = ptr;
     return StridedIterator{p, sz.stride};
   }
   [[nodiscard]] constexpr auto begin() const noexcept
-    -> const T *requires(!std::is_same_v<S, StridedRange>) { return ptr; }
+    -> const storage_type *requires(isdense) { return ptr; }
 
-  [[nodiscard]] constexpr auto end() const noexcept {
+  [[nodiscard]] constexpr auto end() const noexcept
+  requires(flatstride)
+  {
     return begin() + ptrdiff_t(sz);
   }
-  [[nodiscard]] constexpr auto rbegin() const noexcept {
+  [[nodiscard]] constexpr auto rbegin() const noexcept
+  requires(flatstride)
+  {
     return std::reverse_iterator(end());
   }
-  [[nodiscard]] constexpr auto rend() const noexcept {
+  [[nodiscard]] constexpr auto rend() const noexcept
+  requires(flatstride)
+  {
     return std::reverse_iterator(begin());
   }
   [[nodiscard]] constexpr auto front() const noexcept -> const T & {
-    return *begin();
+    return *ptr;
   }
   [[nodiscard]] constexpr auto back() const noexcept -> const T & {
-    return *(end() - 1);
+    if constexpr (flatstride) return *(end() - 1);
+    else return ptr[sride(sz) * ptrdiff_t(row(sz)) - 1];
   }
   // indexing has two components:
   // 1. offsetting the pointer
@@ -217,22 +298,15 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
   // static constexpr auto slice(Valid<T>, Index<S> auto i){
   //   auto
   // }
-  [[gnu::flatten]] constexpr auto operator[](Index<S> auto i) const noexcept
-    -> decltype(auto) {
-    auto offset = calcOffset(sz, i);
-    auto newDim = calcNewDim(sz, i);
-    invariant(ptr != nullptr);
-    if constexpr (std::is_same_v<decltype(newDim), Empty>)
-      return static_cast<const T *>(ptr)[offset];
-    else return Array<T, decltype(newDim)>{ptr + offset, newDim};
+  [[gnu::flatten, gnu::always_inline]] constexpr auto
+  operator[](Index<S> auto i) const noexcept -> decltype(auto) {
+    return index<T>(ptr, sz, i);
   }
-  // for vectors, we just drop the column, essentially broadcasting
+  // for (row/col)vectors, we drop the row/col, essentially broadcasting
   template <class R, class C>
-  [[gnu::flatten]] constexpr auto operator[](R r, C c) const noexcept
-    -> decltype(auto) {
-    if constexpr (MatrixDimension<S>)
-      return (*this)[CartesianIndex(unwrapRow(r), unwrapCol(c))];
-    else return (*this)[ptrdiff_t(r)];
+  [[gnu::flatten, gnu::always_inline]] constexpr auto
+  operator[](R r, C c) const noexcept -> decltype(auto) {
+    return index<T>(ptr, sz, r, c);
   }
   [[nodiscard]] constexpr auto minRowCol() const -> ptrdiff_t {
     return std::min(ptrdiff_t(numRow()), ptrdiff_t(numCol()));
@@ -257,31 +331,23 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
     return N;
   }
 
-  [[nodiscard]] constexpr auto numRow() const noexcept
-  requires(MatrixDimension<S>)
-  {
-    return Row(sz);
+  [[nodiscard]] constexpr auto numRow() const noexcept {
+    if constexpr (std::convertible_to<S, ptrdiff_t>) return Row<1>{};
+    else return row(sz);
   }
-  [[nodiscard]] constexpr auto numCol() const noexcept
-  requires(MatrixDimension<S>)
-  {
-    return Col(sz);
-  }
-  [[nodiscard]] constexpr auto rowStride() const noexcept
-  requires(MatrixDimension<S>)
-  {
-    return RowStride(sz);
+  [[nodiscard]] constexpr auto numCol() const noexcept { return col(sz); }
+  [[nodiscard]] constexpr auto rowStride() const noexcept {
+    if constexpr (std::integral<S>) return RowStride<1>{};
+    else return stride(sz);
   }
   [[nodiscard]] constexpr auto empty() const -> bool { return sz == S{}; }
   [[nodiscard]] constexpr auto size() const noexcept {
     if constexpr (StaticInt<S>) return S{};
-    else if constexpr (std::integral<S>) return sz;
-    else if constexpr (std::is_same_v<S, StridedRange>) return ptrdiff_t(sz);
-    else return CartesianIndex{ptrdiff_t(Row(sz)), ptrdiff_t(Col(sz))};
+    else return ptrdiff_t(sz);
   }
   [[nodiscard]] constexpr auto dim() const noexcept -> S { return sz; }
   constexpr void clear() { sz = S{}; }
-  [[nodiscard]] constexpr auto transpose() const { return Transpose{*this}; }
+  [[nodiscard]] constexpr auto t() const { return Transpose{*this}; }
   [[nodiscard]] constexpr auto isExchangeMatrix() const -> bool
   requires(MatrixDimension<S>)
   {
@@ -342,6 +408,39 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
     return ret;
     // return std::reduce(begin(), end());
   }
+  // interpret a bigger object as smaller
+  template <typename U> [[nodiscard]] auto reinterpret() const {
+    static_assert(sizeof(storage_type) % sizeof(U) == 0);
+    static_assert(std::same_as<U, double>);
+    if constexpr (std::same_as<U, T>) return *this;
+    else {
+      auto r = unwrapRow(numRow());
+      auto c = unwrapCol(numCol());
+      constexpr auto ratio = sizeof(storage_type) / sizeof(U);
+#ifdef __cpp_lib_start_lifetime_as
+      U *p = std::start_lifetime_as_array(reinterpret_cast<const U *>(data()),
+                                          ratio * ptrdiff_t(rowStride()) * r);
+#else
+      const U *p = std::launder(reinterpret_cast<const U *>(data()));
+#endif
+      if constexpr (IsOne<decltype(r)>) {
+        if constexpr (StaticInt<decltype(c)>)
+          return Array<U, std::integral_constant<ptrdiff_t, c * ratio>>{p, {}};
+        else return Array<U, ptrdiff_t>{p, c * ratio};
+      } else if constexpr (DenseLayout<S>) {
+        return Array<U, DenseDims<>>(p, DenseDims(row(r), col(c * ratio)));
+      } else {
+        ptrdiff_t stride = ptrdiff_t(rowStride()) * ratio;
+        if constexpr (IsOne<decltype(c)>) {
+          constexpr auto sr = std::integral_constant<ptrdiff_t, ratio>{};
+          return Array<U, StridedDims<-1, ratio, -1>>(
+            p, StridedDims(row(r), col(sr), rowStride(stride)));
+        } else
+          return Array<U, StridedDims<>>(
+            p, StridedDims(row(r), col(c * ratio), rowStride(stride)));
+      }
+    }
+  }
   friend inline void PrintTo(const Array &x, ::std::ostream *os) { *os << x; }
 #ifndef NDEBUG
   [[gnu::used]] void dump() const {
@@ -371,7 +470,7 @@ template <class T, class S> struct POLY_MATH_GSL_POINTER Array {
 #endif
 protected:
   // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
-  const T *ptr;
+  const storage_type *ptr;
   // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
   [[no_unique_address]] S sz{};
 };
@@ -385,20 +484,22 @@ template <class T, DenseLayout S>
   return M <=> N;
 };
 
-template <class T, class S>
-struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
-                                        ArrayOps<T, S, MutArray<T, S>> {
+template <class T, Dimension S, bool Compress>
+struct POLY_MATH_GSL_POINTER MutArray
+  : Array<T, S, Compress>,
+    ArrayOps<T, S, MutArray<T, S, Compress>> {
   using BaseT = Array<T, S>;
   // using BaseT::BaseT;
   using BaseT::operator[], BaseT::data, BaseT::begin, BaseT::end, BaseT::rbegin,
     BaseT::rend, BaseT::front, BaseT::back;
+  using storage_type = typename BaseT::storage_type;
 
   constexpr MutArray(const MutArray &) = default;
   constexpr MutArray(MutArray &&) noexcept = default;
   constexpr auto operator=(const MutArray &) -> MutArray & = delete;
   // constexpr auto operator=(const MutArray &) -> MutArray & = default;
   constexpr auto operator=(MutArray &&) noexcept -> MutArray & = default;
-  constexpr MutArray(T *p, S s) : BaseT(p, s) {}
+  constexpr MutArray(storage_type *p, S s) : BaseT(p, s) {}
 
   constexpr void truncate(S nz) {
     S oz = this->sz;
@@ -419,7 +520,7 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
       ptrdiff_t rowsToCopy = newM;
       if (rowsToCopy && (--rowsToCopy) && (copyCols)) {
         // truncation, we need to copy rows to increase stride
-        T *src = data(), *dst = src;
+        storage_type *src = data(), *dst = src;
         do {
           src += oldX;
           dst += newX;
@@ -466,15 +567,16 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
 
   template <class... Args>
   constexpr MutArray(Args &&...args)
-    : Array<T, S>(std::forward<Args>(args)...) {}
+    : Array<T, S, Compress>(std::forward<Args>(args)...) {}
 
   template <std::convertible_to<T> U, std::convertible_to<S> V>
   constexpr MutArray(Array<U, V> a) : Array<T, S>(a) {}
   template <size_t N>
   constexpr MutArray(std::array<T, N> &a) : Array<T, S>(a.data(), N) {}
-  [[nodiscard, gnu::returns_nonnull]] constexpr auto data() noexcept -> T * {
+  [[nodiscard, gnu::returns_nonnull]] constexpr auto data() noexcept
+    -> storage_type * {
     invariant(this->ptr != nullptr);
-    return const_cast<T *>(this->ptr);
+    return const_cast<storage_type *>(this->ptr);
   }
   [[nodiscard]] constexpr auto wrappedPtr() noexcept -> Valid<T> {
     return data();
@@ -483,11 +585,12 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
   [[nodiscard]] constexpr auto begin() noexcept -> StridedIterator<T>
   requires(std::is_same_v<S, StridedRange>)
   {
-    return StridedIterator{const_cast<T *>(this->ptr), this->sz.stride};
+    return StridedIterator{const_cast<storage_type *>(this->ptr),
+                           this->sz.stride};
   }
   [[nodiscard]] constexpr auto begin() noexcept
-    -> T *requires(!std::is_same_v<S, StridedRange>) {
-      return const_cast<T *>(this->ptr);
+    -> storage_type *requires(!std::is_same_v<S, StridedRange>) {
+      return const_cast<storage_type *>(this->ptr);
     }
 
   [[nodiscard]] constexpr auto end() noexcept {
@@ -498,7 +601,8 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
   // {
   //   return this->ptr;
   // }
-  // [[nodiscard, gnu::returns_nonnull]] constexpr auto end() noexcept -> T *
+  // [[nodiscard, gnu::returns_nonnull]] constexpr auto end() noexcept ->
+  // storage_type *
   // {
   //   return this->ptr + ptrdiff_t(this->sz);
   // }
@@ -510,21 +614,16 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
   }
   constexpr auto front() noexcept -> T & { return *begin(); }
   constexpr auto back() noexcept -> T & { return *(end() - 1); }
-  [[gnu::flatten]] constexpr auto operator[](Index<S> auto i) noexcept
-    -> decltype(auto) {
-    auto offset = calcOffset(this->sz, i);
-    auto newDim = calcNewDim(this->sz, i);
-    if constexpr (std::is_same_v<decltype(newDim), Empty>)
-      return data()[offset];
-    else return MutArray<T, decltype(newDim)>{data() + offset, newDim};
+  [[gnu::flatten, gnu::always_inline]] constexpr auto
+  operator[](Index<S> auto i) noexcept -> decltype(auto) {
+    return index<T>(data(), this->sz, i);
   }
   // TODO: switch to operator[] when we enable c++23
   template <class R, class C>
-  [[gnu::flatten]] constexpr auto operator[](R r, C c) noexcept
+  [[gnu::flatten, gnu::always_inline]] constexpr auto operator[](R r,
+                                                                 C c) noexcept
     -> decltype(auto) {
-    if constexpr (MatrixDimension<S>)
-      return (*this)[CartesianIndex(unwrapRow(r), unwrapCol(c))];
-    else return (*this)[ptrdiff_t(r)];
+    return index<T>(data(), this->sz, r, c);
   }
   constexpr void fill(T value) {
     std::fill_n(this->data(), ptrdiff_t(this->dim()), value);
@@ -556,7 +655,7 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
            newRow = ptrdiff_t{Row(this->sz)} - 1;
       this->sz.set(Row<>{newRow});
       if ((col == 0) || (r == newRow)) return;
-      T *dst = data() + ptrdiff_t(r) * col;
+      storage_type *dst = data() + ptrdiff_t(r) * col;
       std::copy_n(dst + col, (newRow - ptrdiff_t(r)) * col, dst);
     } else {
       static_assert(std::convertible_to<S, StridedDims<>>);
@@ -567,14 +666,14 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
       if ((col == 0) || (r == newRow)) return;
       invariant(col <= stride);
       if ((col + (512 / (sizeof(T)))) <= stride) {
-        T *dst = data() + ptrdiff_t(r) * stride;
+        storage_type *dst = data() + ptrdiff_t(r) * stride;
         for (ptrdiff_t m = ptrdiff_t(r); m < newRow; ++m) {
-          T *src = dst + stride;
+          storage_type *src = dst + stride;
           std::copy_n(src, col, dst);
           dst = src;
         }
       } else {
-        T *dst = data() + ptrdiff_t(r) * stride;
+        storage_type *dst = data() + ptrdiff_t(r) * stride;
         std::copy_n(dst + stride, (newRow - ptrdiff_t(r)) * stride, dst);
       }
     }
@@ -592,8 +691,8 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
       if ((colsToCopy == 0) || (row == 0)) return;
       // we only need to copy if memory shifts position
       for (ptrdiff_t m = 0; m < row; ++m) {
-        T *dst = data() + m * newCol + ptrdiff_t(c);
-        T *src = data() + m * oldCol + ptrdiff_t(c) + 1;
+        storage_type *dst = data() + m * newCol + ptrdiff_t(c);
+        storage_type *src = data() + m * oldCol + ptrdiff_t(c) + 1;
         std::copy_n(src, colsToCopy, dst);
       }
     } else {
@@ -606,7 +705,7 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
       if ((colsToCopy == 0) || (row == 0)) return;
       // we only need to copy if memory shifts position
       for (ptrdiff_t m = 0; m < row; ++m) {
-        T *dst = data() + m * stride + ptrdiff_t(c);
+        storage_type *dst = data() + m * stride + ptrdiff_t(c);
         std::copy_n(dst + 1, colsToCopy, dst);
       }
     }
@@ -636,9 +735,45 @@ struct POLY_MATH_GSL_POINTER MutArray : Array<T, S>,
     return {data(), ptrdiff_t(Row(this->sz)), ptrdiff_t(RowStride(this->sz)),
             ptrdiff_t(Col(this->sz))};
   }
+  template <typename U> [[nodiscard]] auto reinterpret() {
+    static_assert(sizeof(storage_type) % sizeof(U) == 0);
+    static_assert(std::same_as<U, double>);
+    if constexpr (std::same_as<U, T>) return *this;
+    else {
+      auto r = unwrapRow(this->numRow());
+      auto c = unwrapCol(this->numCol());
+      constexpr size_t ratio = sizeof(storage_type) / sizeof(U);
+#ifdef __cpp_lib_start_lifetime_as
+      U *p = std::start_lifetime_as_array(reinterpret_cast<const U *>(data()),
+                                          ratio * ptrdiff_t(rowStride()) * r);
+#else
+      U *p = std::launder(reinterpret_cast<U *>(data()));
+#endif
+      if constexpr (IsOne<decltype(r)>) {
+        if constexpr (StaticInt<decltype(c)>)
+          return MutArray<U, std::integral_constant<ptrdiff_t, c * ratio>>(
+            p, std::integral_constant<ptrdiff_t, c * ratio>{});
+        else return MutArray<U, ptrdiff_t>{p, c * ratio};
+      } else if constexpr (DenseLayout<S>) {
+        return MutArray<U, DenseDims<>>(p, DenseDims(row(r), col(c * ratio)));
+      } else {
+        ptrdiff_t stride = ptrdiff_t(this->rowStride()) * ratio;
+        if constexpr (IsOne<decltype(c)>) {
+          constexpr auto sr = std::integral_constant<ptrdiff_t, ratio>{};
+          return MutArray<U, StridedDims<-1, ratio, -1>>(
+            p, StridedDims(row(r), col(sr), rowStride(stride)));
+        } else
+          return MutArray<U, StridedDims<>>(
+            p, StridedDims(row(r), col(c * ratio), rowStride(stride)));
+      }
+    }
+  }
 };
 
-template <typename T, typename S> MutArray(T *, S) -> MutArray<T, S>;
+template <typename T, typename S>
+Array(T *, S) -> Array<utils::decompressed_t<T>, S>;
+template <typename T, typename S>
+MutArray(T *, S) -> MutArray<utils::decompressed_t<T>, S>;
 
 template <typename T, typename S> MutArray(MutArray<T, S>) -> MutArray<T, S>;
 
@@ -662,6 +797,13 @@ static_assert(std::convertible_to<MutArray<int64_t, SquareDims<>>,
                                   MutArray<int64_t, StridedDims<>>>);
 static_assert(std::convertible_to<MutArray<int64_t, DenseDims<>>,
                                   MutArray<int64_t, StridedDims<>>>);
+static_assert(AbstractVector<Array<int64_t, ptrdiff_t>>);
+static_assert(!AbstractVector<Array<int64_t, StridedDims<>>>);
+static_assert(AbstractMatrix<Array<int64_t, StridedDims<>>>);
+static_assert(RowVector<Array<int64_t, ptrdiff_t>>);
+static_assert(ColVector<Transpose<Array<int64_t, ptrdiff_t>>>);
+static_assert(ColVector<Array<int64_t, StridedRange>>);
+static_assert(RowVector<Transpose<Array<int64_t, StridedRange>>>);
 
 template <typename T>
 auto operator*(SliceIterator<T, false> it)
@@ -681,15 +823,16 @@ static_assert(std::ranges::range<SliceRange<int64_t, false>>);
 
 /// Non-owning view of a managed array, capable of resizing,
 /// but not of re-allocating in case the capacity is exceeded.
-template <class T, class S>
+template <class T, Dimension S>
 struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
   using BaseT = MutArray<T, S>;
-  using U = default_capacity_type_t<S>;
+  using U = containers::default_capacity_type_t<S>;
+  using storage_type = typename BaseT::storage_type;
   constexpr ResizeableView() noexcept : BaseT(nullptr, 0), capacity(0) {}
-  constexpr ResizeableView(T *p, S s, U c) noexcept
+  constexpr ResizeableView(storage_type *p, S s, U c) noexcept
     : BaseT(p, s), capacity(c) {}
   constexpr ResizeableView(alloc::Arena<> *a, S s, U c) noexcept
-    : ResizeableView{a->template allocate<T>(c), s, c} {}
+    : ResizeableView{a->template allocate<storage_type>(c), s, c} {}
 
   [[nodiscard]] constexpr auto isFull() const -> bool {
     return U(this->sz) == capacity;
@@ -906,12 +1049,14 @@ static_assert(std::is_trivially_move_assignable_v<MutArray<void *, ptrdiff_t>>);
 /// Non-owning view of a managed array, capable of reallocating, etc.
 /// It does not own memory. Mostly, it serves to drop the inlined
 /// stack capacity of the `ManagedArray` from the type.
-template <class T, class S, class A = alloc::Mallocator<T>>
+template <class T, Dimension S,
+          class A = alloc::Mallocator<utils::compressed_t<T>>>
 struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S> {
   using BaseT = ResizeableView<T, S>;
-  using U = default_capacity_type_t<S>;
-  constexpr ReallocView(T *p, S s, U c) noexcept : BaseT(p, s, c) {}
-  constexpr ReallocView(T *p, S s, U c, A alloc) noexcept
+  using U = containers::default_capacity_type_t<S>;
+  using storage_type = typename BaseT::storage_type;
+  constexpr ReallocView(storage_type *p, S s, U c) noexcept : BaseT(p, s, c) {}
+  constexpr ReallocView(storage_type *p, S s, U c, A alloc) noexcept
     : BaseT(p, s, c), allocator(alloc) {}
 
   [[nodiscard]] constexpr auto newCapacity() const -> U {
@@ -1110,12 +1255,13 @@ protected:
   [[no_unique_address]] A allocator{};
 
   constexpr void allocateAtLeast(U len) {
-    alloc::AllocResult<T> res = alloc::alloc_at_least(allocator, len);
+    alloc::AllocResult<storage_type> res =
+      alloc::alloc_at_least(allocator, len);
     this->ptr = res.ptr;
     this->capacity = res.count;
   }
   [[nodiscard]] auto firstElt() const -> const void * {
-    using AS = ArrayAlignmentAndSize<T, S, A>;
+    using AS = ArrayAlignmentAndSize<storage_type, S, A>;
 // AS is not a standard layout type, as more than one layer of the hierarchy
 // contain non-static data members. Using `offsetof` is conditionally supported
 // by some compilers as of c++17 (it was UB prior). Both Clang and GCC support
@@ -1145,7 +1291,7 @@ protected:
     if (wasAllocated()) allocator.deallocate(this->data(), this->capacity);
   }
   // this method should be called whenever the buffer lives
-  void maybeDeallocate(T *newPtr, U newCapacity) noexcept {
+  void maybeDeallocate(storage_type *newPtr, U newCapacity) noexcept {
     maybeDeallocate();
     this->ptr = newPtr;
     this->capacity = newCapacity;
@@ -1181,11 +1327,12 @@ concept AbstractSimilar =
 /// or at least build ManagedArrays bypassing the constructors listed here.
 /// This caused invalid frees, as the pointer still pointed to the old
 /// stack memory.
-template <class T, class S, ptrdiff_t N, class A>
+template <class T, Dimension S, ptrdiff_t N, class A>
 struct POLY_MATH_GSL_OWNER ManagedArray : ReallocView<T, S, A> {
   static_assert(std::is_trivially_destructible_v<T>);
   using BaseT = ReallocView<T, S, A>;
-  using U = default_capacity_type_t<S>;
+  using U = containers::default_capacity_type_t<S>;
+  using storage_type = typename BaseT::storage_type;
   // We're deliberately not initializing storage.
 #if !defined(__clang__) && defined(__GNUC__)
 #pragma GCC diagnostic push
@@ -1249,32 +1396,7 @@ struct POLY_MATH_GSL_OWNER ManagedArray : ReallocView<T, S, A> {
     : BaseT{memory.data(), S(b.dim()), U(N), b.get_allocator()} {
     U len = U(this->sz);
     this->growUndef(len);
-    if constexpr (DenseLayout<D> && DenseLayout<S>) {
-      std::copy_n(b.data(), len, this->data());
-    } else if constexpr (MatrixDimension<D> && MatrixDimension<S>) {
-      invariant(b.numRow() == this->numRow());
-      invariant(b.numCol() == this->numCol());
-      for (ptrdiff_t m = 0; m < this->numRow(); ++m) {
-        POLYMATHVECTORIZE
-        for (ptrdiff_t n = 0; n < this->numCol(); ++n) (*this)(m, n) = b(m, n);
-      }
-    } else if constexpr (MatrixDimension<D>) {
-      ptrdiff_t j = 0;
-      for (ptrdiff_t m = 0; m < b.numRow(); ++m) {
-        POLYMATHVECTORIZE
-        for (ptrdiff_t n = 0; n < b.numCol(); ++n) (*this)(j++) = b(m, n);
-      }
-    } else if constexpr (MatrixDimension<S>) {
-      ptrdiff_t j = 0;
-      for (ptrdiff_t m = 0; m < this->numRow(); ++m) {
-        POLYMATHVECTORIZE
-        for (ptrdiff_t n = 0; n < this->numCol(); ++n) (*this)(m, n) = b(j++);
-      }
-    } else {
-      T *p = this->data();
-      POLYMATHVECTORIZE
-      for (ptrdiff_t i = 0; i < len; ++i) p[i] = b[i];
-    }
+    (*this) << b;
   }
   template <std::convertible_to<T> Y, size_t M>
   constexpr ManagedArray(std::array<Y, M> il) noexcept
@@ -1306,7 +1428,7 @@ struct POLY_MATH_GSL_OWNER ManagedArray : ReallocView<T, S, A> {
   }
   template <AbstractSimilar<S> V>
   constexpr ManagedArray(const V &b) noexcept
-    : BaseT{memory.data(), S(b.size()), U(N)} {
+    : BaseT{memory.data(), S(shape(b)), U(N)} {
     U len = U(this->sz);
     this->growUndef(len);
     (*this) << b;
@@ -1450,7 +1572,7 @@ struct POLY_MATH_GSL_OWNER ManagedArray : ReallocView<T, S, A> {
   }
 
 private:
-  [[no_unique_address]] containers::Storage<T, N> memory;
+  [[no_unique_address]] containers::Storage<storage_type, N> memory;
 };
 
 static_assert(std::move_constructible<ManagedArray<intptr_t, ptrdiff_t>>);
@@ -1474,7 +1596,7 @@ static_assert(
   sizeof(ManagedArray<int64_t, SquareDims<>, 64, alloc::Mallocator<int64_t>>) ==
   536);
 
-template <class T, ptrdiff_t N = PreAllocStorage<T, ptrdiff_t>()>
+template <class T, ptrdiff_t N = containers::PreAllocStorage<T, ptrdiff_t>()>
 using Vector = ManagedArray<T, ptrdiff_t, N>;
 template <class T> using PtrVector = Array<T, ptrdiff_t>;
 template <class T> using MutPtrVector = MutArray<T, ptrdiff_t>;
@@ -1506,7 +1628,8 @@ template <class T, ptrdiff_t L = 64>
 using DenseMatrix = ManagedArray<T, DenseDims<>, L>;
 template <class T> using SquarePtrMatrix = Array<T, SquareDims<>>;
 template <class T> using MutSquarePtrMatrix = MutArray<T, SquareDims<>>;
-template <class T, ptrdiff_t L = PreAllocSquareStorage<T, SquareDims<>>()>
+template <class T, ptrdiff_t L = containers::PreAllocSquareStorage<
+                     utils::compressed_t<T>, SquareDims<>>()>
 using SquareMatrix = ManagedArray<T, SquareDims<>, L>;
 
 static_assert(sizeof(PtrMatrix<int64_t>) ==
@@ -1720,7 +1843,7 @@ constexpr auto getMaxDigits(PtrMatrix<T> A) -> Vector<T> {
 template <typename T>
 inline auto printMatrix(std::ostream &os, PtrMatrix<T> A) -> std::ostream & {
   // std::ostream &printMatrix(std::ostream &os, T const &A) {
-  auto [M, N] = A.size();
+  auto [M, N] = shape(A);
   if ((!M) || (!N)) return os << "[ ]";
   // first, we determine the number of digits needed per column
   auto maxDigits{getMaxDigits(A)};
@@ -1749,7 +1872,7 @@ inline auto printMatrix(std::ostream &os, PtrMatrix<T> A) -> std::ostream & {
 inline auto printMatrix(std::ostream &os, PtrMatrix<double> A)
   -> std::ostream & {
   // std::ostream &printMatrix(std::ostream &os, T const &A) {
-  auto [M, N] = A.size();
+  auto [M, N] = shape(A);
   if ((!M) || (!N)) return os << "[ ]";
   // first, we determine the number of digits needed per column
   Vector<char, 512> digits;
@@ -1823,5 +1946,6 @@ inline auto operator<<(std::ostream &os, Array<T, DenseDims<R, C>> A)
 
 static_assert(std::same_as<const int64_t &,
                            decltype(std::declval<PtrMatrix<int64_t>>()[0, 0])>);
+static_assert(std::is_trivially_copyable_v<MutArray<int64_t, ptrdiff_t>>);
 
 } // namespace poly::math

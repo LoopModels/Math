@@ -1,5 +1,8 @@
 #pragma once
 #include "Math/Matrix.hpp"
+#include "SIMD/Indexing.hpp"
+#include "SIMD/Masks.hpp"
+#include "SIMD/Unroll.hpp"
 namespace poly::math {
 
 template <class T> struct UniformScaling {
@@ -9,9 +12,42 @@ template <class T> struct UniformScaling {
   constexpr auto operator[](ptrdiff_t r, ptrdiff_t c) const -> T {
     return r == c ? value : T{};
   }
+  template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename M>
+  [[gnu::always_inline]] constexpr auto
+  operator[](simd::index::Unroll<R> r, simd::index::Unroll<C, W, M> c) const
+    -> simd::Unroll<R, C, W, T> {
+    simd::Unroll<R, C, W, T> ret;
+    using I = simd::IntegerOfSize<T>;
+    using VI = simd::Vec<W, I>;
+    simd::Vec<W, T> vz{}, vv = vz + value;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t i = 0; i < R; ++i) {
+      VI vr = VI{} + (i + r.index), vc = simd::range<W, I>() + c.index;
+      POLYMATHFULLUNROLL
+      for (ptrdiff_t j = 0; j < C; ++j, vc += W)
+        ret[i, j] = (vr == vc) ? vv : vz;
+    }
+    return ret;
+  }
+  template <ptrdiff_t C, ptrdiff_t W, typename M>
+  [[gnu::always_inline]] constexpr auto
+  operator[](ptrdiff_t r, simd::index::Unroll<C, W, M> c) const
+    -> simd::Unroll<1, C, W, T> {
+    return (*this)[simd::index::Unroll<1>{r}, c];
+  }
+  // template <ptrdiff_t C, ptrdiff_t W, typename M>
+  // [[gnu::always_inline]] constexpr auto
+  // operator[](simd::index::Unroll<C, W, M> r, ptrdiff_t c) const
+  //   -> simd::Unroll<1, C, W, T> {
+  //   return (*this)[r, simd::index::Unroll<1>{c}];
+  // }
+
   static constexpr auto numRow() -> Row<0> { return {}; }
   static constexpr auto numCol() -> Col<0> { return {}; }
-  static constexpr auto size() -> CartesianIndex<ptrdiff_t, ptrdiff_t> {
+  static constexpr auto size() -> std::integral_constant<ptrdiff_t, 0> {
+    return {};
+  }
+  static constexpr auto shape() -> CartesianIndex<ptrdiff_t, ptrdiff_t> {
     return {0, 0};
   }
   static constexpr auto dim() -> DenseDims<0, 0> { return {{}, {}}; }

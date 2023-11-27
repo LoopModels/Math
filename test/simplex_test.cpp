@@ -14,6 +14,7 @@ TEST(SimplexTest, BasicAssertions) {
   // 15 >= 2x + 5y + 3z
   IntMatrix<> A{"[10 3 2 1; 15 2 5 3]"_mat};
   IntMatrix<> B{DenseDims<>{{0}, {4}}};
+  IntMatrix<> D{"[0 0 0 -2 -3 -4; 10 1 0  3  2  1; 15 0 1  2  5  3 ]"_mat};
   OwningArena<> alloc;
   Optional<Simplex *> optS0{Simplex::positiveVariables(&alloc, A)};
   EXPECT_TRUE(optS0.hasValue());
@@ -32,6 +33,7 @@ TEST(SimplexTest, BasicAssertions) {
     C[4] = -3;
     C[5] = -4;
     std::cout << "S.tableau =" << S->getTableau() << "\n";
+    EXPECT_EQ(S->getTableau(), D);
     EXPECT_EQ(S->run(), 20);
   }
 }
@@ -116,7 +118,14 @@ auto simplexFromTableau(Arena<> *alloc, IntMatrix<> &tableau)
   ptrdiff_t numCon = ptrdiff_t(tableau.numRow()) - 1;
   ptrdiff_t numVar = ptrdiff_t(tableau.numCol()) - 1;
   Simplex *simp{Simplex::create(alloc, numCon, numVar)};
+  for (ptrdiff_t r = 0, R = ptrdiff_t(numRows(tableau)); r < R; ++r)
+    for (ptrdiff_t c = 0, N = ptrdiff_t(numCols(tableau)); c < N; ++c)
+      invariant(tableau[r, c] != std::numeric_limits<int64_t>::min());
   simp->getTableau() << tableau;
+  auto C{simp->getConstraints()};
+  for (ptrdiff_t r = 0, R = ptrdiff_t(numRows(C)); r < R; ++r)
+    for (ptrdiff_t c = 0, N = ptrdiff_t(numCols(C)); c < N; ++c)
+      invariant(C[r, c] != std::numeric_limits<int64_t>::min());
   return simp;
 }
 
@@ -1344,7 +1353,7 @@ TEST(LexMinSimplexTest2, BasicAssertions) {
   }
 }
 
-TEST(Infesaible, BasicAssertions) {
+TEST(Infeasible, BasicAssertions) {
   IntMatrix<> C{DenseDims<>{{220}, {383}}, 0};
   C[0, 0] = -1;
   C[0, 1] = 1;

@@ -38,12 +38,12 @@ TEST(LinearAlgebraTest, BasicAssertions) {
   auto copyB = B;
   EXPECT_FALSE(LUF.ldivrat(copyB));
   std::cout << "LUF.ldiv(B) = \n" << copyB << "\n";
-  EXPECT_TRUE(copyB == identity);
+  EXPECT_EQ(copyB, identity);
   std::cout << "I = " << identity << "\n";
 
   EXPECT_FALSE(LUF.rdivrat(B));
   std::cout << "LUF.rdiv(B) = \n" << B << "\n";
-  EXPECT_TRUE(B == identity);
+  EXPECT_EQ(B, identity);
 }
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
@@ -59,23 +59,23 @@ TEST(DoubleFactorization, BasicAssertions) {
     // B = A \ B
     // C == A*B == A * (A \ B)
     LU::fact(A).ldiv(MutPtrMatrix<double>(B));
-    EXPECT_TRUE(norm2(A * B - C) < 1e-10);
+    EXPECT_LT(norm2(A * B - C), 1e-10);
     B << C;
     D << A;
     LU::ldiv(A, MutPtrMatrix<double>(B));
-    EXPECT_TRUE(norm2(D * B - C) < 1e-10);
+    EXPECT_LT(norm2(D * B - C), 1e-10);
 
     // LDL; make `A` symmetric
-    D << A + A.transpose();
+    D << A + A.t();
     A << D;
     B << C;
     // B = A \ B
     // C == A*B == A * (A \ B)
     LDL::factorize<>(D).ldiv(MutPtrMatrix<double>(B));
-    EXPECT_TRUE(norm2(A * B - C) < 1e-10);
+    EXPECT_LT(norm2(A * B - C), 1e-10);
     B << C;
     D << A;
     LDL::ldiv<>(A, MutPtrMatrix<double>(B));
-    EXPECT_TRUE(norm2(D * B - C) < 1e-10);
+    EXPECT_LT(norm2(D * B - C), 1e-10);
   }
 }

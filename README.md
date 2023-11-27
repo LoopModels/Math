@@ -12,4 +12,7 @@ Copying, e.g. from an expression template to an array, is done via `destination 
 `operator=` is reserved for copying the actual objects, rather than referenced memory, as this seems to be the behavior C++ views.
 Thus if `A` and `B` are views, `A = B` will make `A` the same view as `B`, while `A << B` will copy memory from `B` to `A`.
 
+Vectors are interpreted as row vectors by default. `v.t()` or `transpose(v)` may be used to transpose.
+`A[_,i]` is a column-vector, `A[i,_]` a row-vector.
+
 This repository was created using the [ModernCppStarter](https://github.com/TheLartians/ModernCppStarter).

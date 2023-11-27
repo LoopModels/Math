@@ -2,6 +2,7 @@
 #include "Math/AxisTypes.hpp"
 #include "Math/Iterators.hpp"
 #include "Math/MatrixDimensions.hpp"
+#include "SIMD/Indexing.hpp"
 #include <cstddef>
 
 namespace poly::math {
@@ -16,6 +17,8 @@ namespace poly::math {
     return os << "end";
   }
 } end;
+/// TODO: remove `OffsetBegin`
+/// We probably won't support non-zero-based indexing
 struct OffsetBegin {
   [[no_unique_address]] ptrdiff_t offset;
   friend inline auto operator<<(std::ostream &os, OffsetBegin r)
@@ -65,7 +68,8 @@ concept ScalarIndex =
   [[nodiscard]] inline constexpr auto operator()(auto B, auto E) const {
     return Range{standardizeRangeBound(B), standardizeRangeBound(E)};
   }
-} _; // NOLINT(bugprone-reserved-identifier)
+} _;
+
 constexpr auto canonicalize(ptrdiff_t e, ptrdiff_t) -> ptrdiff_t { return e; }
 constexpr auto canonicalize(Begin, ptrdiff_t) -> ptrdiff_t { return 0; }
 constexpr auto canonicalize(OffsetBegin b, ptrdiff_t) -> ptrdiff_t {
@@ -142,16 +146,6 @@ constexpr auto calcOffset(ptrdiff_t, Colon) -> ptrdiff_t { return 0; }
 constexpr auto calcOffset(SquareDims<>, ptrdiff_t i) -> ptrdiff_t { return i; }
 constexpr auto calcOffset(DenseDims<>, ptrdiff_t i) -> ptrdiff_t { return i; }
 
-template <class R, class C>
-[[nodiscard]] inline constexpr auto calcOffset(StridedDims<> d,
-                                               CartesianIndex<R, C> i)
-  -> ptrdiff_t {
-  ptrdiff_t r =
-    ptrdiff_t(RowStride<>(d)) * calcOffset(ptrdiff_t(Row<>(d)), i.row);
-  ptrdiff_t c = calcOffset(ptrdiff_t(Col<>(d)), i.col);
-  return r + c;
-}
-
 struct StridedRange {
   [[no_unique_address]] ptrdiff_t len;
   [[no_unique_address]] ptrdiff_t stride;
@@ -161,35 +155,57 @@ struct StridedRange {
     return os << "Length: " << x.len << " (stride: " << x.stride << ")";
   }
 };
+
+template <ptrdiff_t U, ptrdiff_t W, typename M>
+constexpr auto calcOffset(ptrdiff_t len, simd::index::Unroll<U, W, M> i) {
+  if constexpr (std::same_as<M, simd::mask::None<W>>)
+    invariant((i.index + U * W - 1) < len);
+  else invariant(i.index + (U - 1) * W + i.mask.lastUnmasked() - 1 < len);
+  return i.index;
+}
+
 template <class I> constexpr auto calcOffset(StridedRange d, I i) -> ptrdiff_t {
   return d.stride * calcOffset(d.len, i);
 }
-constexpr auto is_integral_const(auto) -> bool { return false; }
-template <typename T, T V>
-constexpr auto is_integral_const(std::integral_constant<T, V>) -> bool {
-  return true;
+
+template <class R, class C>
+[[nodiscard]] inline constexpr auto calcOffset(StridedDims<> d, R r, C c)
+  -> ptrdiff_t {
+  return ptrdiff_t(stride(d)) * calcOffset(ptrdiff_t(Row<>(d)), r) +
+         calcOffset(ptrdiff_t(Col<>(d)), c);
 }
+
+// constexpr auto is_integral_const(auto) -> bool { return false; }
+// template <typename T, T V>
+// constexpr auto is_integral_const(std::integral_constant<T, V>) -> bool {
+//   return true;
+// }
+constexpr auto row(StridedRange r) -> Row<> { return {r.len}; }
+constexpr auto col(StridedRange) -> Col<1> { return {}; }
+constexpr auto stride(StridedRange r) -> RowStride<> { return {r.stride}; }
 
 template <typename T>
 concept StaticInt =
   std::is_same_v<T, std::integral_constant<typename T::value_type, T::value>>;
 
-template <class T>
+template <typename T>
 concept DenseLayout =
   std::integral<T> || std::is_convertible_v<T, DenseDims<>> || StaticInt<T>;
 
 static_assert(StaticInt<std::integral_constant<ptrdiff_t, 3>>);
 static_assert(!StaticInt<int64_t>);
 
-template <class D>
+template <typename D>
 concept VectorDimension =
   std::integral<D> || std::same_as<D, StridedRange> || StaticInt<D>;
 
 // Concept for aligning array dimensions with indices.
 template <class I, class D>
 concept Index =
-  (VectorDimension<D> && (ScalarIndex<I> || AbstractSlice<I>)) ||
-  (DenseLayout<D> && ScalarIndex<I>) || (MatrixDimension<D> && requires(I i) {
+  (VectorDimension<D> &&
+   (ScalarIndex<I> || AbstractSlice<I> || simd::index::issimd<I>)) ||
+  (DenseLayout<D> && (ScalarIndex<I> || simd::index::issimd<I>)) ||
+  (MatrixDimension<D> && requires(I i) {
     { i.row };
     { i.col };
   });
@@ -221,7 +237,7 @@ constexpr auto calcNewDim(StridedRange len, Range<B, E> r) -> StridedRange {
   return StridedRange{ptrdiff_t(calcNewDim(len.len, r)), len.stride};
 }
 template <ScalarIndex R, ScalarIndex C>
-constexpr auto calcNewDim(StridedDims<>, CartesianIndex<R, C>) -> Empty {
+constexpr auto calcNewDim(StridedDims<>, R, C) -> Empty {
   return {};
 }
 constexpr auto calcNewDim(std::integral auto len, Colon) -> ptrdiff_t {
@@ -231,31 +247,66 @@ constexpr auto calcNewDim(StaticInt auto len, Colon) { return len; };
 constexpr auto calcNewDim(StridedRange len, Colon) { return len; };
 
 template <AbstractSlice B, ScalarIndex C>
-constexpr auto calcNewDim(StridedDims<> d, CartesianIndex<B, C> i) {
-  ptrdiff_t rowDims = ptrdiff_t(calcNewDim(ptrdiff_t(Row(d)), i.row));
+constexpr auto calcNewDim(StridedDims<> d, B b, C) {
+  ptrdiff_t rowDims = ptrdiff_t(calcNewDim(ptrdiff_t(Row(d)), b));
   return StridedRange{rowDims, ptrdiff_t(RowStride(d))};
 }
 
 template <ScalarIndex R, AbstractSlice C>
-constexpr auto calcNewDim(StridedDims<> d, CartesianIndex<R, C> i) {
-  return calcNewDim(ptrdiff_t(Col(d)), i.col);
+constexpr auto calcNewDim(StridedDims<> d, R, C c) {
+  return calcNewDim(ptrdiff_t(Col(d)), c);
 }
 
 template <AbstractSlice B, AbstractSlice C>
-constexpr auto calcNewDim(StridedDims<> d, CartesianIndex<B, C> i) {
-  auto rowDims = calcNewDim(ptrdiff_t(Row(d)), i.row);
-  auto colDims = calcNewDim(ptrdiff_t(Col(d)), i.col);
+constexpr auto calcNewDim(StridedDims<> d, B r, C c) {
+  auto rowDims = calcNewDim(ptrdiff_t(Row(d)), r);
+  auto colDims = calcNewDim(ptrdiff_t(Col(d)), c);
   return StridedDims(row(rowDims), col(colDims), RowStride(d));
 }
 template <AbstractSlice B>
-constexpr auto calcNewDim(DenseDims<> d, CartesianIndex<B, Colon> i) {
-  auto rowDims = calcNewDim(ptrdiff_t(Row(d)), i.row);
+constexpr auto calcNewDim(DenseDims<> d, B r, Colon) {
+  auto rowDims = calcNewDim(ptrdiff_t(Row(d)), r);
   return DenseDims(row(rowDims), Col(d));
 }
 template <AbstractSlice B>
-constexpr auto calcNewDim(SquareDims<> d, CartesianIndex<B, Colon> i) {
-  auto rowDims = calcNewDim(ptrdiff_t(Row(d)), i.row);
+constexpr auto calcNewDim(SquareDims<> d, B r, Colon) {
+  auto rowDims = calcNewDim(ptrdiff_t(Row(d)), r);
   return DenseDims(row(rowDims), Col(d));
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename M>
+constexpr auto calcNewDim(StridedDims<> d, simd::index::Unroll<R>,
+                          simd::index::Unroll<C, W, M> c) {
+  return simd::index::UnrollDims<R, C, W, M>{c.mask, RowStride(d)};
+}
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t W, typename M>
+constexpr auto calcNewDim(StridedDims<> d, simd::index::Unroll<C, W, M> r,
+                          simd::index::Unroll<R>) {
+  return simd::index::UnrollDims<R, C, W, M, true>{r.mask, RowStride(d)};
+}
+
+template <ptrdiff_t C, ptrdiff_t W, typename M>
+constexpr auto calcNewDim(StridedDims<> d, ptrdiff_t,
+                          simd::index::Unroll<C, W, M> c) {
+  return simd::index::UnrollDims<1, C, W, M>{c.mask, RowStride(d)};
+}
+template <ptrdiff_t R, ptrdiff_t W, typename M>
+constexpr auto calcNewDim(StridedDims<> d, simd::index::Unroll<R, W, M> r,
+                          ptrdiff_t) {
+  if constexpr (W == 1)
+    return simd::index::UnrollDims<R, 1, 1, M>{r.mask, RowStride(d)};
+  else return simd::index::UnrollDims<1, R, W, M, true>{r.mask, RowStride(d)};
+}
+
+template <ptrdiff_t U, ptrdiff_t W, typename M>
+constexpr auto calcNewDim(ptrdiff_t, simd::index::Unroll<U, W, M> i) {
+  return simd::index::UnrollDims<1, U, W, M, false, 1>{i.mask, RowStride<1>{}};
+}
+
+template <ptrdiff_t U, ptrdiff_t W, typename M>
+constexpr auto calcNewDim(StridedRange x, simd::index::Unroll<U, W, M> i) {
+  if constexpr (W == 1)
+    return simd::index::UnrollDims<U, 1, 1, M, false, -1>{i.mask, stride(x)};
+  else return simd::index::UnrollDims<1, U, W, M, true, -1>{i.mask, stride(x)};
 }
 
 } // namespace poly::math

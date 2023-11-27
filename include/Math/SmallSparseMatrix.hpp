@@ -90,7 +90,7 @@ template <class T, class S, class P>
 [[gnu::flatten]] constexpr auto
 ArrayOps<T, S, P>::operator<<(const SmallSparseMatrix<T> &B) -> P & {
   static_assert(MatrixDimension<S>);
-  ptrdiff_t M = nr(), N = nc(), k = 0;
+  ptrdiff_t M = ptrdiff_t(nr()), N = ptrdiff_t(nc()), k = 0;
   invariant(M, ptrdiff_t(B.numRow()));
   invariant(N, ptrdiff_t(B.numCol()));
   T *mem = data_();
@@ -98,7 +98,7 @@ ArrayOps<T, S, P>::operator<<(const SmallSparseMatrix<T> &B) -> P & {
   PtrVector<uint32_t> rws = B.getRows();
   for (ptrdiff_t i = 0; i < M; ++i) {
     uint32_t m = rws[i] & 0x00ffffff;
-    ptrdiff_t j = 0, l = rs() * i;
+    ptrdiff_t j = 0, l = ptrdiff_t(rs()) * i;
     while (m) {
       uint32_t tz = std::countr_zero(m);
       m >>= tz + 1;

@@ -17,7 +17,7 @@ template <typename T> struct EmptyMatrix {
 
   static constexpr auto data() -> T * { return nullptr; }
   static constexpr auto operator[](ptrdiff_t, ptrdiff_t) -> T { return 0; }
-  static constexpr auto size() -> CartesianIndex<ptrdiff_t, ptrdiff_t> {
+  static constexpr auto shape() -> CartesianIndex<ptrdiff_t, ptrdiff_t> {
     return {0, 0};
   }
   static constexpr auto view() -> EmptyMatrix<T> { return EmptyMatrix<T>{}; }

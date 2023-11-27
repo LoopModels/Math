@@ -80,19 +80,20 @@ TEST(SparseIndexingTest, BasicAssertions) {
   IntMatrix<> C2{A * B};
   std::cout << "C=" << C << "\nC2=" << C2 << "\n";
   EXPECT_TRUE(C == C2);
-  IntMatrix<> At{A.transpose()}, Bt{B.transpose()};
-  // At << A.transpose();
-  // Bt << B.transpose();
-  C2 += At.transpose() * Bt.transpose();
-  EXPECT_TRUE(C * 2 == C2);
-  EXPECT_TRUE(C == At.transpose() * B);
-  EXPECT_TRUE(C == A * Bt.transpose());
-  EXPECT_TRUE(C == At.transpose() * Bt.transpose());
-  C2 -= A * Bt.transpose();
-  EXPECT_TRUE(C == C2);
+  IntMatrix<> At{A.t()}, Bt{B.t()};
+  // At << A.t();
+  // Bt << B.t();
+  C2 += At.t() * Bt.t();
+  EXPECT_EQ(C * 2, C2);
+  EXPECT_EQ(C, At.t() * B);
+  EXPECT_EQ(C, A * Bt.t());
+  EXPECT_EQ(C, At.t() * Bt.t());
+  C2 -= A * Bt.t();
+  EXPECT_EQ(C, C2);
   int64_t i = 0;
   IntMatrix<> D{C};
   std::cout << "C=" << C << "\n";
+  static_assert(std::same_as<decltype(D[0, _]), MutArray<long, long>>);
   for (ptrdiff_t r : _(0, D.numRow())) D[r, _] += ptrdiff_t(r) + 1;
   for (auto r : C.eachRow()) {
     EXPECT_EQ(r.size(), ptrdiff_t(C.numCol()));
@@ -172,6 +173,53 @@ TEST(ExpressionTemplateTest, BasicAssertions) {
       for (ptrdiff_t k = 0; k < i; ++k) EXPECT_EQ((F[j, k]), k + j == i - 1);
   }
 }
+// NOLINTNEXTLINE(modernize-use-trailing-return-type)
+TEST(ExpressionTemplateTest2, BasicAssertions) {
+  ManagedArray<double, DenseDims<>> W{{{3}, {3}}, 0}, X{{{3}, {3}}, 0},
+    Y{{{3}, {3}}, 0}, Z{{{3}, {3}}, 0};
+  W[0, 0] = 0.29483432115939806;
+  W[0, 1] = 1.5777027461040212;
+  W[0, 2] = 0.8171761007267028;
+  W[1, 0] = 1.0463632179853855;
+  W[1, 1] = 0.9503214631611095;
+  W[1, 2] = -0.17890983978584624;
+  W[2, 0] = 1.5853551451194254;
+  W[2, 1] = -0.784875301203305;
+  W[2, 2] = 1.7033024094365752;
+  X[0, 0] = -1.1175097244313117;
+  X[0, 1] = -0.21769215316295054;
+  X[0, 2] = -0.7340630927749082;
+  X[1, 0] = -0.5750426169922397;
+  X[1, 1] = 0.27174064995044767;
+  X[1, 2] = -1.0669896577273217;
+  X[2, 0] = 0.9302424251181362;
+  X[2, 1] = -1.3157431480603476;
+  X[2, 2] = 1.546836705770486;
+  Y[0, 0] = 1.1701212478097331;
+  Y[0, 1] = 0.7747688878004019;
+  Y[0, 2] = -0.926815554991563;
+  Y[1, 0] = -1.4441713498640656;
+  Y[1, 1] = -1.3615487160168993;
+  Y[1, 2] = 0.7908183008408143;
+  Y[2, 0] = -0.7626497248468547;
+  Y[2, 1] = -0.21682371102755368;
+  Y[2, 2] = -0.07604892144743511;
+  Z[0, 0] = 3.3759933640164708e16;
+  Z[0, 1] = 9.176788687153845e14;
+  Z[0, 2] = -1.1081818546676994e15;
+  Z[1, 0] = -1.7207794047001762e15;
+  Z[1, 1] = 3.0768637505289172e16;
+  Z[1, 2] = 9.277082601207064e14;
+  Z[2, 0] = -8.956589651911538e14;
+  Z[2, 1] = -2.7136623944168075e14;
+  Z[2, 2] = 3.2308470074953084e16;
+  ManagedArray<double, DenseDims<>> A{
+    W * (W + 16380 * X + 40840800 * Y) +
+    (33522128640 * W + 10559470521600 * X + 1187353796428800 * Y) +
+    32382376266240000 * I};
+
+  EXPECT_EQ(A, Z);
+}
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(ArrayPrint, BasicAssertions) {
@@ -208,7 +256,7 @@ TEST(SquareMatrixTest, BasicAssertions) {
   for (ptrdiff_t i = 0; i < 4; ++i)
     for (ptrdiff_t j = 0; j < 4; ++j) A[i, j] = 4 * i + j;
   DenseMatrix<int64_t> B{DenseDims<>{{4}, {2}}};
-  B << A[_(end - 2, end), _].transpose();
+  B << A[_(end - 2, end), _].t();
   for (ptrdiff_t j = 0; j < 4; ++j)
     for (ptrdiff_t i = 0; i < 2; ++i) EXPECT_EQ((B[j, i]), 4 * (i + 2) + j);
 }
@@ -225,6 +273,7 @@ TEST(VectorTest, BasicAssertions) {
 }
 TEST(SVectorTest, BasicAssertions) {
   SVector<int64_t, 3> x{1, 2, 3};
+  static_assert(poly::utils::Compressible<SVector<int64_t, 3>>);
   static_assert(std::tuple_size_v<decltype(x)> == 3);
   static_assert(std::same_as<std::tuple_element_t<2, decltype(x)>, int64_t>);
   SVector<int64_t, 3> y{10, 20, 30};

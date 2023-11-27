@@ -1,4 +1,5 @@
 #pragma once
+#include "Containers/Pair.hpp"
 #include "Math/Array.hpp"
 #include "Math/Constructors.hpp"
 #include "Math/Math.hpp"
@@ -9,18 +10,17 @@ namespace LU {
 [[nodiscard]] constexpr auto ldivrat(SquarePtrMatrix<Rational> F,
                                      PtrVector<unsigned> ipiv,
                                      MutPtrMatrix<Rational> rhs) -> bool {
-  auto [M, N] = rhs.size();
+  auto [M, N] = shape(rhs);
   invariant(ptrdiff_t(F.numRow()), ptrdiff_t(M));
   // permute rhs
-  for (ptrdiff_t i = 0; i < M; ++i) {
-    unsigned ip = ipiv[i];
-    if (i != ip)
+  for (ptrdiff_t i = 0; i < M; ++i)
+    if (unsigned ip = ipiv[i]; i != ip)
       for (ptrdiff_t j = 0; j < M; ++j) std::swap(rhs[ip, j], rhs[i, j]);
-  }
+
   // LU x = rhs
   // L y = rhs // L is UnitLowerTriangular
-  for (ptrdiff_t n = 0; n < N; ++n) {
-    for (ptrdiff_t m = 0; m < M; ++m) {
+  for (ptrdiff_t m = 0; m < M; ++m) {
+    for (ptrdiff_t n = 0; n < N; ++n) {
       Rational Ymn = rhs[m, n];
       for (ptrdiff_t k = 0; k < m; ++k)
         if (Ymn.fnmadd(F[m, k], rhs[k, n])) return true;
@@ -28,8 +28,8 @@ namespace LU {
     }
   }
   // U x = y
-  for (ptrdiff_t n = 0; n < N; ++n) {
-    for (auto m = ptrdiff_t(M); m--;) {
+  for (ptrdiff_t m = M; m--;) {
+    for (ptrdiff_t n = 0; n < N; ++n) {
       Rational Ymn = rhs[m, n];
       for (ptrdiff_t k = m + 1; k < M; ++k)
         if (Ymn.fnmadd(F[m, k], rhs[k, n])) return true;
@@ -41,44 +41,34 @@ namespace LU {
 }
 template <class S>
 constexpr void ldiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
-                    MutPtrMatrix<S> rhs) {
-  auto [M, N] = rhs.size();
-  invariant(ptrdiff_t(F.numRow()), ptrdiff_t(M));
+                    MutPtrMatrix<S> R) {
+  auto [M, N] = shape(R);
+  invariant(ptrdiff_t(F.numRow()), M);
+  invariant(M > 0);
   // permute rhs
-  for (ptrdiff_t i = 0; i < M; ++i) {
-    unsigned ip = ipiv[i];
-    if (i != ip)
-      for (ptrdiff_t j = 0; j < M; ++j) std::swap(rhs[ip, j], rhs[i, j]);
-  }
+  for (ptrdiff_t i = 0; i < M; ++i)
+    if (unsigned ip = ipiv[i]; i != ip)
+      for (ptrdiff_t j = 0; j < M; ++j) std::swap(R[ip, j], R[i, j]);
+
   // LU x = rhs
   // L y = rhs // L is UnitLowerTriangular
-  for (ptrdiff_t n = 0; n < N; ++n) {
-    for (ptrdiff_t m = 0; m < M; ++m) {
-      S Ymn = rhs[m, n];
-      for (ptrdiff_t k = 0; k < m; ++k) Ymn -= F[m, k] * rhs[k, n];
-      rhs[m, n] = Ymn;
-    }
-  }
+  for (ptrdiff_t m = 1; m < M; ++m) R[m, _] -= F[m, _(0, m)] * R[_(0, m), _];
   // U x = y
-  for (ptrdiff_t n = 0; n < N; ++n) {
-    for (auto m = ptrdiff_t(M); m--;) {
-      S Ymn = rhs[m, n];
-      for (ptrdiff_t k = m + 1; k < M; ++k) Ymn -= F[m, k] * rhs[k, n];
-      rhs[m, n] = Ymn / F[m, m];
-    }
-  }
+  R[last, _] /= F[last, last];
+  for (ptrdiff_t m = M - 1; m--;)
+    R[m, _] << (R[m, _] - F[m, _(m + 1, end)] * R[_(m + 1, end), _]) / F[m, m];
 }
 
 [[nodiscard]] constexpr auto rdivrat(SquarePtrMatrix<Rational> F,
                                      PtrVector<unsigned> ipiv,
                                      MutPtrMatrix<Rational> rhs) -> bool {
-  auto [M, N] = rhs.size();
+  auto [M, N] = shape(rhs);
   invariant(ptrdiff_t(F.numCol()), ptrdiff_t(N));
   // PA = LU
   // x LU = rhs
   // y U = rhs
-  for (ptrdiff_t n = 0; n < N; ++n) {
-    for (ptrdiff_t m = 0; m < M; ++m) {
+  for (ptrdiff_t m = 0; m < M; ++m) {
+    for (ptrdiff_t n = 0; n < N; ++n) {
       Rational Ymn = rhs[m, n];
       for (ptrdiff_t k = 0; k < n; ++k)
         if (Ymn.fnmadd(rhs[m, k], F[k, n])) return true;
@@ -87,9 +77,8 @@ constexpr void ldiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
     }
   }
   // x L = y
-  for (auto n = ptrdiff_t(N); n--;) {
-    // for (ptrdiff_t n = 0; n < N; ++n) {
-    for (ptrdiff_t m = 0; m < M; ++m) {
+  for (ptrdiff_t m = 0; m < M; ++m) {
+    for (ptrdiff_t n = N; n--;) {
       Rational Xmn = rhs[m, n];
       for (ptrdiff_t k = n + 1; k < N; ++k)
         if (Xmn.fnmadd(rhs[m, k], F[k, n])) return true;
@@ -97,38 +86,27 @@ constexpr void ldiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
     }
   }
   // permute rhs
-  for (auto j = ptrdiff_t(N); j--;) {
-    unsigned jp = ipiv[j];
-    if (j != jp)
+  for (auto j = ptrdiff_t(N); j--;)
+    if (unsigned jp = ipiv[j]; j != jp)
       for (ptrdiff_t i = 0; i < M; ++i) std::swap(rhs[i, jp], rhs[i, j]);
-  }
 
   return false;
 }
 template <class S>
 constexpr void rdiv(SquarePtrMatrix<S> F, PtrVector<unsigned> ipiv,
                     MutPtrMatrix<S> rhs) {
-  auto [M, N] = rhs.size();
-  invariant(ptrdiff_t(F.numCol()), ptrdiff_t(N));
+  auto [M, N] = shape(rhs);
+  invariant(ptrdiff_t(F.numCol()), N);
+  invariant(N > 0);
   // PA = LU
   // x LU = rhs
   // y U = rhs
-  for (ptrdiff_t n = 0; n < N; ++n) {
-    for (ptrdiff_t m = 0; m < M; ++m) {
-      S Ymn = rhs[m, n];
-      for (ptrdiff_t k = 0; k < n; ++k) Ymn -= rhs[m, k] * F[k, n];
-      rhs[m, n] = Ymn / F[n, n];
-    }
-  }
+  rhs[_, 0] /= F[0, 0];
+  for (ptrdiff_t n = 1; n < N; ++n)
+    rhs[_, n] << (rhs[_, n] - rhs[_, _(0, n)] * F[_(0, n), n]) / F[n, n];
   // x L = y
-  for (auto n = ptrdiff_t(N); n--;) {
-    // for (ptrdiff_t n = 0; n < N; ++n) {
-    for (ptrdiff_t m = 0; m < M; ++m) {
-      S Xmn = rhs[m, n];
-      for (ptrdiff_t k = n + 1; k < N; ++k) Xmn -= rhs[m, k] * F[k, n];
-      rhs[m, n] = Xmn;
-    }
-  }
+  for (ptrdiff_t n = N - 1; n--;)
+    rhs[_, n] -= rhs[_, _(n + 1, end)] * F[_(n + 1, end), n];
   // permute rhs
   for (auto j = ptrdiff_t(N); j--;)
     if (unsigned jp = ipiv[j]; j != jp)
@@ -169,8 +147,8 @@ public:
   }
   [[nodiscard]] constexpr auto perm() const -> Vector<unsigned> {
     Col M = F.numCol();
-    Vector<unsigned> perm;
-    for (ptrdiff_t m = 0; m < M; ++m) perm.push_back(m);
+    Vector<unsigned> perm{M};
+    for (ptrdiff_t m = 0; m < M; ++m) perm[m] = m;
     for (ptrdiff_t m = 0; m < M; ++m) std::swap(perm[m], perm[ipiv[m]]);
     return perm;
   }
@@ -187,16 +165,17 @@ template <ptrdiff_t L>
   auto ipiv{vector(alloc::Mallocator<unsigned>{}, ptrdiff_t(M))};
   // Vector<unsigned> ipiv{.s = unsigned(M)};
   invariant(ptrdiff_t(ipiv.size()), ptrdiff_t(M));
-  for (ptrdiff_t i = 0; i < M; ++i) ipiv[i] = i;
-  for (ptrdiff_t k = 0; k < M; ++k) {
+  for (ptrdiff_t k = 0;; ++k) {
     ptrdiff_t kp = k;
-    for (; kp < M; ++kp) {
+    for (;; ++kp) {
+      if (kp == M) return {};
       if (A[kp, k] == 0) continue;
       ipiv[k] = kp;
       break;
     }
     if (kp != k)
       for (ptrdiff_t j = 0; j < M; ++j) std::swap(A[kp, j], A[k, j]);
+    if (k + 1 == M) break;
     Rational invAkk = A[k, k].inv();
     for (ptrdiff_t i = k + 1; i < M; ++i)
       if (std::optional<Rational> Aik = A[i, k].safeMul(invAkk)) A[i, k] = *Aik;
@@ -216,23 +195,22 @@ template <ptrdiff_t L>
   return Fact<Rational, L>{std::move(A), std::move(ipiv)};
 }
 template <typename S> constexpr auto factImpl(MutSquarePtrMatrix<S> A) {
+  using V = decltype(value(S{}));
   Row M = A.numRow();
   auto ipiv{vector(alloc::Mallocator<unsigned>{}, ptrdiff_t(M))};
   invariant(ptrdiff_t(ipiv.size()), ptrdiff_t(M));
-  for (ptrdiff_t i = 0; i < M; ++i) ipiv[i] = i;
-  for (ptrdiff_t k = 0; k < M; ++k) {
-    ptrdiff_t kp = k;
-    for (; kp < M; ++kp) {
-      if (A[kp, k] == 0) continue;
-      ipiv[k] = kp;
-      break;
-    }
-    if (kp != k)
-      for (ptrdiff_t j = 0; j < M; ++j) std::swap(A[kp, j], A[k, j]);
+  for (ptrdiff_t k = 0;; ++k) {
+    containers::Pair<ptrdiff_t, V> mi{-1, {}};
+    for (ptrdiff_t i = k; i < M; ++i)
+      if (V v = std::abs(value(A[i, k])); v > mi.second) mi = {i, v};
+    invariant(mi.first >= 0); // TODO: return info?
+    ipiv[k] = mi.first;
+    if (mi.first != k)
+      for (ptrdiff_t j = 0; j < M; ++j) std::swap(A[mi.first, j], A[k, j]);
+    if (k + 1 == M) break;
     S invAkk = 1.0 / A[k, k];
-    for (ptrdiff_t i = k + 1; i < M; ++i) A[i, k] = A[i, k] * invAkk;
     for (ptrdiff_t i = k + 1; i < M; ++i)
-      for (ptrdiff_t j = k + 1; j < M; ++j) A[i, j] -= A[i, k] * A[k, j];
+      A[i, _(k + 1, end)] -= (A[i, k] *= invAkk) * A[k, _(k + 1, end)];
   }
   return ipiv;
 }
@@ -278,55 +256,49 @@ namespace LDL {
 /// NOT OWNING
 /// TODO: make the API consistent between LU and LDL
 template <typename T> class Fact {
-  MutSquarePtrMatrix<T> fact;
+  MutSquarePtrMatrix<T> F;
 
 public:
-  constexpr Fact(MutSquarePtrMatrix<T> A) : fact{A} {};
+  constexpr Fact(MutSquarePtrMatrix<T> A) : F{A} {};
 
-  constexpr void ldiv(MutPtrMatrix<T> rhs) {
-    ptrdiff_t M = ptrdiff_t(rhs.numRow());
-    invariant(ptrdiff_t(fact.numRow()), M);
+  constexpr void ldiv(MutPtrMatrix<T> R) {
+    ptrdiff_t M = ptrdiff_t(R.numRow());
+    invariant(ptrdiff_t(F.numRow()), M);
     // LD^-1L' x = rhs
     // L y = rhs // L is UnitLowerTriangular
-    for (ptrdiff_t m = 0; m < M; ++m)
-      rhs[m, _] -= rhs[_(0, m), _].transpose() * fact[m, _(0, m)];
-
+    for (ptrdiff_t m = 1; m < M; ++m) R[m, _] -= F[m, _(0, m)] * R[_(0, m), _];
     // D^-1 L' x = y
     // L' x = D y
-    for (ptrdiff_t m = M; m--;) {
-      rhs[m, _] *= fact[m, m];
-      rhs[m, _] -= rhs[_(m + 1, M), _].transpose() * fact[_(m + 1, M), m];
-    }
+    R[last, _] *= F[last, last];
+    for (ptrdiff_t m = M - 1; m--;)
+      R[m, _] << R[m, _] * F[m, m] - F[_(m + 1, M), m].t() * R[_(m + 1, M), _];
   }
-  constexpr void ldiv(MutPtrVector<T> rhs) {
-    ptrdiff_t M = rhs.size();
-    invariant(ptrdiff_t(fact.numRow()), M);
+  constexpr void ldiv(MutPtrVector<T> R) {
+    ptrdiff_t M = R.size();
+    invariant(ptrdiff_t(F.numRow()), M);
     // LD^-1L' x = rhs
     // L y = rhs // L is UnitLowerTriangular
-    for (ptrdiff_t m = 0; m < M; ++m)
-      rhs[m] -= fact[m, _(0, m)].transpose() * rhs[_(0, m)];
+    for (ptrdiff_t m = 1; m < M; ++m) R[m] -= R[_(0, m)] * F[m, _(0, m)].t();
     // D^-1 L' x = y
     // L' x = D y
-    for (ptrdiff_t m = M; m--;) {
-      rhs[m] *= fact[m, m];
-      rhs[m] -= fact[_(m + 1, M), m].transpose() * rhs[_(m + 1, M)];
-    }
+    R[last] *= F[last, last];
+    for (ptrdiff_t m = M - 1; m--;)
+      R[m] = R[m] * F[m, m] - R[_(m + 1, M)] * F[_(m + 1, M), m];
   }
   constexpr void ldiv(MutPtrVector<T> dst, TrivialVec auto src) {
     ptrdiff_t M = dst.size();
-    invariant(M == src.size());
-    invariant(ptrdiff_t(fact.numRow()), M);
+    invariant(M, ptrdiff_t(src.size()));
+    invariant(ptrdiff_t(F.numRow()), M);
     // LD^-1L' x = rhs
     // L y = rhs // L is UnitLowerTriangular
-    for (ptrdiff_t m = 0; m < M; ++m)
-      dst[m] = src[m] - fact[m, _(0, m)].transpose() * dst[_(0, m)];
-
+    dst[0] = src[0];
+    for (ptrdiff_t m = 1; m < M; ++m)
+      dst[m] = src[m] - dst[_(0, m)] * F[m, _(0, m)].t();
     // D^-1 L' x = y
     // L' x = D y
-    for (ptrdiff_t m = M; m--;) {
-      dst[m] *= fact[m, m];
-      dst[m] -= fact[_(m + 1, M), m].transpose() * dst[_(m + 1, M)];
-    }
+    dst[last] *= F[last, last];
+    for (ptrdiff_t m = M - 1; m--;)
+      dst[m] = dst[m] * F[m, m] - dst[_(m + 1, M)] * F[_(m + 1, M), m];
   }
 };
 
@@ -334,15 +306,14 @@ template <bool ForcePD = false, typename T>
 constexpr auto factorize(MutSquarePtrMatrix<T> A) -> Fact<T> {
   Row M = A.numRow();
   invariant(ptrdiff_t(M), ptrdiff_t(A.numCol()));
-  for (ptrdiff_t k = 0; k < M; ++k) {
+  for (ptrdiff_t k = 0;; ++k) {
     T Akk = A[k, k];
     if constexpr (ForcePD) Akk = std::max(Akk, T(0.001));
     T invAkk = A[k, k] = 1.0 / Akk;
+    if (k + 1 == M) break;
     A[_(k + 1, M), k] *= invAkk;
-    for (ptrdiff_t i = k + 1; i < M; ++i) {
-      T Aik = A[i, k] * Akk;
-      for (ptrdiff_t j = k + 1; j <= i; ++j) A[i, j] -= Aik * A[j, k];
-    }
+    for (ptrdiff_t i = k + 1; i < M; ++i)
+      A[i, _(k + 1, i + 1)] -= (A[i, k] * Akk) * A[_(k + 1, i + 1), k];
   }
   return Fact{A};
 }
