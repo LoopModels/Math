@@ -1,5 +1,6 @@
 
 #include "include/randdual.hpp"
+#include <Containers/Tuple.hpp>
 #include <Math/Array.hpp>
 #include <Math/Dual.hpp>
 #include <Math/LinearAlgebra.hpp>
@@ -14,42 +15,69 @@
 #include <random>
 #include <ranges>
 
-using poly::math::Dual, poly::math::SquareMatrix, poly::math::SquareDims,
-  poly::math::I, poly::math::URand;
+namespace {
+using benchmark::State;
+using poly::math::Dual, poly::math::SquareMatrix, poly::math::URand;
 
 [[gnu::noinline]] void prod(auto &c, const auto &a, const auto &b) {
   c = a * b;
 }
 
-static void BM_dual8x2prod(benchmark::State &state) {
+template <ptrdiff_t M, ptrdiff_t N> void BM_dualprod(benchmark::State &state) {
   std::mt19937_64 rng0;
-  using D = Dual<Dual<double, 8>, 2>;
+  using D = Dual<Dual<double, M>, N>;
   D a = URand<D>{}(rng0), b = URand<D>{}(rng0), c;
   for (auto _ : state) {
     prod(c, a, b);
     benchmark::DoNotOptimize(c);
   }
 }
-BENCHMARK(BM_dual8x2prod);
 
-template <typename T, ptrdiff_t N, bool SIMDArry = false> struct ManualDual {
+template <typename T, ptrdiff_t N, bool SIMDArray = false> struct ManualDual {
   T value;
   poly::math::SVector<T, N> partials;
+  auto grad() -> poly::math::SVector<T, N> & { return partials; }
+};
+template <std::floating_point T, ptrdiff_t N, bool SIMDArray>
+struct ManualDual<ManualDual<T, N, SIMDArray>, 2, false> {
+  using V = ManualDual<T, N, SIMDArray>;
+  V value;
+  poly::containers::Tuple<V, V> partials{V{}, V{}};
+  struct Gradient {
+    poly::containers::Tuple<V, V> &partials;
+    auto operator[](ptrdiff_t i) -> V & {
+      poly::utils::invariant(i == 0 || i == 1);
+      if (i == 0) return partials.head;
+      return partials.tail.head;
+    }
+  };
+  constexpr auto grad() -> Gradient { return {partials}; }
+  [[nodiscard]] constexpr auto grad() const -> std::array<V, 2> {
+    return {partials.head, partials.tail.head};
+  }
 };
 
 template <std::floating_point T, ptrdiff_t N> struct ManualDual<T, N, false> {
+  using P = poly::simd::Vec<ptrdiff_t(std::bit_ceil(size_t(N))), T>;
   T value;
-  poly::simd::Vec<ptrdiff_t(std::bit_ceil(size_t(N))), T> partials;
+  P partials;
+  auto grad() -> P & { return partials; }
 };
 template <std::floating_point T, ptrdiff_t N> struct ManualDual<T, N, true> {
+  using P = poly::math::StaticArray<T, 1, N, false>;
   T value;
-  poly::math::StaticArray<T, 1, N, false> partials;
+  P partials;
+  auto grad() -> P & { return partials; }
 };
 template <typename T, ptrdiff_t N, bool B>
 [[gnu::always_inline]] constexpr auto operator*(const ManualDual<T, N, B> &a,
                                                 const ManualDual<T, N, B> &b)
   -> ManualDual<T, N, B> {
-  return {a.value * b.value, a.value * b.partials + b.value * a.partials};
+  if constexpr ((!B) && (!std::floating_point<T>)&&(N == 2))
+    return {a.value * b.value,
+            {a.value * b.grad()[0] + b.value + a.grad()[0],
+             a.value * b.grad()[1] + b.value * a.grad()[1]}};
+  else return {a.value * b.value, a.value * b.partials + b.value * a.partials};
 }
 template <typename T, ptrdiff_t N, bool B>
 [[gnu::always_inline]] constexpr auto operator*(const ManualDual<T, N, B> &a,
@@ -81,6 +109,7 @@ template <typename T, ptrdiff_t N, bool B>
   -> ManualDual<T, N, B> {
   return {b.value + a, b.partials};
 }
+
 // template <typename T, ptrdiff_t M, ptrdiff_t N>
 // [[gnu::noinline]] void prod_manual(ManualDual<ManualDual<T, M>, N> &c,
 //                                    const ManualDual<ManualDual<T, M>, N> &a,
@@ -91,8 +120,9 @@ template <typename T, ptrdiff_t N, bool B>
 //   c.partials = a.value* b.partials+ b.value* a.partials;
 // }
 
-template <ptrdiff_t M, ptrdiff_t N, bool SIMDArray> auto setup_manual() {
-  using D = ManualDual<ManualDual<double, M, SIMDArray>, N>;
+template <ptrdiff_t M, ptrdiff_t N, bool SIMDArray, bool Outer>
+auto setup_manual() {
+  using D = ManualDual<ManualDual<double, M, SIMDArray>, N, Outer>;
   std::mt19937_64 rng0;
   D a{}, b{}, c{};
   a.value.value = URand<double>{}(rng0);
@@ -102,94 +132,65 @@ template <ptrdiff_t M, ptrdiff_t N, bool SIMDArray> auto setup_manual() {
     b.value.partials[j] = URand<double>{}(rng0);
   }
   for (ptrdiff_t i = 0; i < N; ++i) {
-    a.partials[i].value = URand<double>{}(rng0);
-    b.partials[i].value = URand<double>{}(rng0);
+    a.grad()[i].value = URand<double>{}(rng0);
+    b.grad()[i].value = URand<double>{}(rng0);
     for (ptrdiff_t j = 0; j < M; ++j) {
-      a.partials[i].partials[j] = URand<double>{}(rng0);
-      b.partials[i].partials[j] = URand<double>{}(rng0);
+      a.grad()[i].partials[j] = URand<double>{}(rng0);
+      b.grad()[i].partials[j] = URand<double>{}(rng0);
     }
   }
   return std::array<D, 3>{a, b, c};
 }
 
-static void BM_dual8x2prod_manual(benchmark::State &state) {
-  auto [a, b, c] = setup_manual<8, 2, false>();
+template <ptrdiff_t M, ptrdiff_t N>
+void BM_dualprod_manual(benchmark::State &state) {
+  auto [a, b, c] = setup_manual<M, N, false, true>();
   for (auto _ : state) {
     prod(c, a, b);
     benchmark::DoNotOptimize(c);
   }
 }
-BENCHMARK(BM_dual8x2prod_manual);
+template <ptrdiff_t M, ptrdiff_t N> void BM_dualprod_simdarray(State &state) {
+  auto [a, b, c] = setup_manual<M, N, true, true>();
+  for (auto _ : state) {
+    prod(c, a, b);
+    benchmark::DoNotOptimize(c);
+  }
+}
+template <ptrdiff_t M, ptrdiff_t N>
+void BM_dualprod_manual_tuple(State &state) {
+  auto [a, b, c] = setup_manual<M, N, false, false>();
+  for (auto _ : state) {
+    prod(c, a, b);
+    benchmark::DoNotOptimize(c);
+  }
+}
+template <ptrdiff_t M, ptrdiff_t N>
+void BM_dualprod_simdarray_tuple(benchmark::State &state) {
+  auto [a, b, c] = setup_manual<M, N, true, false>();
+  for (auto _ : state) {
+    prod(c, a, b);
+    benchmark::DoNotOptimize(c);
+  }
+}
+} // namespace
+BENCHMARK(BM_dualprod<6, 2>);
+BENCHMARK(BM_dualprod<7, 2>);
+BENCHMARK(BM_dualprod<8, 2>);
 
-static void BM_dual8x2prod_simdarray(benchmark::State &state) {
-  auto [a, b, c] = setup_manual<8, 2, true>();
-  for (auto _ : state) {
-    prod(c, a, b);
-    benchmark::DoNotOptimize(c);
-  }
-}
-BENCHMARK(BM_dual8x2prod_simdarray);
+BENCHMARK(BM_dualprod_manual<6, 2>);
+BENCHMARK(BM_dualprod_manual<7, 2>);
+BENCHMARK(BM_dualprod_manual<8, 2>);
 
-static void BM_dual7x2prod(benchmark::State &state) {
-  std::mt19937_64 rng0;
-  using D = Dual<Dual<double, 7>, 2>;
-  static_assert(std::same_as<double, poly::math::scalarize_elt_cast_t<
-                                       Dual<Dual<double, 7, true>, 2, true>>>);
-  // static_assert(sizeof(D) == sizeof(Dual<Dual<double, 8>, 2>));
-  static_assert(poly::utils::Compressible<D>);
-  D a = URand<D>{}(rng0), b = URand<D>{}(rng0), c;
-  for (auto _ : state) {
-    prod(c, a, b);
-    benchmark::DoNotOptimize(c);
-  }
-}
-BENCHMARK(BM_dual7x2prod);
+BENCHMARK(BM_dualprod_simdarray<6, 2>);
+BENCHMARK(BM_dualprod_simdarray<7, 2>);
+BENCHMARK(BM_dualprod_simdarray<8, 2>);
 
-static void BM_dual7x2prod_manual(benchmark::State &state) {
-  auto [a, b, c] = setup_manual<7, 2, false>();
-  for (auto _ : state) {
-    prod(c, a, b);
-    benchmark::DoNotOptimize(c);
-  }
-}
-BENCHMARK(BM_dual7x2prod_manual);
+BENCHMARK(BM_dualprod_manual_tuple<6, 2>);
+BENCHMARK(BM_dualprod_manual_tuple<7, 2>);
+BENCHMARK(BM_dualprod_manual_tuple<8, 2>);
 
-static void BM_dual7x2prod_simdarray(benchmark::State &state) {
-  auto [a, b, c] = setup_manual<7, 2, true>();
-  for (auto _ : state) {
-    prod(c, a, b);
-    benchmark::DoNotOptimize(c);
-  }
-}
-BENCHMARK(BM_dual7x2prod_simdarray);
+BENCHMARK(BM_dualprod_simdarray_tuple<6, 2>);
+BENCHMARK(BM_dualprod_simdarray_tuple<7, 2>);
+BENCHMARK(BM_dualprod_simdarray_tuple<8, 2>);
 
-static void BM_dual6x2prod(benchmark::State &state) {
-  std::mt19937_64 rng0;
-  using D = Dual<Dual<double, 6>, 2>;
-  // static_assert(sizeof(D) == sizeof(Dual<Dual<double, 8>, 2>));
-  static_assert(poly::utils::Compressible<D>);
-  D a = URand<D>{}(rng0), b = URand<D>{}(rng0), c;
-  for (auto _ : state) {
-    prod(c, a, b);
-    benchmark::DoNotOptimize(c);
-  }
-}
-BENCHMARK(BM_dual6x2prod);
-
-static void BM_dual6x2prod_manual(benchmark::State &state) {
-  auto [a, b, c] = setup_manual<6, 2, false>();
-  for (auto _ : state) {
-    prod(c, a, b);
-    benchmark::DoNotOptimize(c);
-  }
-}
-BENCHMARK(BM_dual6x2prod_manual);
-
-static void BM_dual6x2prod_simdarray(benchmark::State &state) {
-  auto [a, b, c] = setup_manual<6, 2, true>();
-  for (auto _ : state) {
-    prod(c, a, b);
-    benchmark::DoNotOptimize(c);
-  }
-}
-BENCHMARK(BM_dual6x2prod_simdarray);

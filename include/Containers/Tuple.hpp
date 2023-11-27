@@ -2,6 +2,9 @@
 #ifndef POLY_CONTAIERS_Tuple_hpp_INCLUDED
 #define POLY_CONTAIERS_Tuple_hpp_INCLUDED
 
+#include <concepts>
+#include <cstddef>
+
 namespace poly::containers {
 template <typename T, typename... Ts> struct Tuple;
 template <typename T, typename... Ts>
@@ -58,6 +61,7 @@ template <typename T, typename... Ts> struct Tuple {
   template <typename U, typename... Us>
   inline constexpr void operator/=(const Tuple<U, Us...> &)
   requires(sizeof...(Ts) == sizeof...(Us));
+  constexpr auto operator=(const Tuple &) -> Tuple & = default;
   template <typename U, typename... Us>
   constexpr auto operator=(Tuple<U, Us...> x) -> Tuple &requires(
     std::assignable_from<T, U> &&... &&std::assignable_from<Ts, Us>) {
@@ -104,7 +108,7 @@ template <typename T> struct Tuple<T> {
 
   template <typename U>
   constexpr auto operator=(Tuple<U> x)
-    -> Tuple &requires(std::assignable_from<T, U>) {
+    -> Tuple &requires((!std::same_as<T, U>)&&std::assignable_from<T, U>) {
       head = x.head;
       return *this;
     }

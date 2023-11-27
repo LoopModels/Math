@@ -217,13 +217,29 @@ template <class T, class S, class P> class ArrayOps {
         }
       }
     } else if constexpr (AbstractVector<P>) {
-      ptrdiff_t L = IsOne<decltype(N)> ? M : N;
+      constexpr bool isrow = IsOne<decltype(N)>;
+      constexpr bool staticsize =
+        isrow ? StaticInt<decltype(M)> : StaticInt<decltype(N)>;
+      ptrdiff_t L = isrow ? M : N;
       if constexpr (!std::is_copy_assignable_v<T> &&
                     std::same_as<Op, utils::CopyAssign>) {
-        POLYMATHIVDEP
+        if constexpr (staticsize) {
+          POLYMATHFULLUNROLL
+          for (ptrdiff_t j = 0; j < L; ++j)
+            if constexpr (std::convertible_to<decltype(B), T>)
+              self[j] = auto{B};
+            else self[j] = auto{B[j]};
+        } else {
+          POLYMATHIVDEP
+          for (ptrdiff_t j = 0; j < L; ++j)
+            if constexpr (std::convertible_to<decltype(B), T>)
+              self[j] = auto{B};
+            else self[j] = auto{B[j]};
+        }
+      } else if constexpr (staticsize) {
+        POLYMATHFULLUNROLL
         for (ptrdiff_t j = 0; j < L; ++j)
-          if constexpr (std::convertible_to<decltype(B), T>) self[j] = auto{B};
-          else self[j] = auto{B[j]};
+          utils::assign(self, B, utils::NoRowIndex{}, j, op);
       } else {
         POLYMATHIVDEP
         for (ptrdiff_t j = 0; j < L; ++j)
