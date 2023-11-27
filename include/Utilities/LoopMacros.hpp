@@ -8,7 +8,7 @@
 #define POLYMATHVECTORIZE _Pragma("GCC ivdep")
 #define POLYMATHIVDEP _Pragma("GCC ivdep")
 #define POLYMATHNOUNROLL _Pragma("GCC unroll 0")
-#define POLYMATHFULLUNROLL _Pragma("GCC unroll 16")
+#define POLYMATHFULLUNROLL _Pragma("GCC unroll 16") _Pragma("GCC ivdep")
 #if __GNUC__ >= 14
 #define POLYMATHNOVECTORIZE _Pragma("GCC novector")
 #else

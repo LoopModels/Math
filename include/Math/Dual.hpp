@@ -113,6 +113,8 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
   constexpr Dual(T v, SVector<T, N> g) : val(v), partials(g) {}
   constexpr Dual(std::integral auto v) : val(v) {}
   constexpr Dual(std::floating_point auto v) : val(v) {}
+  // constexpr Dual(const Dual &) = default;
+  // constexpr auto operator=(const Dual &) -> Dual & = default;
   constexpr auto value() -> T & { return val; }
   constexpr auto gradient() -> SVector<T, N> & { return partials; }
   constexpr auto gradient(ptrdiff_t i) -> T & { return partials[i]; }
@@ -126,8 +128,8 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
   [[gnu::always_inline]] constexpr auto operator-() const -> Dual {
     return {-val, -partials};
   }
-  [[gnu::always_inline]] constexpr auto
-  operator+(const Dual &other) const & -> Dual {
+  [[gnu::always_inline]] constexpr auto operator+(const Dual &other) const
+    -> Dual {
     return {val + other.val, partials + other.partials};
   }
   [[gnu::always_inline]] constexpr auto operator-(const Dual &other) const
@@ -136,7 +138,21 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
   }
   [[gnu::always_inline]] constexpr auto operator*(const Dual &other) const
     -> Dual {
-    return {val * other.val, val * other.partials + other.val * partials};
+    if constexpr (std::same_as<T, double> && (N > 1)) {
+      Dual ret(val * other.val);
+      using data_type = SVector<T, N, false>;
+      using V = typename data_type::V;
+      constexpr ptrdiff_t W = data_type::W;
+      V va = simd::vbroadcast<W, double>(val),
+        vb = simd::vbroadcast<W, double>(other.val);
+      POLYMATHFULLUNROLL
+      for (ptrdiff_t i = 0; i < data_type::L; ++i)
+        ret.partials.memory_[i] =
+          va * other.partials.memory_[i] + vb * partials.memory_[i];
+      return ret;
+    } else {
+      return {val * other.val, val * other.partials + other.val * partials};
+    }
   }
   [[gnu::always_inline]] constexpr auto operator/(const Dual &other) const
     -> Dual {
