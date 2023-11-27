@@ -110,7 +110,7 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
   constexpr Dual() = default;
   constexpr Dual(T v) : val(v) {}
   constexpr Dual(T v, ptrdiff_t n) : val(v) { partials[n] = T{1}; }
-  constexpr Dual(T v, SVector<T, N> g) : val(v) { partials << g; }
+  constexpr Dual(T v, SVector<T, N> g) : val(v), partials(g) {}
   constexpr Dual(std::integral auto v) : val(v) {}
   constexpr Dual(std::floating_point auto v) : val(v) {}
   constexpr auto value() -> T & { return val; }
@@ -123,7 +123,7 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
   [[nodiscard]] constexpr auto gradient(ptrdiff_t i) const -> const T & {
     return partials[i];
   }
-  [[gnu::always_inline]] constexpr auto operator-() const & -> Dual {
+  [[gnu::always_inline]] constexpr auto operator-() const -> Dual {
     return {-val, -partials};
   }
   [[gnu::always_inline]] constexpr auto

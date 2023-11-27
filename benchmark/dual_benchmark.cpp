@@ -39,7 +39,7 @@ template <typename T, ptrdiff_t N, bool SIMDArry = false> struct ManualDual {
 
 template <std::floating_point T, ptrdiff_t N> struct ManualDual<T, N, false> {
   T value;
-  poly::simd::Vec<N, T> partials;
+  poly::simd::Vec<ptrdiff_t(std::bit_ceil(size_t(N))), T> partials;
 };
 template <std::floating_point T, ptrdiff_t N> struct ManualDual<T, N, true> {
   T value;
