@@ -5,7 +5,6 @@
 #include "Math/Matrix.hpp"
 #include "Math/UniformScaling.hpp"
 #include "SIMD/Unroll.hpp"
-#include "Utilities/Assign.hpp"
 #include "Utilities/LoopMacros.hpp"
 #include <algorithm>
 #include <cstring>
@@ -14,6 +13,9 @@
 #define CASTTOSCALARIZE
 
 namespace poly::math {
+
+struct NoRowIndex {};
+
 // scalars broadcast
 template <typename S>
 [[gnu::always_inline]] constexpr auto get(const auto &s, auto) {
@@ -155,27 +157,21 @@ template <class T, class S, class P> class ArrayOps {
       constexpr ptrdiff_t remainder = vdr[2];
       if constexpr (remainder > 0) {
         auto u{simd::index::unrollmask<fulliter + 1, W>(L, 0)};
-        if constexpr (std::same_as<R, utils::NoRowIndex>)
-          self[u] = get<T>(B, u);
+        if constexpr (std::same_as<R, NoRowIndex>) self[u] = get<T>(B, u);
         else self[row, u] = get<T>(B, row, u);
-        // utils::assign(self, B, row, u, op);
       } else {
         static_assert(fulliter > 0);
         simd::index::Unroll<fulliter, W> u{0};
-        if constexpr (std::same_as<R, utils::NoRowIndex>)
-          self[u] = get<T>(B, u);
+        if constexpr (std::same_as<R, NoRowIndex>) self[u] = get<T>(B, u);
         else self[row, u] = get<T>(B, row, u);
-        // utils::assign(self, B, row, u, op);
       }
     } else {
       constexpr ptrdiff_t W = simd::Width<T>;
       for (ptrdiff_t i = 0;; i += W) {
         auto u{simd::index::unrollmask<1, W>(L, i)};
         if (!u) break;
-        if constexpr (std::same_as<R, utils::NoRowIndex>)
-          self[u] = get<T>(B, u);
+        if constexpr (std::same_as<R, NoRowIndex>) self[u] = get<T>(B, u);
         else self[row, u] = get<T>(B, row, u);
-        // utils::assign(self, B, row, u, op);
       }
     }
   }
@@ -219,10 +215,9 @@ public:
 #else
     if constexpr (simd::SIMDSupported<T>) {
 #endif
-      if constexpr (IsOne<decltype(M)>)
-        vcopyToSIMD(self, B, N, utils::NoRowIndex{});
+      if constexpr (IsOne<decltype(M)>) vcopyToSIMD(self, B, N, NoRowIndex{});
       else if constexpr (IsOne<decltype(N)>)
-        vcopyToSIMD(self, B, M, utils::NoRowIndex{});
+        vcopyToSIMD(self, B, M, NoRowIndex{});
       else if constexpr (StaticInt<decltype(M)>) {
         constexpr std::array<ptrdiff_t, 2> UIR = unrollf<ptrdiff_t(M)>();
         constexpr ptrdiff_t U = UIR[0];
@@ -333,13 +328,13 @@ vcopyToSIMD(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src, I L, R row) {
     constexpr ptrdiff_t remainder = vdr[2];
     if constexpr (remainder > 0) {
       auto u{simd::index::unrollmask<fulliter + 1, W>(L, 0)};
-      if constexpr (std::same_as<R, utils::NoRowIndex>)
+      if constexpr (std::same_as<R, math::NoRowIndex>)
         dst.apply(src.map([=](const auto &s) { return get<T>(s, u); }),
                   [=](auto &d, const auto &s) { d[u] = s; });
       else
         dst.apply(src.map([=](const auto &s) { return get<T>(s, row, u); }),
                   [=](auto &d, const auto &s) { d[row, u] = s; });
-    } else if constexpr (std::same_as<R, utils::NoRowIndex>) {
+    } else if constexpr (std::same_as<R, math::NoRowIndex>) {
       simd::index::Unroll<fulliter, W> u{0};
       dst.apply(src.map([=](const auto &s) { return get<T>(s, u); }),
                 [=](auto &d, const auto &s) { d[u] = s; });
@@ -353,7 +348,7 @@ vcopyToSIMD(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src, I L, R row) {
     for (ptrdiff_t i = 0;; i += W) {
       auto u{simd::index::unrollmask<1, W>(L, i)};
       if (!u) break;
-      if constexpr (std::same_as<R, utils::NoRowIndex>)
+      if constexpr (std::same_as<R, math::NoRowIndex>)
         dst.apply(src.map([=](const auto &s) { return get<T>(s, u); }),
                   [=](auto &d, const auto &s) { d[u] = s; });
       else
@@ -391,9 +386,9 @@ vcopyTo(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src) {
   auto [M, N] = promote_shape(dst, src);
   if constexpr (simd::SIMDSupported<std::remove_cvref_t<T>>) {
     if constexpr (math::IsOne<decltype(M)>)
-      vcopyToSIMD(dst, src, N, utils::NoRowIndex{});
+      vcopyToSIMD(dst, src, N, math::NoRowIndex{});
     else if constexpr (math::IsOne<decltype(N)>)
-      vcopyToSIMD(dst, src, M, utils::NoRowIndex{});
+      vcopyToSIMD(dst, src, M, math::NoRowIndex{});
     else if constexpr (math::StaticInt<decltype(M)>) {
       constexpr std::array<ptrdiff_t, 2> UIR = math::unrollf<ptrdiff_t(M)>();
       constexpr ptrdiff_t U = UIR[0];
