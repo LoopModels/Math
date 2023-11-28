@@ -87,7 +87,7 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Compress>,
     std::copy_n(list.begin(), list.size(), data());
   }
   template <AbstractSimilar<S> V> constexpr StaticArray(const V &b) noexcept {
-    (*this) << b;
+    this->vcopyTo(b, utils::CopyAssign{});
   }
 
   constexpr void compress(compressed_type *p) const
@@ -298,7 +298,7 @@ struct StaticArray<T, M, N, false>
     return reinterpret_cast<const T *>(memory_);
   }
   template <AbstractSimilar<S> V> constexpr StaticArray(const V &b) noexcept {
-    (*this) << b;
+    this->vcopyTo(b, utils::CopyAssign{});
   }
   constexpr explicit StaticArray(T x) {
     simd::Vec<W, T> v = simd::vbroadcast<W, T>(x);
@@ -472,6 +472,7 @@ struct StaticArray<T, 1, N, false>
   V data_;
   // std::array<std::array<simd::Vec<W, T>, L>, M> data;
   // constexpr operator compressed_type() { return compressed_type{*this}; }
+  constexpr StaticArray(V v) : data_(v){};
   constexpr StaticArray(StaticArray const &) = default;
   constexpr StaticArray(StaticArray &&) noexcept = default;
   constexpr explicit StaticArray(const std::initializer_list<T> &list)

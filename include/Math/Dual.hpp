@@ -30,29 +30,29 @@ template <class T, ptrdiff_t N, bool Compress = false> struct Dual {
     return partials;
   }
 
-  [[gnu::always_inline]] constexpr auto operator-() const & -> Dual {
-    return {-val, -partials};
-  }
-  [[gnu::always_inline]] constexpr auto
-  operator+(const Dual &other) const & -> Dual {
-    return {val + other.val, partials + other.partials};
-  }
-  [[gnu::always_inline]] constexpr auto operator-(const Dual &other) const
-    -> Dual {
-    return {val - other.val, partials - other.partials};
-  }
-  [[gnu::always_inline]] constexpr auto operator+=(const Dual &other)
-    -> Dual & {
-    val += other.val;
-    partials += other.partials;
-    return *this;
-  }
-  [[gnu::always_inline]] constexpr auto operator-=(const Dual &other)
-    -> Dual & {
-    val -= other.val;
-    partials -= other.partials;
-    return *this;
-  }
+  // [[gnu::always_inline]] constexpr auto operator-() const & -> Dual {
+  //   return {-val, -partials};
+  // }
+  // [[gnu::always_inline]] constexpr auto
+  // operator+(const Dual &other) const & -> Dual {
+  //   return {val + other.val, partials + other.partials};
+  // }
+  // [[gnu::always_inline]] constexpr auto operator-(const Dual &other) const
+  //   -> Dual {
+  //   return {val - other.val, partials - other.partials};
+  // }
+  // [[gnu::always_inline]] constexpr auto operator+=(const Dual &other)
+  //   -> Dual & {
+  //   val += other.val;
+  //   partials += other.partials;
+  //   return *this;
+  // }
+  // [[gnu::always_inline]] constexpr auto operator-=(const Dual &other)
+  //   -> Dual & {
+  //   val -= other.val;
+  //   partials -= other.partials;
+  //   return *this;
+  // }
 };
 
 template <simd::SIMDSupported T, ptrdiff_t N>
@@ -75,33 +75,34 @@ struct Dual<T, N, true> {
     return {data.data() + 1, {}};
   }
 
-  [[gnu::always_inline]] constexpr auto operator-() const & -> Dual {
-    return {-data};
-  }
-  [[gnu::always_inline]] constexpr auto
-  operator+(const Dual &other) const & -> Dual {
-    return {data + other.data};
-  }
-  [[gnu::always_inline]] constexpr auto operator-(const Dual &other) const
-    -> Dual {
-    return {data - other.data};
-  }
-  [[gnu::always_inline]] constexpr auto operator+=(const Dual &other)
-    -> Dual & {
-    data += other.data;
-    return *this;
-  }
-  [[gnu::always_inline]] constexpr auto operator-=(const Dual &other)
-    -> Dual & {
-    data -= other.data;
-    return *this;
-  }
+  // [[gnu::always_inline]] constexpr auto operator-() const & -> Dual {
+  //   return {-data};
+  // }
+  // [[gnu::always_inline]] constexpr auto
+  // operator+(const Dual &other) const & -> Dual {
+  //   return {data + other.data};
+  // }
+  // [[gnu::always_inline]] constexpr auto operator-(const Dual &other) const
+  //   -> Dual {
+  //   return {data - other.data};
+  // }
+  // [[gnu::always_inline]] constexpr auto operator+=(const Dual &other)
+  //   -> Dual & {
+  //   data += other.data;
+  //   return *this;
+  // }
+  // [[gnu::always_inline]] constexpr auto operator-=(const Dual &other)
+  //   -> Dual & {
+  //   data -= other.data;
+  //   return *this;
+  // }
 };
 
 template <class T, ptrdiff_t N> struct Dual<T, N, false> {
   // default decompressed separates the value and partials
+  using data_type = SVector<T, N, false>;
   T val{};
-  SVector<T, N, false> partials{T{}};
+  data_type partials{T{}};
 
   using compressed_type = Dual<utils::compressed_t<T>, N, true>;
   using decompressed_type = Dual<utils::decompressed_t<T>, N, false>;
@@ -110,16 +111,16 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
   constexpr Dual() = default;
   constexpr Dual(T v) : val(v) {}
   constexpr Dual(T v, ptrdiff_t n) : val(v) { partials[n] = T{1}; }
-  constexpr Dual(T v, SVector<T, N> g) : val(v), partials(g) {}
+  constexpr Dual(T v, data_type g) : val(v), partials(g) {}
   constexpr Dual(std::integral auto v) : val(v) {}
   constexpr Dual(std::floating_point auto v) : val(v) {}
   // constexpr Dual(const Dual &) = default;
   // constexpr auto operator=(const Dual &) -> Dual & = default;
   constexpr auto value() -> T & { return val; }
-  constexpr auto gradient() -> SVector<T, N> & { return partials; }
+  constexpr auto gradient() -> data_type & { return partials; }
   constexpr auto gradient(ptrdiff_t i) -> T & { return partials[i]; }
   [[nodiscard]] constexpr auto value() const -> const T & { return val; }
-  [[nodiscard]] constexpr auto gradient() const -> const SVector<T, N> & {
+  [[nodiscard]] constexpr auto gradient() const -> const data_type & {
     return partials;
   }
   [[nodiscard]] constexpr auto gradient(ptrdiff_t i) const -> const T & {
@@ -140,7 +141,6 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
     -> Dual {
     if constexpr (std::same_as<T, double> && (N > 1)) {
       Dual ret(val * other.val);
-      using data_type = SVector<T, N, false>;
       using V = typename data_type::V;
       constexpr ptrdiff_t W = data_type::W;
       V va = simd::vbroadcast<W, double>(val),
@@ -154,9 +154,8 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
             va * other.partials.memory_[i] + vb * partials.memory_[i];
       }
       return ret;
-    } else {
+    } else
       return {val * other.val, val * other.partials + other.val * partials};
-    }
   }
   [[gnu::always_inline]] constexpr auto operator/(const Dual &other) const
     -> Dual {
@@ -346,7 +345,7 @@ struct Dual<T, N, false> {
     value() = v;
     gradient() << g;
   }
-  constexpr Dual(SVector<T, N + 1> d) : data{d} {}
+  constexpr Dual(data_type d) : data{d} {}
   constexpr Dual(const AbstractVector auto &d)
   requires(std::convertible_to<utils::eltype_t<decltype(d)>, T>)
     : data{d} {}
@@ -389,19 +388,19 @@ struct Dual<T, N, false> {
   constexpr auto operator*(const Dual &other) const -> Dual {
     // TODO: either update remaining methods to match this style,
     // or figure out how to get `conditional`'s codegen quality to match
-    Dual ret;
     if constexpr (data_type::L == 1) {
       V vt = vbvalue(), vo = other.vbvalue(), x = vt * other.data.data_;
-      ret.data.data_ = simd::firstoff<W, int64_t>() ? x + vo * data.data_ : x;
+      return {{simd::firstoff<W, int64_t>() ? x + vo * data.data_ : x}};
     } else {
+      Dual ret;
       V vt = vbvalue(), vo = other.vbvalue(), x = vt * other.data.memory_[0];
       ret.data.memory_[0] =
         simd::firstoff<W, int64_t>() ? x + vo * data.memory_[0] : x;
       POLYMATHFULLUNROLL
       for (ptrdiff_t i = 1; i < data_type::L; ++i)
         ret.data.memory_[i] = vt * other.data.memory_[i] + vo * data.memory_[i];
+      return ret;
     }
-    return ret;
     // return {conditional(std::plus<>{},
     //                     elementwise_not_equal(_(0, N + 1), value_idx),
     //                     value() * other.data, data * other.value())};

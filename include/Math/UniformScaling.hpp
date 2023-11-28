@@ -16,18 +16,25 @@ template <class T> struct UniformScaling {
   [[gnu::always_inline]] constexpr auto
   operator[](simd::index::Unroll<R> r, simd::index::Unroll<C, W, M> c) const
     -> simd::Unroll<R, C, W, T> {
-    simd::Unroll<R, C, W, T> ret;
     using I = simd::IntegerOfSize<T>;
     using VI = simd::Vec<W, I>;
-    simd::Vec<W, T> vz{}, vv = vz + value;
-    POLYMATHFULLUNROLL
-    for (ptrdiff_t i = 0; i < R; ++i) {
-      VI vr = VI{} + (i + r.index), vc = simd::range<W, I>() + c.index;
+    simd::Vec<W, T> vz{}, vv = simd::vbroadcast<W, T>(value);
+    if constexpr (R * C == 1) {
+      return {(simd::vbroadcast<W, I>(r.index - c.index) == simd::range<W, I>())
+                ? vv
+                : vz};
+    } else {
+      simd::Unroll<R, C, W, T> ret;
       POLYMATHFULLUNROLL
-      for (ptrdiff_t j = 0; j < C; ++j, vc += W)
-        ret[i, j] = (vr == vc) ? vv : vz;
+      for (ptrdiff_t i = 0; i < R; ++i) {
+        VI vr = simd::vbroadcast<W, I>(i + r.index),
+           vc = simd::range<W, I>() + c.index;
+        POLYMATHFULLUNROLL
+        for (ptrdiff_t j = 0; j < C; ++j, vc += W)
+          ret[i, j] = (vr == vc) ? vv : vz;
+      }
+      return ret;
     }
-    return ret;
   }
   template <ptrdiff_t C, ptrdiff_t W, typename M>
   [[gnu::always_inline]] constexpr auto

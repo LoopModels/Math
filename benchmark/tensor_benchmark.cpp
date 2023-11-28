@@ -17,6 +17,13 @@
 using poly::math::Dual, poly::math::SquareMatrix, poly::math::SquareDims,
   poly::math::I, poly::math::URand;
 
+[[gnu::noinline]] static void A12pI120(auto &B, const auto &A) {
+  B << 12.0 * A + 120.0 * I;
+}
+[[gnu::noinline]] static void BApI60(auto &C, const auto &A, const auto &B) {
+  C << B * (A + 60.0 * I);
+}
+
 static void BM_dual8x2dApI(benchmark::State &state) {
   std::mt19937_64 rng0;
   using D = Dual<Dual<double, 8>, 2>;
@@ -24,7 +31,10 @@ static void BM_dual8x2dApI(benchmark::State &state) {
   SquareMatrix<D> A{SquareDims{{dim}}};
   SquareMatrix<D> B{SquareDims{{dim}}};
   for (auto &&a : A) a = URand<D>{}(rng0);
-  for (auto b : state) benchmark::DoNotOptimize(B << 12.0 * A + 120.0 * I);
+  for (auto b : state) {
+    A12pI120(B, A);
+    benchmark::DoNotOptimize(B);
+  }
 }
 BENCHMARK(BM_dual8x2dApI)->DenseRange(2, 10, 1);
 
@@ -37,7 +47,10 @@ static void BM_dual8x2BmApI(benchmark::State &state) {
   SquareMatrix<D> C{SquareDims{{dim}}};
   for (auto &&a : A) a = URand<D>{}(rng0);
   for (auto &&b : B) b = URand<D>{}(rng0);
-  for (auto b : state) benchmark::DoNotOptimize(C << B * (A + 60.0 * I));
+  for (auto b : state) {
+    BApI60(C, A, B);
+    benchmark::DoNotOptimize(C);
+  }
 }
 BENCHMARK(BM_dual8x2BmApI)->DenseRange(2, 10, 1);
 
@@ -115,7 +128,10 @@ static void BM_dual7x2dApI(benchmark::State &state) {
   SquareMatrix<D> A{SquareDims{{dim}}};
   SquareMatrix<D> B{SquareDims{{dim}}};
   for (auto &&a : A) a = URand<D>{}(rng0);
-  for (auto b : state) benchmark::DoNotOptimize(B << 12.0 * A + 120.0 * I);
+  for (auto b : state) {
+    A12pI120(B, A);
+    benchmark::DoNotOptimize(B);
+  }
 }
 BENCHMARK(BM_dual7x2dApI)->DenseRange(2, 10, 1);
 
@@ -128,7 +144,10 @@ static void BM_dual7x2BmApI(benchmark::State &state) {
   SquareMatrix<D> C{SquareDims{{dim}}};
   for (auto &&a : A) a = URand<D>{}(rng0);
   for (auto &&b : B) b = URand<D>{}(rng0);
-  for (auto b : state) benchmark::DoNotOptimize(C << B * (A + 60.0 * I));
+  for (auto b : state) {
+    BApI60(C, A, B);
+    benchmark::DoNotOptimize(C);
+  }
 }
 BENCHMARK(BM_dual7x2BmApI)->DenseRange(2, 10, 1);
 
@@ -163,7 +182,10 @@ static void BM_dual6x2dApI(benchmark::State &state) {
   SquareMatrix<D> A{SquareDims{{dim}}};
   SquareMatrix<D> B{SquareDims{{dim}}};
   for (auto &&a : A) a = URand<D>{}(rng0);
-  for (auto b : state) benchmark::DoNotOptimize(B << 12.0 * A + 120.0 * I);
+  for (auto b : state) {
+    A12pI120(B, A);
+    benchmark::DoNotOptimize(B);
+  }
 }
 BENCHMARK(BM_dual6x2dApI)->DenseRange(2, 10, 1);
 
@@ -176,7 +198,10 @@ static void BM_dual6x2BmApI(benchmark::State &state) {
   SquareMatrix<D> C{SquareDims{{dim}}};
   for (auto &&a : A) a = URand<D>{}(rng0);
   for (auto &&b : B) b = URand<D>{}(rng0);
-  for (auto b : state) benchmark::DoNotOptimize(C << B * (A + 60.0 * I));
+  for (auto b : state) {
+    BApI60(C, A, B);
+    benchmark::DoNotOptimize(C);
+  }
 }
 BENCHMARK(BM_dual6x2BmApI)->DenseRange(2, 10, 1);
 
