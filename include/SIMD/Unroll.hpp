@@ -705,40 +705,40 @@ template <ptrdiff_t U, ptrdiff_t W, typename M>
 constexpr auto operator==(Unroll<U, W, M> x, ptrdiff_t y) {
   if constexpr (W == 1) {
     if constexpr (U > 1) {
-      poly::simd::Unroll<U, 1, 1, int64_t> ret;
+      ::poly::simd::Unroll<U, 1, 1, int64_t> ret;
       POLYMATHFULLUNROLL
       for (ptrdiff_t u = 0; u < U; ++u) ret.data[u] = (x.index + u) == y;
       return ret;
-    } else return poly::simd::Unroll<1, 1, W, int64_t>{x.index == y};
+    } else return ::poly::simd::Unroll<1, 1, W, int64_t>{x.index == y};
   } else if constexpr (U > 1) {
-    poly::simd::Unroll<1, U, W, int64_t> ret;
+    ::poly::simd::Unroll<1, U, W, int64_t> ret;
     Vec<W, int64_t> v = vbroadcast<W, int64_t>(y - x.index);
     POLYMATHFULLUNROLL
     for (ptrdiff_t u = 0; u < U; ++u)
       ret.data[u] = range<W, int64_t>() == (v - u * W);
     return ret;
   } else
-    return poly::simd::Unroll<1, 1, W, int64_t>{
+    return ::poly::simd::Unroll<1, 1, W, int64_t>{
       range<W, int64_t>() == vbroadcast<W, int64_t>(y - x.index)};
 }
 template <ptrdiff_t U, ptrdiff_t W, typename M>
 constexpr auto operator!=(Unroll<U, W, M> x, ptrdiff_t y) {
   if constexpr (W == 1) {
     if constexpr (U > 1) {
-      poly::simd::Unroll<U, 1, 1, int64_t> ret;
+      ::poly::simd::Unroll<U, 1, 1, int64_t> ret;
       POLYMATHFULLUNROLL
       for (ptrdiff_t u = 0; u < U; ++u) ret.data[u] = (x.index + u) != y;
       return ret;
-    } else return poly::simd::Unroll<1, 1, W, int64_t>{x.index != y};
+    } else return ::poly::simd::Unroll<1, 1, W, int64_t>{x.index != y};
   } else if constexpr (U > 1) {
-    poly::simd::Unroll<1, U, W, int64_t> ret;
+    ::poly::simd::Unroll<1, U, W, int64_t> ret;
     Vec<W, int64_t> v = vbroadcast<W, int64_t>(y - x.index);
     POLYMATHFULLUNROLL
     for (ptrdiff_t u = 0; u < U; ++u)
       ret.data[u] = range<W, int64_t>() != (v - u * W);
     return ret;
   } else
-    return poly::simd::Unroll<1, 1, W, int64_t>{
+    return ::poly::simd::Unroll<1, 1, W, int64_t>{
       range<W, int64_t>() != vbroadcast<W, int64_t>(y - x.index)};
 }
 
@@ -746,20 +746,20 @@ template <ptrdiff_t U, ptrdiff_t W, typename M>
 constexpr auto operator<(Unroll<U, W, M> x, ptrdiff_t y) {
   if constexpr (W == 1) {
     if constexpr (U > 1) {
-      poly::simd::Unroll<U, 1, 1, int64_t> ret;
+      ::poly::simd::Unroll<U, 1, 1, int64_t> ret;
       POLYMATHFULLUNROLL
       for (ptrdiff_t u = 0; u < U; ++u) ret.data[u] = (x.index + u) < y;
       return ret;
-    } else return poly::simd::Unroll<1, 1, W, int64_t>{x.index < y};
+    } else return ::poly::simd::Unroll<1, 1, W, int64_t>{x.index < y};
   } else if constexpr (U > 1) {
-    poly::simd::Unroll<1, U, W, int64_t> ret;
+    ::poly::simd::Unroll<1, U, W, int64_t> ret;
     Vec<W, int64_t> v = vbroadcast<W, int64_t>(y - x.index);
     POLYMATHFULLUNROLL
     for (ptrdiff_t u = 0; u < U; ++u)
       ret.data[u] = range<W, int64_t>() < (v - u * W);
     return ret;
   } else
-    return poly::simd::Unroll<1, 1, W, int64_t>{
+    return ::poly::simd::Unroll<1, 1, W, int64_t>{
       range<W, int64_t>() < vbroadcast<W, int64_t>(y - x.index)};
 }
 
@@ -767,20 +767,20 @@ template <ptrdiff_t U, ptrdiff_t W, typename M>
 constexpr auto operator>(Unroll<U, W, M> x, ptrdiff_t y) {
   if constexpr (W == 1) {
     if constexpr (U > 1) {
-      poly::simd::Unroll<U, 1, 1, int64_t> ret;
+      ::poly::simd::Unroll<U, 1, 1, int64_t> ret;
       POLYMATHFULLUNROLL
       for (ptrdiff_t u = 0; u < U; ++u) ret.data[u] = (x.index + u) > y;
       return ret;
-    } else return poly::simd::Unroll<1, 1, W, int64_t>{x.index > y};
+    } else return ::poly::simd::Unroll<1, 1, W, int64_t>{x.index > y};
   } else if constexpr (U > 1) {
-    poly::simd::Unroll<1, U, W, int64_t> ret;
+    ::poly::simd::Unroll<1, U, W, int64_t> ret;
     Vec<W, int64_t> v = vbroadcast<W, int64_t>(y - x.index);
     POLYMATHFULLUNROLL
     for (ptrdiff_t u = 0; u < U; ++u)
       ret.data[u] = range<W, int64_t>() > (v - u * W);
     return ret;
   } else
-    return poly::simd::Unroll<1, 1, W, int64_t>{
+    return ::poly::simd::Unroll<1, 1, W, int64_t>{
       range<W, int64_t>() > vbroadcast<W, int64_t>(y - x.index)};
 }
 
@@ -788,20 +788,20 @@ template <ptrdiff_t U, ptrdiff_t W, typename M>
 constexpr auto operator<=(Unroll<U, W, M> x, ptrdiff_t y) {
   if constexpr (W == 1) {
     if constexpr (U > 1) {
-      poly::simd::Unroll<U, 1, 1, int64_t> ret;
+      ::poly::simd::Unroll<U, 1, 1, int64_t> ret;
       POLYMATHFULLUNROLL
       for (ptrdiff_t u = 0; u < U; ++u) ret.data[u] = (x.index + u) <= y;
       return ret;
-    } else return poly::simd::Unroll<1, 1, W, int64_t>{x.index <= y};
+    } else return ::poly::simd::Unroll<1, 1, W, int64_t>{x.index <= y};
   } else if constexpr (U > 1) {
-    poly::simd::Unroll<1, U, W, int64_t> ret;
+    ::poly::simd::Unroll<1, U, W, int64_t> ret;
     Vec<W, int64_t> v = vbroadcast<W, int64_t>(y - x.index);
     POLYMATHFULLUNROLL
     for (ptrdiff_t u = 0; u < U; ++u)
       ret.data[u] = range<W, int64_t>() <= (v - u * W);
     return ret;
   } else
-    return poly::simd::Unroll<1, 1, W, int64_t>{
+    return ::poly::simd::Unroll<1, 1, W, int64_t>{
       range<W, int64_t>() <= vbroadcast<W, int64_t>(y - x.index)};
 }
 
@@ -809,20 +809,20 @@ template <ptrdiff_t U, ptrdiff_t W, typename M>
 constexpr auto operator>=(Unroll<U, W, M> x, ptrdiff_t y) {
   if constexpr (W == 1) {
     if constexpr (U > 1) {
-      poly::simd::Unroll<U, 1, 1, int64_t> ret;
+      ::poly::simd::Unroll<U, 1, 1, int64_t> ret;
       POLYMATHFULLUNROLL
       for (ptrdiff_t u = 0; u < U; ++u) ret.data[u] = (x.index + u) >= y;
       return ret;
-    } else return poly::simd::Unroll<1, 1, W, int64_t>{x.index >= y};
+    } else return ::poly::simd::Unroll<1, 1, W, int64_t>{x.index >= y};
   } else if constexpr (U > 1) {
-    poly::simd::Unroll<1, U, W, int64_t> ret;
+    ::poly::simd::Unroll<1, U, W, int64_t> ret;
     Vec<W, int64_t> v = vbroadcast<W, int64_t>(y - x.index);
     POLYMATHFULLUNROLL
     for (ptrdiff_t u = 0; u < U; ++u)
       ret.data[u] = range<W, int64_t>() >= (v - u * W);
     return ret;
   } else
-    return poly::simd::Unroll<1, 1, W, int64_t>{
+    return ::poly::simd::Unroll<1, 1, W, int64_t>{
       range<W, int64_t>() >= vbroadcast<W, int64_t>(y - x.index)};
 }
 
