@@ -12,8 +12,8 @@ static_assert(
 
 template <ptrdiff_t N, typename T>
 constexpr ptrdiff_t VecLen =
-  (N < poly::simd::Width<T>) ? ptrdiff_t(std::bit_ceil(uint64_t(N)))
-                             : poly::simd::Width<T>;
+  (N < poly::simd::Width<T>) ? ptrdiff_t(std::bit_ceil(size_t(N)))
+                             : std::max(poly::simd::Width<T>, ptrdiff_t(1));
 
 template <typename T, ptrdiff_t L>
 consteval auto paddedSize() -> std::array<ptrdiff_t, 2> {
