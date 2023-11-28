@@ -1752,10 +1752,11 @@ inline auto operator<<(std::ostream &os, PtrVector<T> const &A)
   -> std::ostream & {
   return printVector(os, A);
 }
-inline auto operator<<(std::ostream &os, const AbstractVector auto &A)
-  -> std::ostream & {
+template <AbstractVector T>
+inline auto operator<<(std::ostream &os, const T &A) -> std::ostream & {
   Vector<utils::eltype_t<decltype(A)>> B(A.size());
-  B << A;
+  if constexpr (RowVector<T>) B << A;
+  else B << A.t();
   return printVector(os, B);
 }
 template <std::integral T> static constexpr auto maxPow10() -> size_t {

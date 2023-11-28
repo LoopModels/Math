@@ -244,6 +244,7 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Compress>,
 };
 
 template <simd::SIMDSupported T, ptrdiff_t M, ptrdiff_t N>
+requires((M * (N + VecLen<N, T> - 1) / VecLen<N, T>) > 1)
 struct StaticArray<T, M, N, false>
   : ArrayOps<T, StaticDims<T, M, N, false>, StaticArray<T, M, N, false>> {
   // struct StaticArray<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>
@@ -300,7 +301,7 @@ struct StaticArray<T, M, N, false>
     (*this) << b;
   }
   constexpr explicit StaticArray(T x) {
-    simd::Vec<W, T> v = simd::Vec<W, T>{} + x;
+    simd::Vec<W, T> v = simd::vbroadcast<W, T>(x);
     for (ptrdiff_t i = 0; i < M * L; ++i) memory_[i] = v;
   }
   constexpr auto operator=(StaticArray const &) -> StaticArray & = default;
@@ -309,7 +310,7 @@ struct StaticArray<T, M, N, false>
   static constexpr auto numRow() -> Row<M> { return {}; }
   static constexpr auto numCol() -> Col<N> { return {}; }
   static constexpr auto safeRow() -> Row<M> { return {}; }
-  static constexpr auto safeCol() -> Col<L> { return {}; }
+  static constexpr auto safeCol() -> Col<L * W> { return {}; }
   [[nodiscard]] static constexpr auto rowStride() noexcept -> RowStride<L * W> {
     return {};
   }
@@ -431,6 +432,163 @@ struct StaticArray<T, M, N, false>
   }
   template <std::size_t I> [[nodiscard]] constexpr auto get() const -> T {
     return memory_[I / W][I % W];
+  }
+};
+
+template <simd::SIMDSupported T, ptrdiff_t N>
+requires((N > 1) && ((N + VecLen<N, T> - 1) / VecLen<N, T>) == 1)
+struct StaticArray<T, 1, N, false>
+  : ArrayOps<T, StaticDims<T, 1, N, false>, StaticArray<T, 1, N, false>> {
+  // struct StaticArray<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>
+  //   : ArrayOps<T, StaticDims<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>,
+  //              StaticArray<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>> {
+
+  using value_type = T;
+  using reference = T &;
+  using const_reference = const T &;
+  using size_type = ptrdiff_t;
+  using difference_type = ptrdiff_t;
+  using iterator = T *;
+  using const_iterator = const T *;
+  using pointer = T *;
+  using const_pointer = const T *;
+  using concrete = std::true_type;
+
+  using compressed_type = StaticArray<T, 1, N, true>;
+  static constexpr ptrdiff_t L = 1;
+
+  constexpr void compress(compressed_type *p) const { *p << *this; }
+  static constexpr auto decompress(const compressed_type *p) -> StaticArray {
+    return StaticArray{*p};
+  }
+  static constexpr ptrdiff_t W = VecLen<N, T>;
+  static constexpr ptrdiff_t Align = alignof(simd::Vec<W, T>);
+  using S = std::integral_constant<ptrdiff_t, N>;
+
+  [[nodiscard]] constexpr auto view() const -> StaticArray { return *this; }
+
+  using V = simd::Vec<W, T>;
+  // simd::Vec<W, T> data[M][L];
+  V data_;
+  // std::array<std::array<simd::Vec<W, T>, L>, M> data;
+  // constexpr operator compressed_type() { return compressed_type{*this}; }
+  constexpr StaticArray(StaticArray const &) = default;
+  constexpr StaticArray(StaticArray &&) noexcept = default;
+  constexpr explicit StaticArray(const std::initializer_list<T> &list)
+    : data_{} {
+    if (list.size() == 1) {
+      data_ += *list.begin();
+      return;
+    }
+    invariant(list.size() <= W);
+    for (size_t i = 0; i < list.size(); ++i) data_[i] = *(list.begin() + i);
+  }
+  constexpr auto data() -> T * { return reinterpret_cast<T *>(&data_); }
+  [[nodiscard]] constexpr auto data() const -> const T * {
+    return reinterpret_cast<const T *>(&data_);
+  }
+  template <AbstractSimilar<S> V> constexpr StaticArray(const V &b) noexcept {
+    (*this) << b;
+  }
+  constexpr explicit StaticArray(T x) : data_{simd::vbroadcast<W, T>(x)} {}
+  constexpr auto operator=(StaticArray const &) -> StaticArray & = default;
+  constexpr auto operator=(StaticArray &&) noexcept -> StaticArray & = default;
+  constexpr StaticArray(){}; // NOLINT(modernize-use-equals-default)
+  static constexpr auto numRow() -> Row<1> { return {}; }
+  static constexpr auto numCol() -> Col<N> { return {}; }
+  static constexpr auto safeRow() -> Row<1> { return {}; }
+  static constexpr auto safeCol() -> Col<W> { return {}; }
+  [[nodiscard]] static constexpr auto rowStride() noexcept -> RowStride<W> {
+    return {};
+  }
+  [[nodiscard]] static constexpr auto size() noexcept
+    -> std::integral_constant<ptrdiff_t, N> {
+    return {};
+  }
+  inline auto operator[](ptrdiff_t, ptrdiff_t j) -> T & { return data()[j]; }
+  inline auto operator[](ptrdiff_t, ptrdiff_t j) const -> T { return data_[j]; }
+  inline auto operator[](ptrdiff_t j) -> T & { return data()[j]; }
+  inline auto operator[](ptrdiff_t j) const -> T { return data_[j]; }
+  template <typename Mask>
+  [[gnu::always_inline]] inline auto
+  operator[](ptrdiff_t, simd::index::Unroll<1, W, Mask>) const
+    -> simd::Unroll<1, 1, W, T> {
+    return {data_};
+  }
+  template <ptrdiff_t R = 1>
+  [[gnu::always_inline]] static constexpr void checkinds(ptrdiff_t j) {
+    invariant(j >= 0);
+    invariant(j < N);
+    invariant((j % W) == 0);
+  }
+  template <ptrdiff_t R, typename Mask>
+  [[gnu::always_inline]] inline auto
+  operator[](simd::index::Unroll<R>, simd::index::Unroll<1, W, Mask> j) const
+    -> simd::Unroll<R, 1, W, T> {
+    checkinds<R>(j.index);
+    simd::Unroll<R, 1, W, T> ret;
+    POLYMATHFULLUNROLL
+    for (ptrdiff_t r = 0; r < R; ++r) ret[r, 0] = data_;
+    return ret;
+  }
+  struct Ref {
+    StaticArray *parent;
+    constexpr auto operator=(simd::Unroll<1, 1, W, T> x) -> Ref & {
+      parent->data_ = x.data[0];
+      return *this;
+    }
+    constexpr auto operator=(simd::Vec<W, T> x) -> Ref & {
+      parent->data_ = x;
+      return *this;
+    }
+    constexpr auto operator=(std::convertible_to<T> auto x) -> Ref & {
+      *this = simd::vbroadcast<W, T>(x);
+      return *this;
+    }
+    constexpr operator simd::Unroll<1, 1, W, T>() { return {parent->data_}; }
+    constexpr auto operator+=(const auto &x) -> Ref & {
+      return (*this) = simd::Unroll<1, 1, W, T>(*this) + x;
+    }
+    constexpr auto operator-=(const auto &x) -> Ref & {
+      return (*this) = simd::Unroll<1, 1, W, T>(*this) - x;
+    }
+    constexpr auto operator*=(const auto &x) -> Ref & {
+      return (*this) = simd::Unroll<1, 1, W, T>(*this) * x;
+    }
+    constexpr auto operator/=(const auto &x) -> Ref & {
+      return (*this) = simd::Unroll<1, 1, W, T>(*this) / x;
+    }
+  };
+  template <ptrdiff_t U, typename Mask>
+  [[gnu::always_inline]] inline auto operator[](ptrdiff_t,
+                                                simd::index::Unroll<1, W, Mask>)
+    -> Ref {
+    return Ref{this};
+  }
+  template <ptrdiff_t R, typename Mask>
+  [[gnu::always_inline]] inline auto operator[](simd::index::Unroll<R>,
+                                                simd::index::Unroll<1, W, Mask>)
+    -> Ref {
+    return Ref{this};
+  }
+  template <typename Mask>
+  [[gnu::always_inline]] constexpr auto
+  operator[](simd::index::Unroll<1, W, Mask>) -> decltype(auto) {
+    return Ref{this};
+  }
+  template <typename Mask>
+  [[gnu::always_inline]] constexpr auto
+  operator[](simd::index::Unroll<1, W, Mask>) const
+    -> simd::Unroll<1, 1, W, T> {
+    simd::Unroll<1, 1, W, T> ret;
+    ret.data[0] = data_;
+    return ret;
+  }
+  constexpr auto operator==(const StaticArray &other) const -> bool {
+    return bool(simd::cmp::eq<W, T>(data_, other.data_));
+  }
+  template <std::size_t I> [[nodiscard]] constexpr auto get() const -> T {
+    return data_[I];
   }
 };
 

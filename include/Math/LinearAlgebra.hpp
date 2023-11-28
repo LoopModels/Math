@@ -313,7 +313,7 @@ constexpr auto factorize(MutSquarePtrMatrix<T> A) -> Fact<T> {
     if (k + 1 == M) break;
     A[_(k + 1, M), k] *= invAkk;
     for (ptrdiff_t i = k + 1; i < M; ++i)
-      A[i, _(k + 1, i + 1)] -= (A[i, k] * Akk) * A[_(k + 1, i + 1), k];
+      A[i, _(k + 1, i + 1)] -= (A[i, k] * Akk) * A[_(k + 1, i + 1), k].t();
   }
   return Fact{A};
 }

@@ -193,9 +193,8 @@ constexpr auto create(ptrdiff_t i, ptrdiff_t len) -> Vector<W> {
 #endif // ifdef __x86_64__; else
 } // namespace mask
 
-#ifdef __AVX512VL__
-
 namespace cmp {
+#ifdef __AVX512VL__
 
 template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto eq(Vec<W, T> x, Vec<W, T> y)
@@ -373,7 +372,6 @@ template <ptrdiff_t W, typename T>
   } else static_assert(false);
 }
 
-} // namespace cmp
 #elif defined(__AVX512F__)
 
 template <ptrdiff_t W, typename T>
@@ -471,8 +469,6 @@ template <ptrdiff_t W, typename T>
 
 #else  // ifdef __AVX512VL__
 
-namespace cmp {
-
 template <ptrdiff_t W, typename T>
 [[gnu::always_inline, gnu::artificial]] inline auto eq(Vec<W, T> x, Vec<W, T> y)
   -> mask::Vector<W> {
@@ -505,8 +501,8 @@ template <ptrdiff_t W, typename T>
   -> mask::Vector<W> {
   return {x >= y};
 }
-} // namespace cmp
 #endif // ifdef __AVX512VL__; else
+} // namespace cmp
 
 } // namespace poly::simd
 #endif // Masks_hpp_INCLUDED

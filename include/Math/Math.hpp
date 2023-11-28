@@ -118,6 +118,9 @@ template <typename Op, typename A> struct Elementwise {
 };
 template <typename Op, typename A> Elementwise(Op, A) -> Elementwise<Op, A>;
 
+static_assert(
+  ColVector<Elementwise<std::negate<>, Array<int64_t, StridedRange>>>);
+
 constexpr auto size(const std::integral auto) -> ptrdiff_t { return 1; }
 constexpr auto size(const std::floating_point auto) -> ptrdiff_t { return 1; }
 constexpr auto size(const AbstractVector auto &x) -> ptrdiff_t {
@@ -195,38 +198,14 @@ struct ElementwiseBinaryOp {
     else return op(a[i], b[i]);
   }
 
-  [[nodiscard]] constexpr auto numRow() const
-  requires(ismatrix)
-  {
-    if constexpr (AbstractMatrix<A> && AbstractMatrix<B>) {
-      if constexpr (HasConcreteSize<A>)
-        if constexpr (HasConcreteSize<B>)
-          return row(check_sizes(unwrapRow(a.numRow()), unwrapRow(b.numRow())));
-        else return a.numRow();
-      else if constexpr (HasConcreteSize<B>) return b.numRow();
-      else return Row<>{0};
-    } else if constexpr (AbstractMatrix<A>) return a.numRow();
-    else return b.numRow();
+  [[nodiscard]] constexpr auto numRow() const {
+    return row(check_sizes(unwrapRow(numRows(a)), unwrapRow(numRows(b))));
   }
-  [[nodiscard]] constexpr auto numCol() const
-  requires(ismatrix)
-  {
-    if constexpr (AbstractMatrix<A> && AbstractMatrix<B>) {
-      if constexpr (HasConcreteSize<A>)
-        if constexpr (HasConcreteSize<B>)
-          return col(check_sizes(unwrapCol(a.numCol()), unwrapCol(b.numCol())));
-        else return a.numCol();
-      else if constexpr (HasConcreteSize<B>) return b.numCol();
-      else return Col<>{0};
-    } else if constexpr (AbstractMatrix<A>) return a.numCol();
-    else return b.numCol();
+  [[nodiscard]] constexpr auto numCol() const {
+    return col(check_sizes(unwrapCol(numCols(a)), unwrapCol(numCols(b))));
   }
   [[nodiscard]] constexpr auto size() const {
-    if constexpr (ismatrix) return unwrapRow(numRow()) * unwrapCol(numCol());
-    else if constexpr (AbstractVector<A> && AbstractVector<B>)
-      return check_sizes(a.size(), b.size());
-    else if constexpr (AbstractVector<A>) return a.size();
-    else return b.size();
+    return unwrapRow(numRow()) * unwrapCol(numCol());
   }
   [[nodiscard]] constexpr auto view() const -> auto & { return *this; };
   template <typename T> constexpr auto reinterpret() {
@@ -235,7 +214,10 @@ struct ElementwiseBinaryOp {
     return ElementwiseBinaryOp<decltype(ra), decltype(rb), Op>(op, ra, rb);
   }
 };
-
+static_assert(AbstractMatrix<ElementwiseBinaryOp<Array<int64_t, DenseDims<>>,
+                                                 int64_t, std::multiplies<>>>);
+static_assert(ColVector<ElementwiseBinaryOp<Array<int64_t, StridedRange>,
+                                            int64_t, std::multiplies<>>>);
 template <TrivialTensor C, Trivial A, Trivial B> struct AbstractSelect {
   using value_type = std::common_type_t<utils::eltype_t<A>, utils::eltype_t<B>>;
   static constexpr bool isvector = AbstractVector<C>;
@@ -504,15 +486,13 @@ template <AbstractTensor A, AbstractTensor B> struct MatMatMul {
       return s;
     }
   }
-  [[nodiscard]] constexpr auto numRow() const
-  requires(ismatrix)
-  {
-    return a.numRow();
+  [[nodiscard]] constexpr auto numRow() const {
+    if constexpr (AbstractMatrix<A>) return a.numRow();
+    else return Row<1>{};
   }
-  [[nodiscard]] constexpr auto numCol() const
-  requires(ismatrix)
-  {
-    return b.numCol();
+  [[nodiscard]] constexpr auto numCol() const {
+    if constexpr (AbstractMatrix<B>) return b.numCol();
+    else return Col<1>{};
   }
   [[nodiscard]] constexpr auto size() const {
     if constexpr (ismata)

@@ -88,16 +88,18 @@ template <typename X, typename Y>
     if constexpr (std::same_as<ptrdiff_t, Y>) {
       invariant(x, y);
       return x;
-    } else {
+    } else if constexpr (y > 1) {
       constexpr ptrdiff_t L = y;
       invariant(x, L);
       return std::integral_constant<ptrdiff_t, L>{};
-    }
-  } else if constexpr (std::same_as<ptrdiff_t, Y>) {
+    } else return x;
+  } else if constexpr (x <= 1) return y;
+  else if constexpr (std::same_as<ptrdiff_t, Y>) {
     constexpr ptrdiff_t L = x;
     invariant(L, y);
     return std::integral_constant<ptrdiff_t, L>{};
-  } else {
+  } else if constexpr (y <= 1) return x;
+  else {
     static_assert(x == y);
     return std::integral_constant<ptrdiff_t, ptrdiff_t(x)>{};
   }
@@ -158,6 +160,7 @@ template <class T, class S, class P> class ArrayOps {
         else self[row, u] = get<T>(B, row, u);
         // utils::assign(self, B, row, u, op);
       } else {
+        static_assert(fulliter > 0);
         simd::index::Unroll<fulliter, W> u{0};
         if constexpr (std::same_as<R, utils::NoRowIndex>)
           self[u] = get<T>(B, u);
@@ -290,26 +293,18 @@ public:
   [[gnu::flatten]] constexpr auto operator+=(const auto &B) -> P & {
     P &self{Self()};
     return self << self.view() + B;
-    // vcopyTo(B, std::plus<>{});
-    // return Self();
   }
   [[gnu::flatten]] constexpr auto operator-=(const auto &B) -> P & {
     P &self{Self()};
     return self << self.view() - B;
-    // vcopyTo(B, std::minus<>{});
-    // return Self();
   }
   [[gnu::flatten]] constexpr auto operator*=(const auto &B) -> P & {
     P &self{Self()};
     return self << self.view() * B;
-    // vcopyTo(B, std::multiplies<>{});
-    // return Self();
   }
   [[gnu::flatten]] constexpr auto operator/=(const auto &B) -> P & {
     P &self{Self()};
     return self << self.view() / B;
-    // vcopyTo(B, std::divides<>{});
-    // return Self();
   }
 };
 

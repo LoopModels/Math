@@ -39,12 +39,15 @@ concept ShapelessSize = DefinesSize<T> && (!DefinesShape<T>);
 template <typename T>
 concept PrimitiveScalar = std::integral<T> || std::floating_point<T>;
 
-constexpr auto numRows(const DefinesShape auto &A) { return A.numRow(); }
-constexpr auto numCols(const DefinesShape auto &A) { return A.numCol(); }
-
-constexpr auto numRows(const ShapelessSize auto &) -> Row<1> { return {}; }
-constexpr auto numCols(const ShapelessSize auto &A) { return col(A.size()); }
-
+template <typename T> constexpr auto numRows(const T &A) {
+  if constexpr (DefinesShape<T>) return A.numRow();
+  else return Row<1>{};
+}
+template <typename T> constexpr auto numCols(const T &A) {
+  if constexpr (DefinesShape<T>) return A.numCol();
+  else if constexpr (ShapelessSize<T>) return col(A.size());
+  else return Col<1>{};
+}
 constexpr auto shape(const auto &x) {
   return CartesianIndex(unwrapRow(numRows(x)), unwrapCol(numCols(x)));
 }
