@@ -534,7 +534,7 @@ struct StaticArray<T, 1, N, false>
   struct Ref {
     StaticArray *parent;
     constexpr auto operator=(simd::Unroll<1, 1, W, T> x) -> Ref & {
-      parent->data_ = x.data[0];
+      parent->data_ = x.vec;
       return *this;
     }
     constexpr auto operator=(simd::Vec<W, T> x) -> Ref & {
@@ -581,7 +581,7 @@ struct StaticArray<T, 1, N, false>
   operator[](simd::index::Unroll<1, W, Mask>) const
     -> simd::Unroll<1, 1, W, T> {
     simd::Unroll<1, 1, W, T> ret;
-    ret.data[0] = data_;
+    ret.vec = data_;
     return ret;
   }
   constexpr auto operator==(const StaticArray &other) const -> bool {
