@@ -139,7 +139,8 @@ constexpr auto pivotRows(MutPtrMatrix<int64_t> A, ptrdiff_t i, Row<> N)
 constexpr void dropCol(MutPtrMatrix<int64_t> A, ptrdiff_t i, Row<> M, Col<> N) {
   // if any rows are left, we shift them up to replace it
   if (N <= i) return;
-  for (ptrdiff_t m = 0; m < M; ++m) A[m, _(i, N)] << A[m, _(i, N) + 1];
+  A[_(0, M), _(i, N)] << A[_(0, M), _(i, N) + 1];
+  // for (ptrdiff_t m = 0; m < M; ++m) A[m, _(i, N)] << A[m, _(i, N) + 1];
   // for (ptrdiff_t n = i; n < N; ++n) A[m, n] = A[m, n + 1];
 }
 
@@ -185,11 +186,8 @@ constexpr void zeroSupDiagonal(MutPtrMatrix<int64_t> A, Col<> c, Row<> r) {
     int64_t Aii = A[r, c];
     if (int64_t Aij = A[j, c]) {
       const auto [p, q, Aiir, Aijr] = gcdxScale(Aii, Aij);
-      for (ptrdiff_t k = 0; k < N; ++k) {
-        int64_t Aki = A[r, k], Akj = A[j, k];
-        A[r, k] = p * Aki + q * Akj;
-        A[j, k] = Aiir * Akj - Aijr * Aki;
-      }
+      MutPtrVector<int64_t> Ar = A[r, _], Aj = A[j, _];
+      tie(Ar, Aj) << Tuple(p * Ar + q * Aj, Aiir * Aj - Aijr * Ar);
     }
   }
 }
@@ -197,24 +195,15 @@ constexpr void zeroSupDiagonal(std::array<MutPtrMatrix<int64_t>, 2> AB, Col<> c,
                                Row<> r) {
   auto [A, B] = AB;
   auto [M, N] = shape(A);
-  const Col K = B.numCol();
   invariant(M, ptrdiff_t(B.numRow()));
   for (ptrdiff_t j = ptrdiff_t(r) + 1; j < M; ++j) {
-    int64_t Aii = A[r, c];
-    if (int64_t Aij = A[j, c]) {
-      const auto [p, q, Aiir, Aijr] = gcdxScale(Aii, Aij);
-      for (ptrdiff_t k = 0; k < N; ++k) {
-        int64_t Ack = A[r, k];
-        int64_t Ajk = A[j, k];
-        A[r, k] = p * Ack + q * Ajk;
-        A[j, k] = Aiir * Ajk - Aijr * Ack;
-      }
-      for (ptrdiff_t k = 0; k < K; ++k) {
-        int64_t Bck = B[r, k], Bjk = B[j, k];
-        B[r, k] = p * Bck + q * Bjk;
-        B[j, k] = Aiir * Bjk - Aijr * Bck;
-      }
-    }
+    int64_t Aii = A[r, c], Aij = A[j, c];
+    if (!Aij) continue;
+    const auto [p, q, Aiir, Aijr] = gcdxScale(Aii, Aij);
+    MutPtrVector<int64_t> Ar = A[r, _], Aj = A[j, _];
+    tie(Ar, Aj) << Tuple(p * Ar + q * Aj, Aiir * Aj - Aijr * Ar);
+    MutPtrVector<int64_t> Br = B[r, _], Bj = B[j, _];
+    tie(Br, Bj) << Tuple(p * Br + q * Bj, Aiir * Bj - Aijr * Br);
   }
 }
 constexpr void reduceSubDiagonal(MutPtrMatrix<int64_t> A, Col<> c, Row<> r) {
@@ -283,29 +272,29 @@ constexpr void reduceSubDiagonal(std::array<MutPtrMatrix<int64_t>, 2> AB,
   }
   for (ptrdiff_t z = 0; z < r; ++z) {
     // try to eliminate `A(k,z)`
-    if (int64_t Akz = A[z, c]) {
-      // if Akk == 1, then this zeros out Akz
-      if (Akk != 1) {
-        // we want positive but smaller subdiagonals
-        // e.g., `Akz = 5, Akk = 2`, then in the loop below when `i=k`,
-        // we set A(k,z) = A(k,z) - (A(k,z)/Akk) * Akk
-        //        =   5 - 2*2 = 1
-        // or if `Akz = -5, Akk = 2`, then in the loop below we get
-        // A(k,z) = A(k,z) - ((A(k,z)/Akk) - ((A(k,z) % Akk) != 0) * Akk
-        //        =  -5 - (-2 - 1)*2 = = 6 - 5 = 1
-        // if `Akk = 1`, then
-        // A(k,z) = A(k,z) - (A(k,z)/Akk) * Akk
-        //        = A(k,z) - A(k,z) = 0
-        // or if `Akz = -7, Akk = 39`, then in the loop below we get
-        // A(k,z) = A(k,z) - ((A(k,z)/Akk) - ((A(k,z) % Akk) != 0) * Akk
-        //        =  -7 - ((-7/39) - 1)*39 = = 6 - 5 = 1
-        int64_t oAkz = Akz;
-        Akz /= Akk;
-        if (oAkz < 0) Akz -= (oAkz != (Akz * Akk));
-      }
-      A[z, _] -= Akz * A[r, _];
-      B[z, _] -= Akz * B[r, _];
+    int64_t Akz = A[z, c];
+    if (!Akz) continue;
+    // if Akk == 1, then this zeros out Akz
+    if (Akk != 1) {
+      // we want positive but smaller subdiagonals
+      // e.g., `Akz = 5, Akk = 2`, then in the loop below when `i=k`,
+      // we set A(k,z) = A(k,z) - (A(k,z)/Akk) * Akk
+      //        =   5 - 2*2 = 1
+      // or if `Akz = -5, Akk = 2`, then in the loop below we get
+      // A(k,z) = A(k,z) - ((A(k,z)/Akk) - ((A(k,z) % Akk) != 0) * Akk
+      //        =  -5 - (-2 - 1)*2 = = 6 - 5 = 1
+      // if `Akk = 1`, then
+      // A(k,z) = A(k,z) - (A(k,z)/Akk) * Akk
+      //        = A(k,z) - A(k,z) = 0
+      // or if `Akz = -7, Akk = 39`, then in the loop below we get
+      // A(k,z) = A(k,z) - ((A(k,z)/Akk) - ((A(k,z) % Akk) != 0) * Akk
+      //        =  -7 - ((-7/39) - 1)*39 = = 6 - 5 = 1
+      int64_t oAkz = Akz;
+      Akz /= Akk;
+      if (oAkz < 0) Akz -= (oAkz != (Akz * Akk));
     }
+    A[z, _] -= Akz * A[r, _];
+    B[z, _] -= Akz * B[r, _];
   }
 }
 
@@ -461,64 +450,57 @@ constexpr void zeroWithRowOperation(MutPtrMatrix<int64_t> A, Row<> i, Row<> j,
 constexpr void zeroColumnPair(std::array<MutPtrMatrix<int64_t>, 2> AB, Col<> c,
                               Row<> r) {
   auto [A, B] = AB;
-  const Col N = A.numCol();
-  const Col K = B.numCol();
   const Row M = A.numRow();
   invariant(M, B.numRow());
   for (ptrdiff_t j = 0; j < r; ++j) {
-    int64_t Arc = A[r, c];
-    if (int64_t Ajc = A[j, c]) {
-      int64_t g = gcd(Arc, Ajc);
-      Arc /= g;
-      Ajc /= g;
-      A[j, _] << Arc * A[j, _] - Ajc * A[r, _];
-      B[j, _] << Arc * B[j, _] - Ajc * B[r, _];
+    int64_t Arc = A[r, c], Ajc = A[j, c];
+    if (!Ajc) continue;
+    int64_t g = gcd(Arc, Ajc), x = Arc / g, y = Ajc / g;
+    // auto [x, y] = divgcd(Arc, Ajc);
+    // MutPtrVector<int64_t> Ar = A[r, _], Aj = A[j, _];
+    // Aj << x * Aj - y * Ar;
+    // MutPtrVector<int64_t> Br = B[r, _], Bj = B[j, _];
+    // Bj << x * Bj - y * Br;
+    for (ptrdiff_t i = 0; i < 2; ++i) {
+      MutPtrVector<int64_t> Ar = AB[i][r, _], Aj = AB[i][j, _];
+      Aj << x * Aj - y * Ar;
     }
   }
   // greater rows in previous columns have been zeroed out
   // therefore it is safe to use them for row operations with this row
   for (ptrdiff_t j = ptrdiff_t(r) + 1; j < M; ++j) {
-    int64_t Arc = A[r, c];
-    if (int64_t Ajc = A[j, c]) {
-      const auto [p, q, Arcr, Ajcr] = gcdxScale(Arc, Ajc);
-      for (ptrdiff_t k = 0; k < N; ++k) {
-        int64_t Ark = A[r, k], Ajk = A[j, k];
-        A[r, k] = q * Ajk + p * Ark;
-        A[j, k] = Arcr * Ajk - Ajcr * Ark;
-      }
-      for (ptrdiff_t k = 0; k < K; ++k) {
-        int64_t Brk = B[r, k], Bjk = B[j, k];
-        B[r, k] = q * Bjk + p * Brk;
-        B[j, k] = Arcr * Bjk - Ajcr * Brk;
-      }
+    int64_t Arc = A[r, c], Ajc = A[j, c];
+    if (!Ajc) continue;
+    const auto [p, q, Arcr, Ajcr] = gcdxScale(Arc, Ajc);
+    // MutPtrVector<int64_t> Ar = A[r, _], Aj = A[j, _];
+    // tie(Ar, Aj) << Tuple(q * Aj + p * Ar, Arcr * Aj - Ajcr * Ar);
+    // MutPtrVector<int64_t> Br = B[r, _], Bj = B[j, _];
+    // tie(Br, Bj) << Tuple(q * Bj + p * Br, Arcr * Bj - Ajcr * Br);
+    for (ptrdiff_t i = 0; i < 2; ++i) {
+      MutPtrVector<int64_t> Ar = AB[i][r, _], Aj = AB[i][j, _];
+      tie(Ar, Aj) << Tuple(q * Aj + p * Ar, Arcr * Aj - Ajcr * Ar);
     }
   }
 }
 // use row `r` to zero the remaining rows of column `c`
 constexpr void zeroColumn(MutPtrMatrix<int64_t> A, Col<> c, Row<> r) {
-  const Col N = A.numCol();
   const Row M = A.numRow();
   for (ptrdiff_t j = 0; j < r; ++j) {
-    int64_t Arc = A[r, c];
+    int64_t Arc = A[r, c], Ajc = A[j, c];
     invariant(Arc != std::numeric_limits<int64_t>::min());
-    if (int64_t Ajc = A[j, c]) {
-      invariant(Ajc != std::numeric_limits<int64_t>::min());
-      int64_t g = gcd(Arc, Ajc);
-      A[j, _] << (Arc / g) * A[j, _] - (Ajc / g) * A[r, _];
-    }
+    invariant(Ajc != std::numeric_limits<int64_t>::min());
+    if (!Ajc) continue;
+    int64_t g = gcd(Arc, Ajc);
+    A[j, _] << (Arc / g) * A[j, _] - (Ajc / g) * A[r, _];
   }
   // greater rows in previous columns have been zeroed out
   // therefore it is safe to use them for row operations with this row
   for (ptrdiff_t j = ptrdiff_t(r) + 1; j < M; ++j) {
-    int64_t Arc = A[r, c];
-    if (int64_t Ajc = A[j, c]) {
-      const auto [p, q, Arcr, Ajcr] = gcdxScale(Arc, Ajc);
-      for (ptrdiff_t k = 0; k < N; ++k) {
-        int64_t Ark = A[r, k], Ajk = A[j, k];
-        A[r, k] = q * Ajk + p * Ark;
-        A[j, k] = Arcr * Ajk - Ajcr * Ark;
-      }
-    }
+    int64_t Arc = A[r, c], Ajc = A[j, c];
+    if (!Ajc) continue;
+    const auto [p, q, Arcr, Ajcr] = gcdxScale(Arc, Ajc);
+    MutPtrVector<int64_t> Ar = A[r, _], Aj = A[j, _];
+    tie(Ar, Aj) << Tuple(q * Aj + p * Ar, Arcr * Aj - Ajcr * Ar);
   }
 }
 
@@ -541,10 +523,6 @@ constexpr void bareiss(MutPtrMatrix<int64_t> A,
       auto j{_(c + 1, N)};
       for (ptrdiff_t k = r + 1; k < M; ++k) {
         A[k, j] << (A[r, c] * A[k, j] - A[k, c] * A[r, j]) / prev;
-        // for (ptrdiff_t j = c + 1; j < N; ++j) {
-        //   auto uAkj = A[r, c] * A[k, j] - A[k, c] * A[r, j], Akj = uAkj /
-        //   prev; invariant(uAkj, Akj * prev); A[k, j] = Akj;
-        // }
         A[k, r] = 0;
       }
       prev = A[r++, c];

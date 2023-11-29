@@ -263,33 +263,38 @@ protected:
 
 public:
   template <std::convertible_to<T> Y>
-  [[gnu::flatten]] constexpr auto operator<<(const UniformScaling<Y> &B)
-    -> P & {
+  [[gnu::always_inline, gnu::flatten]] constexpr auto
+  operator<<(const UniformScaling<Y> &B) -> P & {
     static_assert(MatrixDimension<S>);
     std::fill_n(data_(), ptrdiff_t(this->dim()), T{});
     this->diag() << B.value;
     return *static_cast<P *>(this);
   }
-  [[gnu::flatten]] constexpr auto operator<<(const SmallSparseMatrix<T> &B)
-    -> P &;
+  [[gnu::always_inline, gnu::flatten]] constexpr auto
+  operator<<(const SmallSparseMatrix<T> &B) -> P &;
 
-  [[gnu::flatten]] constexpr auto operator<<(const auto &B) -> P & {
+  [[gnu::always_inline, gnu::flatten]] constexpr auto operator<<(const auto &B)
+    -> P & {
     vcopyTo(B, utils::CopyAssign{});
     return Self();
   }
-  [[gnu::flatten]] constexpr auto operator+=(const auto &B) -> P & {
+  [[gnu::always_inline, gnu::flatten]] constexpr auto operator+=(const auto &B)
+    -> P & {
     vcopyTo(B, std::plus<>{});
     return Self();
   }
-  [[gnu::flatten]] constexpr auto operator-=(const auto &B) -> P & {
+  [[gnu::always_inline, gnu::flatten]] constexpr auto operator-=(const auto &B)
+    -> P & {
     vcopyTo(B, std::minus<>{});
     return Self();
   }
-  [[gnu::flatten]] constexpr auto operator*=(const auto &B) -> P & {
+  [[gnu::always_inline, gnu::flatten]] constexpr auto operator*=(const auto &B)
+    -> P & {
     vcopyTo(B, std::multiplies<>{});
     return Self();
   }
-  [[gnu::flatten]] constexpr auto operator/=(const auto &B) -> P & {
+  [[gnu::always_inline, gnu::flatten]] constexpr auto operator/=(const auto &B)
+    -> P & {
     vcopyTo(B, std::divides<>{});
     return Self();
   }
@@ -447,7 +452,7 @@ vcopyTo(Tuple<A, As...> &dst, const Tuple<B, Bs...> &src) {
 // they can share pointers.
 template <typename A, typename... As>
 template <typename B, typename... Bs>
-[[gnu::flatten, gnu::always_inline]] inline constexpr void
+[[gnu::always_inline, gnu::flatten]] inline constexpr void
 Tuple<A, As...>::operator<<(const Tuple<B, Bs...> &src)
 requires(sizeof...(As) == sizeof...(Bs))
 {
@@ -470,7 +475,7 @@ requires(sizeof...(As) == sizeof...(Bs))
 }
 template <typename A, typename... As>
 template <typename B, typename... Bs>
-[[gnu::always_inline]] inline constexpr void
+[[gnu::always_inline, gnu::flatten]] inline constexpr void
 Tuple<A, As...>::operator+=(const Tuple<B, Bs...> &src)
 requires(sizeof...(As) == sizeof...(Bs))
 {
@@ -478,7 +483,7 @@ requires(sizeof...(As) == sizeof...(Bs))
 }
 template <typename A, typename... As>
 template <typename B, typename... Bs>
-[[gnu::always_inline]] inline constexpr void
+[[gnu::always_inline, gnu::flatten]] inline constexpr void
 Tuple<A, As...>::operator-=(const Tuple<B, Bs...> &src)
 requires(sizeof...(As) == sizeof...(Bs))
 {
@@ -486,7 +491,7 @@ requires(sizeof...(As) == sizeof...(Bs))
 }
 template <typename A, typename... As>
 template <typename B, typename... Bs>
-[[gnu::always_inline]] inline constexpr void
+[[gnu::always_inline, gnu::flatten]] inline constexpr void
 Tuple<A, As...>::operator*=(const Tuple<B, Bs...> &src)
 requires(sizeof...(As) == sizeof...(Bs))
 {
@@ -494,7 +499,7 @@ requires(sizeof...(As) == sizeof...(Bs))
 }
 template <typename A, typename... As>
 template <typename B, typename... Bs>
-[[gnu::always_inline]] inline constexpr void
+[[gnu::always_inline, gnu::flatten]] inline constexpr void
 Tuple<A, As...>::operator/=(const Tuple<B, Bs...> &src)
 requires(sizeof...(As) == sizeof...(Bs))
 {
