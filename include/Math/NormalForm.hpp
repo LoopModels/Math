@@ -395,18 +395,38 @@ constexpr auto zeroWithRowOp(MutPtrMatrix<int64_t> A, Row<> i, Row<> j, Col<> k,
   Aik /= g;
   Ajk /= g;
   int64_t ret = f * Ajk;
-  g = ret;
-  for (ptrdiff_t l = 0; l < A.numCol(); ++l) {
-    int64_t Ail = Ajk * A[i, l] - Aik * A[j, l];
-    A[i, l] = Ail;
-    g = gcd(Ail, g);
+  constexpr ptrdiff_t W = simd::Width<int64_t>;
+  simd::Vec<W, int64_t> vAjk = simd::vbroadcast<W, int64_t>(Ajk),
+                        vAik = simd::vbroadcast<W, int64_t>(Aik), vg = {ret};
+  PtrMatrix<int64_t> B = A;
+  ptrdiff_t L = ptrdiff_t(A.numCol()), l = 0;
+  if (ret != 1) {
+    for (;;) {
+      auto u{simd::index::unrollmask<1, W>(L, l)};
+      if (!u) break;
+      simd::Vec<W, int64_t> Ail = vAjk * B[i, u].vec - vAik * B[j, u].vec;
+      A[i, u] = Ail;
+      vg = gcd<W>(Ail, vg);
+      l += W;
+      if (!bool(simd::cmp::ne<W, int64_t>(vg, simd::Vec<W, int64_t>{} + 1)))
+        break;
+    }
   }
-  if (g > 1) {
-    for (ptrdiff_t l = 0; l < A.numCol(); ++l)
-      if (int64_t Ail = A[i, l]) A[i, l] = Ail / g;
-    int64_t r = ret / g;
-    invariant(r * g, ret);
-    ret = r;
+  if (l < L) {
+    for (;; l += W) {
+      auto u{simd::index::unrollmask<1, W>(L, l)};
+      if (!u) break;
+      A[i, u] = vAjk * B[i, u].vec - vAik * B[j, u].vec;
+    }
+  } else if (simd::cmp::le<W, int64_t>(vg, simd::Vec<W, int64_t>{} + 1)) {
+    g = gcdreduce<W>(vg);
+    if (g > 1) {
+      for (ptrdiff_t ll = 0; ll < A.numCol(); ++ll)
+        if (int64_t Ail = A[i, ll]) A[i, ll] = Ail / g;
+      int64_t r = ret / g;
+      invariant(r * g, ret);
+      ret = r;
+    }
   }
   return ret;
 }

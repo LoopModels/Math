@@ -669,6 +669,55 @@ store(T *p, mask::Vector<W> i, Vec<W, T> x, int32_t stride) {
 }
 
 #endif
+#ifdef __AVX512CD__
+
+// count left zeros
+template <ptrdiff_t W, std::integral T> constexpr auto clz(Vec<W, T> v) {
+  static_assert((sizeof(T) == 4) || (sizeof(T) == 8));
+  if constexpr (W == 16) {
+    static_assert(sizeof(T) == 4);
+    return std::bit_cast<Vec<W, T>>(
+      _mm512_lzcnt_epi32(std::bit_cast<__m512i>(v)));
+  } else if constexpr (W == 8) {
+    if constexpr (sizeof(T) == 8)
+      return std::bit_cast<Vec<W, T>>(
+        _mm512_lzcnt_epi64(std::bit_cast<__m512i>(v)));
+    else
+      return std::bit_cast<Vec<W, T>>(
+        _mm256_lzcnt_epi32(std::bit_cast<__m256i>(v)));
+  } else if constexpr (W == 4) {
+    if constexpr (sizeof(T) == 8)
+      return std::bit_cast<Vec<W, T>>(
+        _mm256_lzcnt_epi64(std::bit_cast<__m256i>(v)));
+    else
+      return std::bit_cast<Vec<W, T>>(
+        _mm_lzcnt_epi32(std::bit_cast<__m128i>(v)));
+  } else {
+    static_assert(sizeof(T) == 8);
+    return std::bit_cast<Vec<W, T>>(_mm_lzcnt_epi64(std::bit_cast<__m128i>(v)));
+  }
+}
+// count right zeros
+template <ptrdiff_t W, std::integral T> constexpr auto crz(Vec<W, T> v) {
+  return T(8 * sizeof(T)) - clz<W, T>((~v) & (v - T(1)));
+}
+
+#else
+
+template <ptrdiff_t W, std::integral T> constexpr auto clz(Vec<W, T> v) {
+  Vec<W, T> ret;
+  for (ptrdiff_t w = 0; w < W; ++w)
+    ret[w] = T(std::countl_zero(std::make_unsigned_t<T>(v[w])));
+  return ret;
+}
+template <ptrdiff_t W, std::integral T> constexpr auto crz(Vec<W, T> v) {
+  Vec<W, T> ret;
+  for (ptrdiff_t w = 0; w < W; ++w)
+    ret[w] = T(std::countr_zero(std::make_unsigned_t<T>(v[w])));
+  return ret;
+}
+
+#endif
 
 template <typename T>
 static constexpr ptrdiff_t Width =

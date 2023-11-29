@@ -562,7 +562,7 @@ public:
       auto ev = *enteringVariable;
       auto leaveOpt = getLeavingVariable(C, ev);
       if (!leaveOpt) break;
-      ptrdiff_t lVar = ptrdiff_t(*leaveOpt);
+      auto lVar = ptrdiff_t(*leaveOpt);
       ptrdiff_t leavingVariable = lVar++;
       for (ptrdiff_t i = 0; i < C.numRow(); ++i)
         if (i != ptrdiff_t(lVar))
