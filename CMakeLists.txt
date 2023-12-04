@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.14)
 option(ENABLE_LLD "Use LLD? Off by default." OFF)
 option(USE_MI_MALLOC "Use MI_MALLOC if available." ON)
 option(USE_JE_MALLOC "Use jemallc if available and not using mi_malloc." ON)
+option(ENABLE_NATIVE_COMPILATION "Compile with -march=native" ON)
+option(ENABLE_WIDE_VECTORS "Compile with 512bit vectors if available" ON)
 # ---- Project ----
 
 # Note: update this to your new project's name and version
@@ -69,6 +71,32 @@ if(SEARCH_JE_MALLOC)
       target_link_libraries(${PROJECT_NAME} INTERFACE ${JEMALLOC_LIBRARIES})
       target_include_directories(${PROJECT_NAME} INTERFACE ${JEMALLOC_INCLUDE_DIRS})
       target_compile_definitions(${PROJECT_NAME} INTERFACE USING_JEMALLOC)
+    endif()
+  endif()
+endif()
+
+# --- Native compilation ---
+
+if(ENABLE_NATIVE_COMPILATION)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "IntelLLVM")
+    target_compile_options(${PROJECT_NAME} INTERFACE -xhost)
+    if(ENABLE_WIDE_VECTORS)
+      target_compile_options(${PROJECT_NAME} INTERFACE -qopt-zmm-usage=high)
+    endif()
+  else()
+    target_compile_options(${PROJECT_NAME} INTERFACE -march=native)
+    if(ENABLE_WIDE_VECTORS)
+      include(CheckCXXCompilerFlag)
+      check_cxx_compiler_flag("-mprefer-vector-width=512" VEC512)
+      if(VEC512)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+          target_compile_options(${PROJECT_NAME} INTERFACE -mprefer-vector-width=512)
+        elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+          target_compile_options(
+            ${PROJECT_NAME} INTERFACE -mprefer-vector-width=512 -mtune-ctrl=avx512_move_by_pieces
+          )
+        endif()
+      endif()
     endif()
   endif()
 endif()

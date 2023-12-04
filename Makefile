@@ -15,10 +15,10 @@ buildclang/test/:
 	CXXFLAGS="" CXX=clang++ cmake -S test -B buildclang/test/ -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER='Address;Undefined'
 	
 buildgcc/avx2/:
-	CXXFLAGS="-march=haswell" CXX=g++ cmake -S test -B buildgcc/avx2/ -DCMAKE_BUILD_TYPE=Debug
+	CXXFLAGS="-march=haswell" CXX=g++ cmake -S test -B buildgcc/avx2/ -DCMAKE_BUILD_TYPE=Debug -DENABLE_NATIVE_COMPILATION=OFF
 
-buildclang/avx512/:
-	CXXFLAGS="-march=skylake-avx512 -mprefer-vector-width=512" CXX=clang++ cmake -S test -B buildclang/avx512/ -DCMAKE_BUILD_TYPE=Debug
+buildclang/sse/:
+	CXX=clang++ cmake -S test -B buildclang/sse/ -DCMAKE_BUILD_TYPE=Debug -DENABLE_NATIVE_COMPILATION=OFF
 
 
 gccnosan: buildgcc/nosan/
