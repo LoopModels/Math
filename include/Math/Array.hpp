@@ -385,7 +385,7 @@ struct POLY_MATH_GSL_POINTER Array {
   [[nodiscard]] constexpr auto operator==(const Array &other) const noexcept
     -> bool {
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
-      ptrdiff_t M = other.numRow();
+      ptrdiff_t M = ptrdiff_t(other.numRow());
       if ((numRow() != M) || (numCol() != other.numCol())) return false;
       // may not be dense, iterate over rows
       for (ptrdiff_t i = 0; i < M; ++i)
