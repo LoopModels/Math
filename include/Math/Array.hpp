@@ -384,13 +384,23 @@ struct POLY_MATH_GSL_POINTER Array {
   }
   [[nodiscard]] constexpr auto operator==(const Array &other) const noexcept
     -> bool {
-    if (size() != other.size()) return false;
     if constexpr (MatrixDimension<S> && !DenseLayout<S>) {
+      ptrdiff_t M = other.numRow();
+      if ((numRow() != M) || (numCol() != other.numCol())) return false;
       // may not be dense, iterate over rows
-      for (ptrdiff_t i = 0; i < numRow(); ++i)
+      for (ptrdiff_t i = 0; i < M; ++i)
         if ((*this)[i, _] != other[i, _]) return false;
-      return true;
-    } else return std::equal(begin(), end(), other.begin());
+    } else {
+      constexpr ptrdiff_t W = simd::Width<T>;
+      ptrdiff_t N = size();
+      if (N != other.size()) return false;
+      for (ptrdiff_t i = 0;; i += W) {
+        auto u{simd::index::unrollmask<1, W>(N, i)};
+        if (!u) break;
+        if (simd::cmp::ne<W, T>((*this)[u], other[u])) return false;
+      }
+    }
+    return true;
   }
   // FIXME: strided should skip over elements
   [[nodiscard]] constexpr auto norm2() const noexcept -> value_type {

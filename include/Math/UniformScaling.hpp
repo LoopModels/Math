@@ -79,6 +79,7 @@ template <class T> struct UniformScaling {
     -> std::ostream & {
     return os << "UniformScaling(" << S.value << ")";
   }
+  [[nodiscard]] constexpr auto t() const -> UniformScaling { return *this; }
 };
 template <class T>
 constexpr auto operator==(const AbstractMatrix auto &A,

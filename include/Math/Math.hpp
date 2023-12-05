@@ -66,15 +66,41 @@ concept BinaryFuncOfElts =
   std::is_invocable_v<Op, indextype_t<A, B>, indextype_t<B, A>>;
 
 // TODO: make this part of ArrayOps!!!
-[[gnu::flatten]] constexpr auto operator==(const AbstractMatrix auto &A,
-                                           const AbstractMatrix auto &B)
+[[gnu::flatten]] constexpr auto operator==(const AbstractTensor auto &A,
+                                           const AbstractTensor auto &B)
   -> bool {
-  const Row M = B.numRow();
-  const Col N = B.numCol();
-  if ((M != A.numRow()) || (N != A.numCol())) return false;
-  for (ptrdiff_t r = 0; r < M; ++r)
-    for (ptrdiff_t c = 0; c < N; ++c)
-      if (A[r, c] != B[r, c]) return false;
+  auto [M, N] = shape(A);
+  auto [Mb, Nb] = shape(B);
+  if ((M != Mb) || (N != Nb)) return false;
+  using T = std::common_type_t<utils::eltype_t<decltype(A)>,
+                               utils::eltype_t<decltype(B)>>;
+  constexpr ptrdiff_t W = simd::Width<T>;
+  if constexpr (W <= 2) {
+    if constexpr (AbstractMatrix<decltype(A)>) {
+      for (ptrdiff_t r = 0; r < M; ++r)
+        for (ptrdiff_t i = 0; i < N; ++i)
+          if (A[r, i] != B[r, i]) return false;
+    } else {
+      ptrdiff_t L = RowVector<decltype(A)> ? N : M;
+      for (ptrdiff_t i = 0; i < L; ++i)
+        if (A[i] != B[i]) return false;
+    }
+  } else if constexpr (AbstractMatrix<decltype(A)>) {
+    for (ptrdiff_t r = 0; r < M; ++r) {
+      for (ptrdiff_t i = 0;; i += W) {
+        auto u{simd::index::unrollmask<1, W>(N, i)};
+        if (!u) break;
+        if (simd::cmp::ne<W, T>(A[r, u], B[r, u])) return false;
+      }
+    }
+  } else {
+    ptrdiff_t L = RowVector<decltype(A)> ? N : M;
+    for (ptrdiff_t i = 0;; i += W) {
+      auto u{simd::index::unrollmask<1, W>(L, i)};
+      if (!u) break;
+      if (simd::cmp::ne<W, T>(A[u], B[u])) return false;
+    }
+  }
   return true;
 }
 
@@ -884,52 +910,82 @@ template <typename T, typename I> struct SliceView {
 
 static_assert(AbstractVector<SliceView<int64_t, unsigned>>);
 
-// template <class T, size_t N> struct Zip {
-//   std::array<T, N> a;
-//   constexpr Zip(std::initializer_list<T> b) : a(b) {}
-//   constexpr auto operator[](ptrdiff_t i) -> T & { return a[i]; }
-//   constexpr auto operator[](ptrdiff_t i) const -> const T & { return a[i]; }
-//   constexpr auto size() const -> ptrdiff_t { return N; }
-//   constexpr auto begin() -> typename std::array<T, N>::iterator {
-//     return a.begin();
-//   }
-//   constexpr auto end() -> typename std::array<T, N>::iterator {
-//     return a.end();
-//   }
-//   constexpr auto begin() const -> typename std::array<T, N>::const_iterator {
-//     return a.begin();
-//   }
-//   constexpr auto end() const -> typename std::array<T, N>::const_iterator {
-//     return a.end();
-//   }
-
-// };
-
-// exports:
-// NOLINTNEXTLINE(bugprone-reserved-identifier)
-template <typename T> auto anyNEZero(PtrMatrix<T> x) -> bool {
-  for (ptrdiff_t r = 0; r < x.numRow(); ++r)
-    if (anyNEZero(x(r, _))) return true;
-  return false;
-}
-template <typename T> auto allZero(PtrMatrix<T> x) -> bool {
-  return !anyNEZero(x);
-}
-template <typename T> auto allLEZero(PtrMatrix<T> x) -> bool {
-  for (ptrdiff_t r = 0; r < x.numRow(); ++r)
-    if (!allLEZero(x(r, _))) return false;
-  return true;
-}
-template <typename T> auto allGEZero(PtrMatrix<T> x) -> bool {
-  for (ptrdiff_t r = 0; r < x.numRow(); ++r)
-    if (!allGEZero(x(r, _))) return false;
-  return true;
-}
 template <typename T> auto countNonZero(PtrMatrix<T> x) -> ptrdiff_t {
   ptrdiff_t count = 0;
   for (ptrdiff_t r = 0; r < x.numRow(); ++r) count += countNonZero(x(r, _));
   return count;
 }
 static_assert(std::same_as<decltype(_(0, 4) + 8), Range<ptrdiff_t, ptrdiff_t>>);
+[[gnu::always_inline, gnu::flatten]] constexpr auto
+any(const AbstractTensor auto &A, const auto &f) -> bool {
+  auto [M, N] = shape(A);
+  using T = utils::eltype_t<decltype(A)>;
+  constexpr ptrdiff_t W = simd::Width<T>;
+  if constexpr (W <= 2) {
+    if constexpr (AbstractMatrix<decltype(A)>) {
+      for (ptrdiff_t r = 0; r < M; ++r)
+        for (ptrdiff_t i = 0; i < N; ++i)
+          if (f(A[r, i])) return true;
+    } else
+      for (ptrdiff_t i = 0; i < N; ++i)
+        if (f(A[i])) return true;
+  } else if constexpr (AbstractMatrix<decltype(A)>) {
+    for (ptrdiff_t r = 0; r < M; ++r) {
+      for (ptrdiff_t i = 0;; i += W) {
+        auto u{simd::index::unrollmask<1, W>(N, i)};
+        if (!u) break;
+        if (f(A[r, u])) return true;
+      }
+    }
+  } else {
+    ptrdiff_t L = RowVector<decltype(A)> ? N : M;
+    for (ptrdiff_t i = 0;; i += W) {
+      auto u{simd::index::unrollmask<1, W>(L, i)};
+      if (!u) break;
+      if (f(A[u])) return true;
+    }
+  }
+  return false;
+}
+constexpr auto anyNEZero(const AbstractTensor auto &A) -> bool {
+  using T = utils::eltype_t<decltype(A)>;
+  constexpr ptrdiff_t W = simd::Width<T>;
+  if constexpr (simd::SIMDSupported<T>)
+    return any(A, [](simd::Vec<W, T> v) -> bool {
+      return bool(simd::cmp::ne<W, T>(v, simd::Vec<W, T>{}));
+    });
+  else return any(A, [](T x) -> bool { return x != T{}; });
+}
+constexpr auto anyLTZero(const AbstractTensor auto &A) -> bool {
+  using T = utils::eltype_t<decltype(A)>;
+  constexpr ptrdiff_t W = simd::Width<T>;
+  if constexpr (simd::SIMDSupported<T>)
+    return any(A, [](simd::Vec<W, T> v) -> bool {
+      return bool(simd::cmp::lt<W, T>(v, simd::Vec<W, T>{}));
+    });
+  else return any(A, [](T x) -> bool { return x < T{}; });
+}
+constexpr auto anyGTZero(const AbstractTensor auto &A) -> bool {
+  using T = utils::eltype_t<decltype(A)>;
+  constexpr ptrdiff_t W = simd::Width<T>;
+  if constexpr (simd::SIMDSupported<T>)
+    return any(A, [](simd::Vec<W, T> v) -> bool {
+      return bool(simd::cmp::gt<W, T>(v, simd::Vec<W, T>{}));
+    });
+  else return any(A, [](T x) -> bool { return x > T{}; });
+}
+constexpr auto countNonZero(const auto &x) -> ptrdiff_t {
+  return std::count_if(x.begin(), x.end(), [](auto a) { return a != 0; });
+  // return std::ranges::count_if(x, [](auto x) { return x != 0; });
+}
 
+constexpr auto allZero(const AbstractTensor auto &A) -> bool {
+  return !anyNEZero(A);
+}
+constexpr auto allLEZero(const AbstractTensor auto &A) -> bool {
+  return !anyGTZero(A);
+}
+constexpr auto allGEZero(const AbstractTensor auto &A) -> bool {
+  return !anyLTZero(A);
+}
 } // namespace poly::math

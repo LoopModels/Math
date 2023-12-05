@@ -117,6 +117,7 @@ template <ptrdiff_t N, typename T> struct Unroll<1, 1, N, T> {
   constexpr auto operator[](ptrdiff_t, ptrdiff_t) -> VT & { return vec; }
   constexpr auto operator[](ptrdiff_t) const -> VT { return vec; }
   constexpr auto operator[](ptrdiff_t, ptrdiff_t) const -> VT { return vec; }
+  constexpr operator VT() const { return vec; }
   template <typename U>
   [[gnu::always_inline]] constexpr operator Unroll<1, 1, N, U>() const
   requires(!std::same_as<T, U>)

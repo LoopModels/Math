@@ -1,5 +1,4 @@
 #include "Math/Array.hpp"
-#include "Math/Comparisons.hpp"
 #include "Math/LinearAlgebra.hpp"
 #include "Math/Math.hpp"
 #include "Math/MatrixDimensions.hpp"

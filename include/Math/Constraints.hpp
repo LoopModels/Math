@@ -3,7 +3,6 @@
 #include "Containers/BitSets.hpp"
 #include "Math/Array.hpp"
 #include "Math/AxisTypes.hpp"
-#include "Math/Comparisons.hpp"
 #include "Math/EmptyArrays.hpp"
 #include "Math/GreatestCommonDivisor.hpp"
 #include "Math/Indexing.hpp"
