@@ -390,12 +390,13 @@ struct Dual<T, N, false> {
     // or figure out how to get `conditional`'s codegen quality to match
     if constexpr (data_type::L == 1) {
       V vt = vbvalue(), vo = other.vbvalue(), x = vt * other.data.data_;
-      return {{simd::firstoff<W, int64_t>() ? x + vo * data.data_ : x}};
+      return {
+        {simd::fmadd<T>(vo, data.data_, x, simd::firstoff<W, int64_t>())}};
     } else {
       Dual ret;
       V vt = vbvalue(), vo = other.vbvalue(), x = vt * other.data.memory_[0];
       ret.data.memory_[0] =
-        simd::firstoff<W, int64_t>() ? x + vo * data.memory_[0] : x;
+        simd::fmadd<T>(vo, data.memory_[0], x, simd::firstoff<W, int64_t>());
       POLYMATHFULLUNROLL
       for (ptrdiff_t i = 1; i < data_type::L; ++i)
         ret.data.memory_[i] = vt * other.data.memory_[i] + vo * data.memory_[i];
@@ -411,13 +412,14 @@ struct Dual<T, N, false> {
       V vt = vbvalue(), vo = other.vbvalue(), vo2 = vo * vo,
         x = vo * data.data_;
       ret.data.data_ =
-        (simd::firstoff<W, int64_t>() ? x - vt * other.data.data_ : x) / vo2;
+        simd::fnmadd<T>(vt, other.data.data_, x, simd::firstoff<W, int64_t>()) /
+        vo2;
     } else {
       V vt = vbvalue(), vo = other.vbvalue(), vo2 = vo * vo,
         x = vo * data.memory_[0];
-      ret.data.memory_[0] =
-        (simd::firstoff<W, int64_t>() ? x - vt * other.data.memory_[0] : x) /
-        vo2;
+      ret.data.memory_[0] = simd::fnmadd<T>(vt, other.data.memory_[0], x,
+                                            simd::firstoff<W, int64_t>()) /
+                            vo2;
       POLYMATHFULLUNROLL
       for (ptrdiff_t i = 1; i < data_type::L; ++i)
         ret.data.memory_[i] =
@@ -445,11 +447,12 @@ struct Dual<T, N, false> {
   constexpr auto operator*=(const Dual &other) -> Dual & {
     if constexpr (data_type::L == 1) {
       V vt = vbvalue(), vo = other.vbvalue(), x = vt * other.data.data_;
-      data.data_ = simd::firstoff<W, int64_t>() ? x + vo * data.data_ : x;
+      data.data_ =
+        simd::fmadd<T>(vo, data.data_, x, simd::firstoff<W, int64_t>());
     } else {
       V vt = vbvalue(), vo = other.vbvalue(), x = vt * other.data.memory_[0];
       data.memory_[0] =
-        simd::firstoff<W, int64_t>() ? x + vo * data.memory_[0] : x;
+        simd::fmadd<T>(vo, data.memory_[0], x, simd::firstoff<W, int64_t>());
       POLYMATHFULLUNROLL
       for (ptrdiff_t i = 1; i < data_type::L; ++i)
         data.memory_[i] = vt * other.data.memory_[i] + vo * data.memory_[i];
@@ -464,13 +467,14 @@ struct Dual<T, N, false> {
       V vt = vbvalue(), vo = other.vbvalue(), vo2 = vo * vo,
         x = vo * data.data_;
       data.data_ =
-        (simd::firstoff<W, int64_t>() ? x - vt * other.data.data_ : x) / vo2;
+        simd::fnmadd<T>(vt, other.data.data_, x, simd::firstoff<W, int64_t>()) /
+        vo2;
     } else {
       V vt = vbvalue(), vo = other.vbvalue(), vo2 = vo * vo,
         x = vo * data.memory_[0];
-      data.memory_[0] =
-        (simd::firstoff<W, int64_t>() ? x - vt * other.data.memory_[0] : x) /
-        vo2;
+      data.memory_[0] = simd::fnmadd<T>(vt, other.data.memory_[0], x,
+                                        simd::firstoff<W, int64_t>()) /
+                        vo2;
       POLYMATHFULLUNROLL
       for (ptrdiff_t i = 1; i < data_type::L; ++i)
         data.memory_[i] =
@@ -580,12 +584,14 @@ struct Dual<T, N, false> {
       V vt = simd::vbroadcast<W, double>(a), vo = b.vbvalue(), vo2 = vo * vo,
         x = vo * simd::Vec<W, double>{a};
       ret.data.data_ =
-        (simd::firstoff<W, int64_t>() ? x - vt * b.data.data_ : x) / vo2;
+        simd::fnmadd<T>(vt, b.data.data_, x, simd::firstoff<W, int64_t>()) /
+        vo2;
     } else {
       V vt = simd::vbroadcast<W, double>(a), vo = b.vbvalue(), vo2 = vo * vo,
         x = vo * simd::Vec<W, double>{a};
-      ret.data.memory_[0] =
-        (simd::firstoff<W, int64_t>() ? x - vt * b.data.memory_[0] : x) / vo2;
+      ret.data.memory_[0] = simd::fnmadd<T>(vt, b.data.memory_[0], x,
+                                            simd::firstoff<W, int64_t>()) /
+                            vo2;
       POLYMATHFULLUNROLL
       for (ptrdiff_t i = 1; i < data_type::L; ++i)
         ret.data.memory_[i] = (-vt * b.data.memory_[i]) / vo2;

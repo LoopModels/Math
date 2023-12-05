@@ -202,6 +202,7 @@ store(T *p, mask::Bit<8> i, Vec<8, T> x, int32_t stride) {
                                  std::bit_cast<__m512i>(x), 8);
   else static_assert(false);
 }
+
 #else // no AVX512F
 
 static constexpr ptrdiff_t REGISTERS = 16;
@@ -347,7 +348,109 @@ store(T *p, mask::Bit<2> i, Vec<2, T> x, int32_t stride) {
   else static_assert(false);
 }
 
+template <typename T, ptrdiff_t W>
+[[gnu::always_inline, gnu::artificial]] inline auto
+fmadd(Vec<W, T> a, Vec<W, T> b, Vec<W, T> c, mask::Bit<W> m) {
+  if constexpr (std::same_as<T, double>) {
+    if constexpr (W == 8) {
+      return std::bit_cast<Vec<W, T>>(_mm512_mask3_fmadd_pd(
+        std::bit_cast<__m512d>(a), std::bit_cast<__m512d>(b),
+        std::bit_cast<__m512d>(c), uint8_t(m.mask)));
+    } else if constexpr (W == 4) {
+      return std::bit_cast<Vec<W, T>>(_mm256_mask3_fmadd_pd(
+        std::bit_cast<__m256d>(a), std::bit_cast<__m256d>(b),
+        std::bit_cast<__m256d>(c), uint8_t(m.mask)));
+    } else {
+      static_assert(W == 2);
+      return std::bit_cast<Vec<W, T>>(
+        _mm_mask3_fmadd_pd(std::bit_cast<__m128d>(a), std::bit_cast<__m128d>(b),
+                           std::bit_cast<__m128d>(c), uint8_t(m.mask)));
+    }
+  } else {
+    static_assert(std::same_as<T, float>);
+    if constexpr (W == 16) {
+      return std::bit_cast<Vec<W, T>>(_mm512_mask3_fmadd_ps(
+        std::bit_cast<__m512>(a), std::bit_cast<__m512>(b),
+        std::bit_cast<__m512>(c), uint16_t(m.mask)));
+    } else if constexpr (W == 8) {
+      return std::bit_cast<Vec<W, T>>(_mm256_mask3_fmadd_ps(
+        std::bit_cast<__m256>(a), std::bit_cast<__m256>(b),
+        std::bit_cast<__m256>(c), uint8_t(m.mask)));
+    } else {
+      static_assert(W == 4);
+      return std::bit_cast<Vec<W, T>>(
+        _mm_mask3_fmadd_ps(std::bit_cast<__m128>(a), std::bit_cast<__m128>(b),
+                           std::bit_cast<__m128>(c), uint8_t(m.mask)));
+    }
+  }
+}
+
+template <typename T, ptrdiff_t W>
+[[gnu::always_inline, gnu::artificial]] inline auto
+fnmadd(Vec<W, T> a, Vec<W, T> b, Vec<W, T> c, mask::Bit<W> m) {
+  if constexpr (std::same_as<T, double>) {
+    if constexpr (W == 8) {
+      return std::bit_cast<Vec<W, T>>(_mm512_mask3_fnmadd_pd(
+        std::bit_cast<__m512d>(a), std::bit_cast<__m512d>(b),
+        std::bit_cast<__m512d>(c), uint8_t(m.mask)));
+    } else if constexpr (W == 4) {
+      return std::bit_cast<Vec<W, T>>(_mm256_mask3_fnmadd_pd(
+        std::bit_cast<__m256d>(a), std::bit_cast<__m256d>(b),
+        std::bit_cast<__m256d>(c), uint8_t(m.mask)));
+    } else {
+      static_assert(W == 2);
+      return std::bit_cast<Vec<W, T>>(_mm_mask3_fnmadd_pd(
+        std::bit_cast<__m128d>(a), std::bit_cast<__m128d>(b),
+        std::bit_cast<__m128d>(c), uint8_t(m.mask)));
+    }
+  } else {
+    static_assert(std::same_as<T, float>);
+    if constexpr (W == 16) {
+      return std::bit_cast<Vec<W, T>>(_mm512_mask3_fnmadd_ps(
+        std::bit_cast<__m512>(a), std::bit_cast<__m512>(b),
+        std::bit_cast<__m512>(c), uint16_t(m.mask)));
+    } else if constexpr (W == 8) {
+      return std::bit_cast<Vec<W, T>>(_mm256_mask3_fnmadd_ps(
+        std::bit_cast<__m256>(a), std::bit_cast<__m256>(b),
+        std::bit_cast<__m256>(c), uint8_t(m.mask)));
+    } else {
+      static_assert(W == 4);
+      return std::bit_cast<Vec<W, T>>(
+        _mm_mask3_fnmadd_ps(std::bit_cast<__m128>(a), std::bit_cast<__m128>(b),
+                            std::bit_cast<__m128>(c), uint8_t(m.mask)));
+    }
+  }
+}
+
 #else // No AVX512VL
+template <typename T, ptrdiff_t W>
+[[gnu::always_inline, gnu::artificial]] inline auto
+fmadd(Vec<W, T> a, Vec<W, T> b, Vec<W, T> c, mask::Mask<W> m) {
+  if constexpr ((W * sizeof(T)) != 64) return m.m ? (a * b + c) : c;
+  else if constexpr (std::same_as<T, double>)
+    return std::bit_cast<Vec<W, T>>(_mm512_mask3_fmadd_pd(
+      std::bit_cast<__m512d>(a), std::bit_cast<__m512d>(b),
+      std::bit_cast<__m512d>(c), uint8_t(m.mask)));
+  else if constexpr (std::same_as<T, float>)
+    return std::bit_cast<Vec<W, T>>(
+      _mm512_mask3_fmadd_ps(std::bit_cast<__m512>(a), std::bit_cast<__m512>(b),
+                            std::bit_cast<__m512>(c), uint16_t(m.mask)));
+  else static_assert(false);
+}
+template <typename T, ptrdiff_t W>
+[[gnu::always_inline, gnu::artificial]] inline auto
+fnmadd(Vec<W, T> a, Vec<W, T> b, Vec<W, T> c, mask::Mask<W> m) {
+  if constexpr ((W * sizeof(T)) != 64) return m.m ? (c - a * b) : c;
+  else if constexpr (std::same_as<T, double>)
+    return std::bit_cast<Vec<W, T>>(_mm512_mask3_fnmadd_pd(
+      std::bit_cast<__m512d>(a), std::bit_cast<__m512d>(b),
+      std::bit_cast<__m512d>(c), uint8_t(m.mask)));
+  else if constexpr (std::same_as<T, float>)
+    return std::bit_cast<Vec<W, T>>(
+      _mm512_mask3_fnmadd_ps(std::bit_cast<__m512>(a), std::bit_cast<__m512>(b),
+                             std::bit_cast<__m512>(c), uint16_t(m.mask)));
+  else static_assert(false);
+}
 
 // We need [gather, scatter, load, store] * [unmasked, masked]
 

@@ -30,12 +30,6 @@ consteval auto range() -> Vec<W, I> {
     return r;
   }
 }
-template <ptrdiff_t W,
-          typename I = std::conditional_t<W == 2, int64_t, int32_t>>
-consteval auto firstoff() -> Vec<W, I> {
-  return range<W, I>() != Vec<W, I>{};
-}
-
 namespace mask {
 template <ptrdiff_t W> struct None {
   static constexpr auto firstMasked() -> ptrdiff_t { return 0; }
@@ -91,6 +85,9 @@ constexpr auto create(ptrdiff_t i, ptrdiff_t len) -> Bit<W> {
   else x = std::min(x, uint64_t(255));
   return {_bzhi_u64(0xffffffffffffffff, x)};
 };
+
+template <ptrdiff_t W> using Mask = Bit<W>;
+
 #else // ifdef __AVX512VL__
 
 template <ptrdiff_t W, typename I = int64_t> struct Vector {
@@ -150,6 +147,8 @@ template <ptrdiff_t W> constexpr auto create(ptrdiff_t i, ptrdiff_t len) {
     return Bit<8>{_bzhi_u64(0xffffffffffffffff, uint64_t(len - i))};
   else return Vector<W>{range<W, int64_t>() + i < len};
 }
+template <ptrdiff_t W, typename I = int64_t>
+using Mask = std::conditional_t<sizeof(I) * W == 64, Bit<W>, Vector<W, I>>;
 #else  // ifdef __AVX512F__
 template <ptrdiff_t W> constexpr auto create(ptrdiff_t i) -> Vector<W> {
   return {range<W, int64_t>() < (i & (W - 1))};
@@ -158,6 +157,7 @@ template <ptrdiff_t W>
 constexpr auto create(ptrdiff_t i, ptrdiff_t len) -> Vector<W> {
   return {range<W, int64_t>() + i < len};
 }
+template <ptrdiff_t W, typename I = int64_t> using Mask = Vector<W, I>;
 #endif // ifdef __AVX512F__; else
 
 #endif // ifdef __AVX512VL__; else
@@ -503,6 +503,11 @@ template <ptrdiff_t W, typename T>
 }
 #endif // ifdef __AVX512VL__; else
 } // namespace cmp
+template <ptrdiff_t W,
+          typename I = std::conditional_t<W == 2, int64_t, int32_t>>
+[[gnu::always_inline]] inline auto firstoff() {
+  return cmp::ne<W, I>(range<W, I>(), Vec<W, I>{});
+}
 
 } // namespace poly::simd
 #endif // Masks_hpp_INCLUDED
