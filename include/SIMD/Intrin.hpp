@@ -770,6 +770,16 @@ store(T *p, mask::Vector<W> i, Vec<W, T> x, int32_t stride) {
   for (ptrdiff_t w = 0; w < W; ++w)
     if (i.m[w] != 0) p[w * stride] = x[w];
 }
+template <typename T, ptrdiff_t W>
+[[gnu::always_inline, gnu::artificial]] inline auto
+fmadd(Vec<W, T> a, Vec<W, T> b, Vec<W, T> c, mask::Vector<W> m) {
+  return m.m ? (a * b + c) : c;
+}
+template <typename T, ptrdiff_t W>
+[[gnu::always_inline, gnu::artificial]] inline auto
+fnmadd(Vec<W, T> a, Vec<W, T> b, Vec<W, T> c, mask::Vector<W> m) {
+  return m.m ? (c - a * b) : c;
+}
 
 #endif
 #ifdef __AVX512CD__
