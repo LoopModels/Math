@@ -2,9 +2,11 @@
 #ifndef SOA_hpp_INCLUDED
 #define SOA_hpp_INCLUDED
 
+#include "Alloc/Mallocator.hpp"
 #include "Containers/Tuple.hpp"
+#include "Math/Matrix.hpp"
 #include "Math/MatrixDimensions.hpp"
-#include <Matrix>
+#include <memory>
 #include <type_traits>
 #include <utility>
 namespace poly::math {
@@ -68,6 +70,7 @@ template <typename... Ts> struct CumSizeOf<0, Types<Ts...>> {
 template <size_t I, typename T>
 inline constexpr size_t CumSizeOf_v = CumSizeOf<I, T>::value;
 
+/// requires 16 byte alignment of allocated pointer
 template <typename T, typename S,
           typename C =
             std::conditional_t<MatrixDimension<S>, CapacityCalculators::Length,
@@ -81,13 +84,64 @@ struct SOA<T, S, C, Types<Elts...>, std::index_sequence<II...>> {
   char *data;
   [[no_unique_address]] S sz;
   [[no_unique_address]] C capacity;
+  struct Reference {
+    char *ptr;
+    ptrdiff_t stride;
+    ptrdiff_t i;
+    operator T() const {
+      char *p = std::assume_aligned<16>(ptr);
+      return T(*reinterpret_cast<std::tuple_element_t<II, T> *>(
+        p + CumSizeOf_v<II, T> * stride +
+        sizeof(std::tuple_element_t<II, T>) * i)...);
+    }
+    template <size_t I> void assign(const T &x) {
+      char *p = std::assume_aligned<16>(ptr);
+      *reinterpret_cast<std::tuple_element_t<I, T> *>(
+        p + CumSizeOf_v<I, T> * stride +
+        sizeof(std::tuple_element_t<I, T>) * i) = std::get<I>(x);
+    }
+    auto operator=(const T &x) -> Reference & {
+      assign<II...>(x);
+      return *this;
+    }
+  };
   auto operator[](ptrdiff_t i) const -> T {
+    char *p = std::assume_aligned<16>(data);
     ptrdiff_t stride = capacity(sz);
     return T(*reinterpret_cast<std::tuple_element_t<II, T> *>(
-      reinterpret_cast<unsigned char *>(data) + CumSizeOf_v<II, T> * stride +
+      p + CumSizeOf_v<II, T> * stride +
       sizeof(std::tuple_element_t<II, T>) * i)...);
   }
+  auto operator[](ptrdiff_t i) -> Reference { return {data, capacity(sz), i}; }
+  static constexpr auto totalSizePer() -> size_t {
+    return CumSizeOf_v<sizeof...(II), T>;
+  }
 };
+
+template <typename T, typename S,
+          typename C =
+            std::conditional_t<MatrixDimension<S>, CapacityCalculators::Length,
+                               CapacityCalculators::NextPow2>,
+          typename TT = TupleTypes_t<T>,
+          typename II = std::make_index_sequence<std::tuple_size_v<T>>,
+          class A = alloc::Mallocator<char>>
+struct ManagedSOA : public SOA<T, S, C, TT, II> {
+  /// uninitialized allocation
+  ManagedSOA(S nsz) {
+    this->sz = nsz;
+    this->capacity = C{};
+    ptrdiff_t stride = this->capacity(this->sz);
+    this->data = A::allocate(stride * this->totalSizePer());
+    // this->data =
+    //   A::allocate(stride * this->totalSizePer(), std::align_val_t{16});
+  }
+  ~ManagedSOA() {
+    ptrdiff_t stride = this->capacity(this->sz);
+    A::deallocate(this->data, stride * this->totalSizePer());
+  }
+};
+template <typename T, typename S>
+ManagedSOA(std::type_identity<T>, S) -> ManagedSOA<T, S>;
 
 } // namespace poly::math
 #endif // SOA_hpp_INCLUDED
