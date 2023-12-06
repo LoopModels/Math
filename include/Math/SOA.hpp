@@ -64,14 +64,17 @@ struct CumSizeOf<I, Types<T, Ts...>> {
   static constexpr size_t value =
     sizeof(T) + CumSizeOf<I - 1, Types<Ts...>>::value;
 };
-template <typename... Ts> struct CumSizeOf<0, Types<Ts...>> {
+template <typename T, typename... Ts> struct CumSizeOf<0, Types<T, Ts...>> {
+  static constexpr size_t value = 0;
+};
+template <> struct CumSizeOf<0, Types<>> {
   static constexpr size_t value = 0;
 };
 template <size_t I, typename T>
-inline constexpr size_t CumSizeOf_v = CumSizeOf<I, T>::value;
+inline constexpr size_t CumSizeOf_v = CumSizeOf<I, TupleTypes_t<T>>::value;
 
 /// requires 16 byte alignment of allocated pointer
-template <typename T, typename S,
+template <typename T, typename S = ptrdiff_t,
           typename C =
             std::conditional_t<MatrixDimension<S>, CapacityCalculators::Length,
                                CapacityCalculators::NextPow2>,
@@ -98,10 +101,11 @@ struct SOA<T, S, C, Types<Elts...>, std::index_sequence<II...>> {
       char *p = std::assume_aligned<16>(ptr);
       *reinterpret_cast<std::tuple_element_t<I, T> *>(
         p + CumSizeOf_v<I, T> * stride +
-        sizeof(std::tuple_element_t<I, T>) * i) = std::get<I>(x);
+        sizeof(std::tuple_element_t<I, T>) * i) = x.template get<I>();
     }
     auto operator=(const T &x) -> Reference & {
-      assign<II...>(x);
+      ((void)assign<II>(x), ...);
+      // assign<II...>(x);
       return *this;
     }
   };
@@ -118,7 +122,7 @@ struct SOA<T, S, C, Types<Elts...>, std::index_sequence<II...>> {
   }
 };
 
-template <typename T, typename S,
+template <typename T, typename S = ptrdiff_t,
           typename C =
             std::conditional_t<MatrixDimension<S>, CapacityCalculators::Length,
                                CapacityCalculators::NextPow2>,
@@ -135,6 +139,7 @@ struct ManagedSOA : public SOA<T, S, C, TT, II> {
     // this->data =
     //   A::allocate(stride * this->totalSizePer(), std::align_val_t{16});
   }
+  ManagedSOA(std::type_identity<T>, S nsz) : ManagedSOA(nsz) {}
   ~ManagedSOA() {
     ptrdiff_t stride = this->capacity(this->sz);
     A::deallocate(this->data, stride * this->totalSizePer());
