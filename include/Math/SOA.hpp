@@ -144,6 +144,20 @@ struct ManagedSOA : public SOA<T, S, C, TT, II> {
     ptrdiff_t stride = this->capacity(this->sz);
     A::deallocate(this->data, stride * this->totalSizePer());
   }
+  void resize(S nsz) {
+    if (this->capacity(nsz) == this->capacity(this->sz)) {
+      this->sz = nsz;
+      return;
+    }
+    ManagedSOA other{nsz};
+    ManagedSOA &self{*this};
+    std::swap(self.data, other.data);
+    std::swap(self.sz, other.sz);
+    std::swap(self.capacity, other.capacity);
+    for (ptrdiff_t i = 0, L = std::min(ptrdiff_t(self.sz), ptrdiff_t(other.sz));
+         i < L; ++i)
+      self[i] = other[i];
+  }
 };
 template <typename T, typename S>
 ManagedSOA(std::type_identity<T>, S) -> ManagedSOA<T, S>;

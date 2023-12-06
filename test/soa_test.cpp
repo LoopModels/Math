@@ -25,4 +25,17 @@ TEST(SOATest, BasicAssertions) {
     EXPECT_EQ(d, 2.0 + 0.25 * j);
     EXPECT_EQ(f, 5.0F + 0.5F * j);
   }
+  soa.resize(7);
+  soa[5] = {13, 3.25, 7.5F};
+  soa[6] = {15, 3.5, 8.0F};
+  for (ptrdiff_t j = 0; j < 7; ++j) {
+    decltype(x) y = soa[j];
+    auto [i, d, f] = y;
+    static_assert(std::same_as<decltype(i), int>);
+    static_assert(std::same_as<decltype(d), double>);
+    static_assert(std::same_as<decltype(f), float>);
+    EXPECT_EQ(i, 3 + 2 * j);
+    EXPECT_EQ(d, 2.0 + 0.25 * j);
+    EXPECT_EQ(f, 5.0F + 0.5F * j);
+  }
 }
