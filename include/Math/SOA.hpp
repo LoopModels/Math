@@ -108,6 +108,10 @@ struct SOA<T, S, C, Types<Elts...>, std::index_sequence<II...>> {
       // assign<II...>(x);
       return *this;
     }
+    auto operator=(Reference x) -> Reference & {
+      (*this) = T(x);
+      return *this;
+    }
   };
   auto operator[](ptrdiff_t i) const -> T {
     char *p = std::assume_aligned<16>(data);
@@ -120,6 +124,7 @@ struct SOA<T, S, C, Types<Elts...>, std::index_sequence<II...>> {
   static constexpr auto totalSizePer() -> size_t {
     return CumSizeOf_v<sizeof...(II), T>;
   }
+  constexpr auto size() -> ptrdiff_t { return sz; }
 };
 
 template <typename T, typename S = ptrdiff_t,
@@ -130,6 +135,7 @@ template <typename T, typename S = ptrdiff_t,
           typename II = std::make_index_sequence<std::tuple_size_v<T>>,
           class A = alloc::Mallocator<char>>
 struct ManagedSOA : public SOA<T, S, C, TT, II> {
+  using Base = SOA<T, S, C, TT, II>;
   /// uninitialized allocation
   ManagedSOA(S nsz) {
     this->sz = nsz;
@@ -157,6 +163,14 @@ struct ManagedSOA : public SOA<T, S, C, TT, II> {
     for (ptrdiff_t i = 0, L = std::min(ptrdiff_t(self.sz), ptrdiff_t(other.sz));
          i < L; ++i)
       self[i] = other[i];
+  }
+  template <typename... Args> void emplace_back(Args &&...args) {
+    push_back(T(args...));
+  }
+  void push_back(T arg) {
+    S osz = this->sz;
+    resize(osz + 1);
+    (*this)[osz] = arg;
   }
 };
 template <typename T, typename S>

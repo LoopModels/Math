@@ -38,4 +38,22 @@ TEST(SOATest, BasicAssertions) {
     EXPECT_EQ(d, 2.0 + 0.25 * j);
     EXPECT_EQ(f, 5.0F + 0.5F * j);
   }
+  for (int j = 7; j < 65; ++j) {
+    int i = 3 + 2 * j;
+    double d = 2.0 + 0.25 * j;
+    float f = 5.0F + 0.5F * float(j);
+    if (j & 1) soa.emplace_back(i, d, f);
+    else soa.push_back(poly::containers::Tuple(i, d, f));
+  }
+  for (ptrdiff_t j = 0; j < 65; ++j) {
+    decltype(x) y = soa[j];
+    auto [i, d, f] = y;
+    static_assert(std::same_as<decltype(i), int>);
+    static_assert(std::same_as<decltype(d), double>);
+    static_assert(std::same_as<decltype(f), float>);
+    EXPECT_EQ(i, 3 + 2 * j);
+    EXPECT_EQ(d, 2.0 + 0.25 * j);
+    EXPECT_EQ(f, 5.0F + 0.5F * j);
+  }
+  EXPECT_EQ(soa.size(), 65);
 }
