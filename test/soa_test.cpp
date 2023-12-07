@@ -24,6 +24,9 @@ TEST(SOATest, BasicAssertions) {
     EXPECT_EQ(i, 3 + 2 * j);
     EXPECT_EQ(d, 2.0 + 0.25 * j);
     EXPECT_EQ(f, 5.0F + 0.5F * j);
+    EXPECT_EQ(i, soa.get<0>(j));
+    EXPECT_EQ(d, soa.get<1>(j));
+    EXPECT_EQ(f, soa.get<2>(j));
   }
   soa.resize(7);
   soa[5] = {13, 3.25, 7.5F};
@@ -37,6 +40,9 @@ TEST(SOATest, BasicAssertions) {
     EXPECT_EQ(i, 3 + 2 * j);
     EXPECT_EQ(d, 2.0 + 0.25 * j);
     EXPECT_EQ(f, 5.0F + 0.5F * j);
+    EXPECT_EQ(i, soa.get<0>(j));
+    EXPECT_EQ(d, soa.get<1>(j));
+    EXPECT_EQ(f, soa.get<2>(j));
   }
   for (int j = 7; j < 65; ++j) {
     int i = 3 + 2 * j;
@@ -54,6 +60,9 @@ TEST(SOATest, BasicAssertions) {
     EXPECT_EQ(i, 3 + 2 * j);
     EXPECT_EQ(d, 2.0 + 0.25 * j);
     EXPECT_EQ(f, 5.0F + 0.5F * j);
+    EXPECT_EQ(i, soa.get<0>(j));
+    EXPECT_EQ(d, soa.get<1>(j));
+    EXPECT_EQ(f, soa.get<2>(j));
   }
   EXPECT_EQ(soa.size(), 65);
 }
