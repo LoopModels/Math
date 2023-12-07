@@ -921,36 +921,36 @@ any(const AbstractTensor auto &A, const auto &f) -> bool {
   auto [M, N] = shape(A);
   using T = utils::eltype_t<decltype(A)>;
   constexpr ptrdiff_t W = simd::Width<T>;
-  if constexpr (W <= 2) {
+  if constexpr (W > 1) {
     if constexpr (AbstractMatrix<decltype(A)>) {
-      for (ptrdiff_t r = 0; r < M; ++r)
-        for (ptrdiff_t i = 0; i < N; ++i)
-          if (f(A[r, i])) return true;
-    } else
-      for (ptrdiff_t i = 0; i < N; ++i)
-        if (f(A[i])) return true;
-  } else if constexpr (AbstractMatrix<decltype(A)>) {
-    for (ptrdiff_t r = 0; r < M; ++r) {
+      for (ptrdiff_t r = 0; r < M; ++r) {
+        for (ptrdiff_t i = 0;; i += W) {
+          auto u{simd::index::unrollmask<1, W>(N, i)};
+          if (!u) break;
+          if (f(A[r, u])) return true;
+        }
+      }
+    } else {
+      ptrdiff_t L = RowVector<decltype(A)> ? N : M;
       for (ptrdiff_t i = 0;; i += W) {
-        auto u{simd::index::unrollmask<1, W>(N, i)};
+        auto u{simd::index::unrollmask<1, W>(L, i)};
         if (!u) break;
-        if (f(A[r, u])) return true;
+        if (f(A[u])) return true;
       }
     }
-  } else {
-    ptrdiff_t L = RowVector<decltype(A)> ? N : M;
-    for (ptrdiff_t i = 0;; i += W) {
-      auto u{simd::index::unrollmask<1, W>(L, i)};
-      if (!u) break;
-      if (f(A[u])) return true;
-    }
-  }
+  } else if constexpr (AbstractMatrix<decltype(A)>) {
+    for (ptrdiff_t r = 0; r < M; ++r)
+      for (ptrdiff_t i = 0; i < N; ++i)
+        if (f(A[r, i])) return true;
+  } else
+    for (ptrdiff_t i = 0; i < N; ++i)
+      if (f(A[i])) return true;
   return false;
 }
 constexpr auto anyNEZero(const AbstractTensor auto &A) -> bool {
   using T = utils::eltype_t<decltype(A)>;
   constexpr ptrdiff_t W = simd::Width<T>;
-  if constexpr (simd::SIMDSupported<T>)
+  if constexpr (W > 1)
     return any(A, [](simd::Vec<W, T> v) -> bool {
       return bool(simd::cmp::ne<W, T>(v, simd::Vec<W, T>{}));
     });
