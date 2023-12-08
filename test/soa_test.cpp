@@ -12,8 +12,12 @@ TEST(SOATest, BasicAssertions) {
   poly::math::ManagedSOA soa(std::type_identity<decltype(x)>{}, ptrdiff_t(5));
   soa[0] = x;
   soa[1] = {5, 2.25, 5.5F};
-  soa[2] = {7, 2.5, 6.0F};
-  soa[3] = {9, 2.75, 6.5F};
+  soa.template get<0>(2) = 7;
+  soa.template get<1>(2) = 2.5;
+  soa.template get<2>(2) = 6.0F;
+  soa.template get<0>()[3] = 9;
+  soa.template get<1>()[3] = 2.75;
+  soa.template get<2>()[3] = 6.5F;
   soa[4] = {11, 3.0, 7.0F};
   for (ptrdiff_t j = 0; j < 5; ++j) {
     decltype(x) y = soa[j];

@@ -1,4 +1,5 @@
 #pragma once
+#include "Math/Array.hpp"
 #ifndef SOA_hpp_INCLUDED
 #define SOA_hpp_INCLUDED
 
@@ -135,6 +136,18 @@ struct SOA<T, S, C, Types<Elts...>, std::index_sequence<II...>> {
     return *reinterpret_cast<const std::tuple_element_t<I, T> *>(
       data + CumSizeOf_v<I, T> * capacity(sz) +
       sizeof(std::tuple_element_t<I, T>) * i);
+  }
+  template <size_t I>
+  auto get() -> math::MutArray<std::tuple_element_t<I, T>, S> {
+    return {reinterpret_cast<std::tuple_element_t<I, T> *>(
+              data + CumSizeOf_v<I, T> * capacity(sz)),
+            sz};
+  }
+  template <size_t I>
+  auto get() const -> math::Array<std::tuple_element_t<I, T>, S> {
+    return {reinterpret_cast<const std::tuple_element_t<I, T> *>(
+              data + CumSizeOf_v<I, T> * capacity(sz)),
+            sz};
   }
 };
 
