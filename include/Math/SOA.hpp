@@ -124,7 +124,7 @@ struct SOA<T, S, C, Types<Elts...>, std::index_sequence<II...>> {
   static constexpr auto totalSizePer() -> size_t {
     return CumSizeOf_v<sizeof...(II), T>;
   }
-  constexpr auto size() -> ptrdiff_t { return sz; }
+  [[nodiscard]] constexpr auto size() const -> ptrdiff_t { return sz; }
   template <size_t I> auto get(ptrdiff_t i) -> std::tuple_element_t<I, T> & {
     return *reinterpret_cast<std::tuple_element_t<I, T> *>(
       data + CumSizeOf_v<I, T> * capacity(sz) +
@@ -158,8 +158,24 @@ struct ManagedSOA : public SOA<T, S, C, TT, II> {
   }
   ManagedSOA(std::type_identity<T>, S nsz) : ManagedSOA(nsz) {}
   ~ManagedSOA() {
+    if (!this->data) return;
     ptrdiff_t stride = this->capacity(this->sz);
     A::deallocate(this->data, stride * this->totalSizePer());
+  }
+  constexpr ManagedSOA(ManagedSOA &&other)
+    : SOA<T, S, C, TT, II>{other.data, other.sz, other.capacity} {
+    other.data = nullptr;
+    other.sz = {};
+    other.capacity = {};
+  }
+  constexpr auto operator=(ManagedSOA &&other) -> ManagedSOA & {
+    this->data = other.data;
+    this->sz = other.sz;
+    this->capacity = other.capacity;
+    other.data = nullptr;
+    other.sz = {};
+    other.capacity = {};
+    return *this;
   }
   void resize(S nsz) {
     if (this->capacity(nsz) == this->capacity(this->sz)) {
