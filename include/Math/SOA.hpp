@@ -50,7 +50,8 @@ struct Length {
 };
 struct NextPow2 {
   constexpr auto operator()(auto sz) -> ptrdiff_t {
-    return ptrdiff_t(std::bit_ceil(size_t(ptrdiff_t(sz))));
+    return std::max(ptrdiff_t(16),
+                    ptrdiff_t(std::bit_ceil(size_t(ptrdiff_t(sz)))));
   }
 };
 
