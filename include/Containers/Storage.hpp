@@ -1,5 +1,5 @@
 #pragma once
-#include <algorithm>
+#include "Math/MatrixDimensions.hpp"
 #include <bit>
 #include <cstddef>
 #include <cstdint>
@@ -36,13 +36,6 @@ static_assert(SizeMultiple8<uint64_t>);
 static_assert(std::is_same_v<default_capacity_type_t<uint32_t>, int32_t>);
 static_assert(std::is_same_v<default_capacity_type_t<uint64_t>, int64_t>);
 
-template <class T, class S> consteval auto PreAllocStorage() -> ptrdiff_t {
-  constexpr ptrdiff_t totalBytes = 128;
-  constexpr ptrdiff_t remainingBytes =
-    totalBytes - sizeof(T *) - sizeof(S) - sizeof(default_capacity_type_t<S>);
-  constexpr ptrdiff_t N = remainingBytes / sizeof(T);
-  return std::max<ptrdiff_t>(0, N);
-}
 consteval auto log2Floor(uint64_t x) -> uint64_t {
   return 63 - std::countl_zero(x);
 }
@@ -57,23 +50,26 @@ consteval auto bisectFindSquare(uint64_t l, uint64_t h, uint64_t N)
   if (m * m >= N) return bisectFindSquare(l, m, N);
   return bisectFindSquare(m + 1, h, N);
 }
-template <class T, class S>
-consteval auto PreAllocSquareStorage() -> ptrdiff_t {
-  // 2* because we want to allow more space for matrices
-  // also removes need for other checks; log2Floor(2)==1
-  constexpr ptrdiff_t SN = 2 * PreAllocStorage<T, S>();
-  if constexpr (SN <= 0) return 0;
+template <class T, class S> consteval auto PreAllocStorage() -> ptrdiff_t {
+  constexpr ptrdiff_t totalBytes = 128;
+  // constexpr ptrdiff_t remainingBytes =
+  //   totalBytes - sizeof(T *) - sizeof(S) -
+  //   sizeof(default_capacity_type_t<S>);
+  // constexpr ptrdiff_t N = remainingBytes / ptrdiff_t(sizeof(T));
+  constexpr ptrdiff_t N = totalBytes / ptrdiff_t(sizeof(T));
+  static_assert(N <= 128);
+  if constexpr (N <= 0) return 0;
+  // else if constexpr (!math::MatrixDimension<S>) return N;
+  else if constexpr (!std::convertible_to<S, math::SquareDims<>>) return N;
   else {
-    constexpr uint64_t N = uint64_t(SN);
-    static_assert(N < 128);
+    constexpr auto UN = uint64_t(N);
     // a fairly naive algorirthm for computing the next square `N`
     // sqrt(x) = x^(1/2) = exp2(log2(x)/2)
-    constexpr uint64_t R = log2Floor(N) / 2;
+    constexpr uint64_t R = log2Floor(UN) / 2;
     static_assert(R < 63);
     constexpr uint64_t L = uint64_t(1) << R;
     constexpr uint64_t H = uint64_t(1) << ((log2Ceil(N) + 1) / 2);
-    return ptrdiff_t(bisectFindSquare(L, H, N));
+    return ptrdiff_t(bisectFindSquare(L, H, UN));
   }
 }
-
 } // namespace poly::containers

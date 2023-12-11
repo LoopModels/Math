@@ -1630,16 +1630,16 @@ static_assert(std::is_trivially_copyable_v<StridedVector<int64_t>>);
 
 template <class T> using PtrMatrix = Array<T, StridedDims<>>;
 template <class T> using MutPtrMatrix = MutArray<T, StridedDims<>>;
-template <class T, ptrdiff_t L = 64>
+template <class T,
+          ptrdiff_t L = containers::PreAllocStorage<T, StridedDims<>>()>
 using Matrix = ManagedArray<T, StridedDims<>, L>;
 template <class T> using DensePtrMatrix = Array<T, DenseDims<>>;
 template <class T> using MutDensePtrMatrix = MutArray<T, DenseDims<>>;
-template <class T, ptrdiff_t L = 64>
+template <class T, ptrdiff_t L = containers::PreAllocStorage<T, DenseDims<>>()>
 using DenseMatrix = ManagedArray<T, DenseDims<>, L>;
 template <class T> using SquarePtrMatrix = Array<T, SquareDims<>>;
 template <class T> using MutSquarePtrMatrix = MutArray<T, SquareDims<>>;
-template <class T, ptrdiff_t L = containers::PreAllocSquareStorage<
-                     utils::compressed_t<T>, SquareDims<>>()>
+template <class T, ptrdiff_t L = containers::PreAllocStorage<T, SquareDims<>>()>
 using SquareMatrix = ManagedArray<T, SquareDims<>, L>;
 
 static_assert(sizeof(PtrMatrix<int64_t>) ==
