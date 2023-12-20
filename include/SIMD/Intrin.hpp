@@ -70,24 +70,22 @@ template <typename T>
 }
 #ifdef __x86_64__
 
-// TODO: make `consteval` when clang supports it
-#ifdef __clang__
-template <ptrdiff_t W, typename T> constexpr auto mmzero() {
-#else
 template <ptrdiff_t W, typename T> consteval auto mmzero() {
-#endif
   // Extend if/when supporting more types
-  static_assert(std::popcount(size_t(W)) == 1 && W <= 8);
-  constexpr Vec<W, T> z{};
+  static_assert(std::popcount(size_t(W)) == 1 && (W * sizeof(T) <= 64));
   if constexpr (std::same_as<T, double>) {
-    if constexpr (W == 8) return std::bit_cast<__m512d>(z);
-    else if constexpr (W == 4) return std::bit_cast<__m256d>(z);
-    else return std::bit_cast<__m128d>(z);
+    if constexpr (W == 8) return __m512d{};
+    else if constexpr (W == 4) return __m256d{};
+    else return __m128d{};
+  } else if constexpr (std::same_as<T, float>) {
+    if constexpr (W == 16) return __m512{};
+    else if constexpr (W == 8) return __m256{};
+    else return __m128{};
   } else {
-    static_assert(std::same_as<T, int64_t>);
-    if constexpr (W == 8) return std::bit_cast<__m512i>(z);
-    else if constexpr (W == 4) return std::bit_cast<__m256i>(z);
-    else return std::bit_cast<__m128i>(z);
+    static_assert(std::integral<T>);
+    if constexpr (W * sizeof(T) == 64) return __m512i{};
+    else if constexpr (W * sizeof(T) == 32) return __m256i{};
+    else return __m128i{};
   }
 }
 template <ptrdiff_t W> inline auto vindex(int32_t stride) {
