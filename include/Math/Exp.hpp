@@ -341,11 +341,24 @@ constexpr auto magic_round_const(double) -> double {
 }
 constexpr auto magic_round_const(float) -> float { return 1.048576e7F; }
 
+constexpr auto trunclo(double x) -> double {
+  return std::bit_cast<double>(std::bit_cast<uint64_t>(x) & 0xfffffffff8000000);
+}
+
 constexpr auto fma(double x, double y, double z) -> double {
 #ifdef __cpp_if_consteval
   if consteval { // TODO drop when c++23 constexpr fma support is available
+#if defined(__linux__) && __X86_64__
     __float128 a = x, b = y, c = z;
     return double(a * b + c);
+#else
+    // This is not a perfect implementation!!!
+    double hx = trunclo(x), hy = trunclo(y), lx = x - hx, ly = y - hy;
+    double hxy = x * y;
+    double lxy = (((hx * hy - hxy) + lx * hy + hx * ly) + lx * ly);
+    double s = hxy + z;
+    return s + (((hxy - s) + z) + lxy);
+#endif
   } else {
 #endif
     return std::fma(x, y, z);

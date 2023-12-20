@@ -181,6 +181,15 @@ template <ptrdiff_t W> struct Vector {
       if (m[w]) l = w;
     return l;
   }
+  [[nodiscard]] explicit constexpr operator bool() const {
+    if constexpr (W == 2) {
+      return m[0] || m[1];
+    } else {
+      for (ptrdiff_t w = 0; w < W; ++w)
+        if (m[w]) return true;
+      return false;
+    }
+  }
 };
 
 template <ptrdiff_t W> constexpr auto create(ptrdiff_t i) -> Vector<W> {

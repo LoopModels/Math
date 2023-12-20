@@ -464,14 +464,14 @@ struct POLY_MATH_GSL_POINTER Array {
       if constexpr (MatrixDimension<S>) {
         for (ptrdiff_t i = 0; i < Row(sz); ++i) {
           if (i) (void)std::fprintf(f, "\n");
-          (void)std::fprintf(f, "%ld", int64_t((*this)[i, 0]));
+          (void)std::fprintf(f, "%ld", long((*this)[i, 0]));
           for (ptrdiff_t j = 1; j < Col(sz); ++j)
-            (void)std::fprintf(f, " %ld", int64_t((*this)[i, j]));
+            (void)std::fprintf(f, " %ld", long((*this)[i, j]));
         }
       } else {
-        (void)std::fprintf(f, "%ld", int64_t((*this)[0]));
+        (void)std::fprintf(f, "%ld", long((*this)[0]));
         for (ptrdiff_t i = 1; (i < ptrdiff_t(sz)); ++i)
-          (void)std::fprintf(f, ", %ld", int64_t((*this)[i]));
+          (void)std::fprintf(f, ", %ld", long((*this)[i]));
       }
       (void)std::fprintf(f, "]");
       (void)std::fclose(f);

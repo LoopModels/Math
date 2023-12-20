@@ -34,7 +34,7 @@ using default_capacity_type_t = typename DefaultCapacityType<S>::type;
 static_assert(!SizeMultiple8<uint32_t>);
 static_assert(SizeMultiple8<uint64_t>);
 static_assert(std::is_same_v<default_capacity_type_t<uint32_t>, int32_t>);
-static_assert(std::is_same_v<default_capacity_type_t<uint64_t>, int64_t>);
+static_assert(std::is_same_v<default_capacity_type_t<uint64_t>, ptrdiff_t>);
 
 consteval auto log2Floor(uint64_t x) -> uint64_t {
   return 63 - std::countl_zero(x);

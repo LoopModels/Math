@@ -11,11 +11,11 @@ TEST(TupleTest, BasicAssertions) {
   double x = 2.3;
   double y = 4.5;
   long z = -5;
-  ulong w = 15;
+  unsigned long w = 15;
   Tuple t{w, x, y, z};
   {
     auto [a, b, c, d] = t;
-    static_assert(std::same_as<decltype(a), ulong>);
+    static_assert(std::same_as<decltype(a), unsigned long>);
     static_assert(std::same_as<decltype(x), double>);
     static_assert(std::same_as<decltype(y), double>);
     static_assert(std::same_as<decltype(z), long>);
@@ -27,7 +27,7 @@ TEST(TupleTest, BasicAssertions) {
   Tuple t1 = t.map([](auto arg) { return 3 * arg; });
   {
     auto [a, b, c, d] = t1;
-    static_assert(std::same_as<decltype(a), ulong>);
+    static_assert(std::same_as<decltype(a), unsigned long>);
     static_assert(std::same_as<decltype(x), double>);
     static_assert(std::same_as<decltype(y), double>);
     static_assert(std::same_as<decltype(z), long>);
@@ -39,7 +39,7 @@ TEST(TupleTest, BasicAssertions) {
   t1.apply([](auto &arg) { arg *= 2; });
   {
     auto [a, b, c, d] = t1;
-    static_assert(std::same_as<decltype(a), ulong>);
+    static_assert(std::same_as<decltype(a), unsigned long>);
     static_assert(std::same_as<decltype(x), double>);
     static_assert(std::same_as<decltype(y), double>);
     static_assert(std::same_as<decltype(z), long>);

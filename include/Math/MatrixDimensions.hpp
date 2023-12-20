@@ -57,17 +57,23 @@ template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t X> struct StridedDims {
   //   : M{m}, N{n}, strideM{x} {
   //   invariant(N <= strideM);
   // }
-  constexpr explicit operator int32_t() const {
-    return int32_t(ptrdiff_t(M) * ptrdiff_t(strideM));
+  constexpr explicit operator int() const {
+    return int(ptrdiff_t(M) * ptrdiff_t(strideM));
   }
-  constexpr explicit operator int64_t() const {
-    return int64_t(ptrdiff_t(M) * ptrdiff_t(strideM));
+  constexpr explicit operator long() const {
+    return long(ptrdiff_t(M) * ptrdiff_t(strideM));
   }
-  constexpr explicit operator uint32_t() const {
-    return uint32_t(ptrdiff_t(M) * ptrdiff_t(strideM));
+  constexpr explicit operator long long() const {
+    return (long long)(ptrdiff_t(M) * ptrdiff_t(strideM));
   }
-  constexpr explicit operator uint64_t() const {
-    return uint64_t(ptrdiff_t(M) * ptrdiff_t(strideM));
+  constexpr explicit operator unsigned int() const {
+    return (unsigned int)(ptrdiff_t(M) * ptrdiff_t(strideM));
+  }
+  constexpr explicit operator unsigned long() const {
+    return (unsigned long)(ptrdiff_t(M) * ptrdiff_t(strideM));
+  }
+  constexpr explicit operator unsigned long long() const {
+    return (unsigned long long)(ptrdiff_t(M) * ptrdiff_t(strideM));
   }
   constexpr auto operator=(DenseDims<R, C> D) -> StridedDims &requires(C == X);
   constexpr auto operator=(SquareDims<R> D)
@@ -136,17 +142,23 @@ static_assert(sizeof(StridedDims<-1, 8, 8>) == sizeof(ptrdiff_t));
 template <ptrdiff_t R, ptrdiff_t C> struct DenseDims {
   [[no_unique_address]] Row<R> M{};
   [[no_unique_address]] Col<C> N{};
-  constexpr explicit operator int32_t() const {
-    return int32_t(ptrdiff_t(M) * ptrdiff_t(N));
+  constexpr explicit operator int() const {
+    return int(ptrdiff_t(M) * ptrdiff_t(N));
   }
-  constexpr explicit operator int64_t() const {
-    return int64_t(ptrdiff_t(M) * ptrdiff_t(N));
+  constexpr explicit operator long() const {
+    return long(ptrdiff_t(M) * ptrdiff_t(N));
   }
-  constexpr explicit operator uint32_t() const {
-    return uint32_t(ptrdiff_t(M) * ptrdiff_t(N));
+  constexpr explicit operator long long() const {
+    return (long long)(ptrdiff_t(M) * ptrdiff_t(N));
   }
-  constexpr explicit operator uint64_t() const {
-    return uint64_t(ptrdiff_t(M) * ptrdiff_t(N));
+  constexpr explicit operator unsigned int() const {
+    return (unsigned int)(ptrdiff_t(M) * ptrdiff_t(N));
+  }
+  constexpr explicit operator unsigned long() const {
+    return (unsigned long)(ptrdiff_t(M) * ptrdiff_t(N));
+  }
+  constexpr explicit operator unsigned long long() const {
+    return (unsigned long long)(ptrdiff_t(M) * ptrdiff_t(N));
   }
   // constexpr DenseDims() = default;
   // constexpr DenseDims(Row<R> m, Col<C> n) : M(unsigned(m)), N(unsigned(n)) {}
@@ -217,17 +229,23 @@ template <ptrdiff_t R, ptrdiff_t C> struct DenseDims {
 };
 template <ptrdiff_t R> struct SquareDims {
   [[no_unique_address]] Row<R> M{};
-  constexpr explicit operator int32_t() const {
-    return int32_t(ptrdiff_t(M) * ptrdiff_t(M));
+  constexpr explicit operator int() const {
+    return int(ptrdiff_t(M) * ptrdiff_t(M));
   }
-  constexpr explicit operator int64_t() const {
-    return int64_t(ptrdiff_t(M) * ptrdiff_t(M));
+  constexpr explicit operator long() const {
+    return long(ptrdiff_t(M) * ptrdiff_t(M));
   }
-  constexpr explicit operator uint32_t() const {
-    return uint32_t(ptrdiff_t(M) * ptrdiff_t(M));
+  constexpr explicit operator long long() const {
+    return (long long)(ptrdiff_t(M) * ptrdiff_t(M));
   }
-  constexpr explicit operator uint64_t() const {
-    return uint64_t(ptrdiff_t(M) * ptrdiff_t(M));
+  constexpr explicit operator unsigned int() const {
+    return (unsigned int)(ptrdiff_t(M) * ptrdiff_t(M));
+  }
+  constexpr explicit operator unsigned long() const {
+    return (unsigned long)(ptrdiff_t(M) * ptrdiff_t(M));
+  }
+  constexpr explicit operator unsigned long long() const {
+    return (unsigned long long)(ptrdiff_t(M) * ptrdiff_t(M));
   }
   // constexpr SquareDims() = default;
   // constexpr SquareDims(ptrdiff_t d) : M{d} {}
