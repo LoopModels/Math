@@ -483,6 +483,14 @@ public:
       if (Cio == 0) return --i;
       invariant(Cio > 0);
       if ((n * Cio) >= (Civ * d)) continue;
+      // we could consider something like:
+      // so that in case of ties, we prefer having the maximum index
+      // be the leaving variable.
+      // That didn't really help the existing benchmarks.
+      // auto basicVars = getBasicVariables(); // passed in as arg to static fun
+      // if ((n * Cio) > (Civ * d)) continue;
+      // if ((n * Cio) == (Civ * d) && (basicVars[i - 1] < basicVars[j - 1]))
+      //   continue;
       n = Civ;
       d = Cio;
       j = i;
@@ -496,12 +504,12 @@ public:
     -> int64_t {
     Optional<unsigned int> leaveOpt = getLeavingVariable(C, enteringVar);
     if (!leaveOpt) return 0; // unbounded
-    ptrdiff_t leavingVar = ptrdiff_t(*leaveOpt);
+    auto leavingVar = ptrdiff_t(*leaveOpt);
     for (ptrdiff_t i = 0; i < C.numRow(); ++i) {
       if (i == leavingVar + 1) continue;
-      int64_t m = NormalForm::zeroWithRowOp(
-        C, Row<>{i}, ++Row<>{leavingVar}, ++Col<>{enteringVar}, i == 0 ? f : 0);
-      if (i == 0) f = m;
+      int64_t m = NormalForm::zeroWithRowOp(C, Row<>{i}, ++Row<>{leavingVar},
+                                            ++Col<>{enteringVar}, i ? 0 : f);
+      if (!i) f = m;
     }
     // update basic vars and constraints
     MutPtrVector<index_type> basicVars{getBasicVariables()};
@@ -522,13 +530,13 @@ public:
     // }
     // Rational runCore(MutPtrMatrix<int64_t> C, int64_t f = 1) {
     MutPtrMatrix<int64_t> C{getTableau()};
-    while (true) {
+    do {
       // entering variable is the column
       Optional<int> enteringVariable = getEnteringVariable(C[0, _(1, end)]);
       if (!enteringVariable) return Rational::create(C[0, 0], f);
       f = makeBasic(C, f, *enteringVariable);
-      if (f == 0) return std::numeric_limits<int64_t>::max(); // unbounded
-    }
+    } while (f);
+    return std::numeric_limits<int64_t>::max(); // unbounded
   }
   // set basicVar's costs to 0, and then runCore()
   constexpr auto run() -> Rational {
