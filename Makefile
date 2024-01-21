@@ -46,4 +46,4 @@ clangavx512: buildclang/avx512/
 	cmake --build buildclang/avx512/ --target test
 
 clean:
-	rm -r buildclang #buildgcc
+	rm -rf buildclang #buildgcc
