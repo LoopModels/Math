@@ -189,4 +189,3 @@ BENCHMARK(BM_dualprod_manual_tuple<8, 2>);
 BENCHMARK(BM_dualprod_simdarray_tuple<6, 2>);
 BENCHMARK(BM_dualprod_simdarray_tuple<7, 2>);
 BENCHMARK(BM_dualprod_simdarray_tuple<8, 2>);
-

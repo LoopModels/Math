@@ -29,4 +29,3 @@ TEST(SIMDGCDTest, BasicAssertions) {
     EXPECT_EQ(rg, poly::math::gcdreduce<W>(g));
   }
 }
-
