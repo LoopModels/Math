@@ -617,6 +617,7 @@ StaticArray(T, U...) -> StaticArray<T, 1, 1 + sizeof...(U)>;
 
 static_assert(utils::Compressible<SVector<int64_t, 3>>);
 static_assert(utils::Compressible<SVector<int64_t, 7>>);
+
 } // namespace poly::math
 
 template <class T, ptrdiff_t N> // NOLINTNEXTLINE(cert-dcl58-cpp)

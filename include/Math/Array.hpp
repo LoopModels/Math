@@ -1499,6 +1499,20 @@ struct POLY_MATH_GSL_OWNER ManagedArray : ReallocView<T, S, A> {
     }
     invariant(k == B.getNonZeros().size());
   }
+  constexpr ManagedArray(const ColVector auto &v)
+  requires(MatrixDimension<S>)
+    : BaseT{memory.data(), S(shape(v)), U(N)} {
+    U len = U(this->sz);
+    this->growUndef(len);
+    (*this) << v;
+  }
+  constexpr ManagedArray(const RowVector auto &v)
+  requires(MatrixDimension<S>)
+    : BaseT{memory.data(), S(CartesianIndex(1, v.size())), U(N)} {
+    U len = U(this->sz);
+    this->growUndef(len);
+    (*this) << v;
+  }
 #if !defined(__clang__) && defined(__GNUC__)
 #pragma GCC diagnostic pop
 #pragma GCC diagnostic pop
