@@ -2,6 +2,7 @@
 
 #include "Math/Array.hpp"
 #include "Math/MatrixDimensions.hpp"
+#include "Math/StaticArrays.hpp"
 #include <cstddef>
 #include <cstdint>
 
@@ -22,12 +23,20 @@ constexpr auto cstoll(const char *s, ptrdiff_t &cur) -> int64_t {
   return neg ? -res : res;
 }
 
-[[nodiscard]] constexpr auto operator"" _mat(const char *s, size_t)
-  -> math::DenseMatrix<int64_t, 0> {
-  invariant(s[0] == '[');
-  math::ManagedArray<int64_t, ptrdiff_t, 0> content;
-  ptrdiff_t cur = 1;
-  ptrdiff_t numRows = 1;
+// static_assert(__cpp_nontype_template_args >= 201911);
+template <std::size_t N> struct String {
+  char data[N];
+
+  static constexpr auto size() -> size_t { return N; }
+  constexpr String(char const (&p)[N]) { std::copy_n(p, N, data); }
+  constexpr auto operator[](ptrdiff_t i) const -> char { return data[i]; }
+};
+
+// returns an array [nrows, ncols]
+template <String S> consteval auto dims_eltype() -> std::array<ptrdiff_t, 2> {
+  std::vector<int64_t> content;
+  ptrdiff_t cur = 1, numRows = 1;
+  const char *s = S.data;
   while (s[cur] != ']') {
     switch (s[cur]) {
     case ';': ++numRows; [[fallthrough]];
@@ -35,12 +44,28 @@ constexpr auto cstoll(const char *s, ptrdiff_t &cur) -> int64_t {
     default: content.push_back(cstoll(s, cur));
     }
   }
-  ptrdiff_t numCols = content.size() / numRows;
+  ptrdiff_t numCols = ptrdiff_t(content.size()) / numRows;
   if (content.size() % numRows != 0) __builtin_trap();
-  math::DenseMatrix<int64_t, 0> A(
-    std::move(content),
-    math::DenseDims{math::Row<>{numRows}, math::Col<>{numCols}});
+  return {numRows, numCols};
+}
+
+template <String S> constexpr auto matrix_from_string() {
+  constexpr std::array<ptrdiff_t, 2> dims = dims_eltype<S>();
+  math::StaticArray<int64_t, dims[0], dims[1]> A;
+  ptrdiff_t cur = 1, i = 0;
+  const char *s = S.data;
+  while (s[cur] != ']') {
+    switch (s[cur]) {
+    case ';': [[fallthrough]];
+    case ' ': ++cur; break;
+    default: A.data()[i++] = cstoll(s, cur);
+    }
+  }
   return A;
+}
+
+template <String S> [[nodiscard]] constexpr auto operator"" _mat() {
+  return matrix_from_string<S>();
 }
 
 } // namespace poly::utils

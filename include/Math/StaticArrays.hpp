@@ -133,7 +133,6 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Compress>,
   constexpr auto operator[](Index<S> auto i) const noexcept -> decltype(auto) {
     return index<T>(data(), S{}, i);
   }
-  // TODO: switch to operator[] when we enable c++23
   // for vectors, we just drop the column, essentially broadcasting
   template <class R, class C>
   constexpr auto operator[](R r, C c) const noexcept -> decltype(auto) {
