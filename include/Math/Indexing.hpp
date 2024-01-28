@@ -217,6 +217,7 @@ constexpr auto calcNewDim(VectorDimension auto, ScalarIndex auto) -> Empty {
 }
 constexpr auto calcNewDim(SquareDims<>, ptrdiff_t) -> Empty { return {}; }
 constexpr auto calcNewDim(DenseDims<>, ptrdiff_t) -> Empty { return {}; }
+// constexpr auto calcNewDim(auto, ptrdiff_t) -> Empty { return {}; }
 
 constexpr auto calcNewDim(ptrdiff_t len, Range<ptrdiff_t, ptrdiff_t> r)
   -> ptrdiff_t {

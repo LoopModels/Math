@@ -211,12 +211,14 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Compress>,
   }
   constexpr auto front() noexcept -> T & { return *begin(); }
   constexpr auto back() noexcept -> T & { return *(end() - 1); }
-  constexpr auto operator[](Index<S> auto i) noexcept -> decltype(auto) {
+  [[gnu::flatten, gnu::always_inline]] constexpr auto
+  operator[](Index<S> auto i) noexcept -> decltype(auto) {
     return index<T>(data(), S{}, i);
   }
-  // TODO: switch to operator[] when we enable c++23
   template <class R, class C>
-  constexpr auto operator[](R r, C c) noexcept -> decltype(auto) {
+  [[gnu::flatten, gnu::always_inline]] constexpr auto operator[](R r,
+                                                                 C c) noexcept
+    -> decltype(auto) {
     return index<T>(data(), S{}, r, c);
   }
   constexpr void fill(T value) {
@@ -339,7 +341,7 @@ struct StaticArray<T, M, N, false>
     invariant((j % W) == 0);
   }
   template <ptrdiff_t R, ptrdiff_t C, typename Mask>
-  [[gnu::always_inline]] inline auto
+  [[gnu::flatten, gnu::always_inline]] inline auto
   operator[](simd::index::Unroll<R> i, simd::index::Unroll<C, W, Mask> j) const
     -> simd::Unroll<R, C, W, T> {
     checkinds<R>(i.index, j.index);
@@ -352,6 +354,11 @@ struct StaticArray<T, M, N, false>
         ret[r, u] = memory_[(i.index + r) * L + k + u];
     }
     return ret;
+  }
+  template <class R>
+  [[gnu::flatten, gnu::always_inline]] constexpr auto
+  operator[](R r, ptrdiff_t c) const noexcept -> decltype(auto) {
+    return index<T>(data(), S{}, r, c);
   }
   template <ptrdiff_t R, ptrdiff_t C> struct Ref {
     StaticArray *parent;
