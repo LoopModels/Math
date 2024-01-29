@@ -195,10 +195,42 @@ concept DenseLayout =
 static_assert(StaticInt<std::integral_constant<ptrdiff_t, 3>>);
 static_assert(!StaticInt<int64_t>);
 
-template <typename D>
-concept VectorDimension =
-  std::integral<D> || std::same_as<D, StridedRange> || StaticInt<D>;
+template <ptrdiff_t R, ptrdiff_t C, ptrdiff_t X>
+constexpr auto IsStridedColVectorDim(StridedDims<R, C, X>) -> bool {
+  return C == 1;
+}
+constexpr auto IsStridedColVectorDim(auto) -> bool { return false; }
 
+template <typename D> consteval auto IsStridedColVectorDim() -> bool {
+  return IsStridedColVectorDim(std::declval<D>());
+}
+
+template <typename T>
+concept IsOne =
+  std::same_as<std::remove_cvref_t<T>, std::integral_constant<ptrdiff_t, 1>>;
+
+template <typename D>
+concept RowVectorDimension = std::integral<D> || StaticInt<D>;
+template <typename D>
+concept ColVectorSMatDimension =
+  IsOne<decltype(unwrapCol(Col(std::declval<D>())))>;
+template <typename D>
+concept ColVectorDimension =
+  std::same_as<D, StridedRange> || ColVectorSMatDimension<D>;
+
+constexpr auto row(RowVectorDimension auto) -> Row<1> { return {}; }
+constexpr auto row(ColVectorSMatDimension auto s) { return Row(s); }
+constexpr auto col(ColVectorSMatDimension auto) -> Col<1> { return {}; }
+constexpr auto stride(ColVectorSMatDimension auto) -> RowStride<1> {
+  return {};
+}
+template <class I>
+constexpr auto calcOffset(ColVectorSMatDimension auto d, I i) -> ptrdiff_t {
+  return unwrapStride(stride(d)) * calcOffset(unwrapRow(Row(d)), i);
+}
+
+template <typename D>
+concept VectorDimension = RowVectorDimension<D> || ColVectorDimension<D>;
 // Concept for aligning array dimensions with indices.
 template <class I, class D>
 concept Index =
@@ -305,6 +337,13 @@ constexpr auto calcNewDim(ptrdiff_t, simd::index::Unroll<U, W, M> i) {
 
 template <ptrdiff_t U, ptrdiff_t W, typename M>
 constexpr auto calcNewDim(StridedRange x, simd::index::Unroll<U, W, M> i) {
+  if constexpr (W == 1)
+    return simd::index::UnrollDims<U, 1, 1, M, false, -1>{i.mask, stride(x)};
+  else return simd::index::UnrollDims<1, U, W, M, true, -1>{i.mask, stride(x)};
+}
+template <ptrdiff_t U, ptrdiff_t W, typename M>
+constexpr auto calcNewDim(ColVectorSMatDimension auto x,
+                          simd::index::Unroll<U, W, M> i) {
   if constexpr (W == 1)
     return simd::index::UnrollDims<U, 1, 1, M, false, -1>{i.mask, stride(x)};
   else return simd::index::UnrollDims<1, U, W, M, true, -1>{i.mask, stride(x)};

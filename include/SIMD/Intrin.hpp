@@ -833,6 +833,10 @@ template <ptrdiff_t W, std::integral T> constexpr auto crz(Vec<W, T> v) {
 template <typename T>
 static constexpr ptrdiff_t Width =
   SIMDSupported<T> ? VECTORWIDTH / sizeof(T) : 1;
+template <ptrdiff_t N, typename T>
+constexpr ptrdiff_t VecLen =
+  (N < Width<T>) ? ptrdiff_t(std::bit_ceil(size_t(N)))
+                 : std::max(Width<T>, ptrdiff_t(1));
 
 // returns { vector_size, num_vectors, remainder }
 template <ptrdiff_t L, typename T>

@@ -81,9 +81,6 @@ constexpr void fastCopy(D *d, const S *s, size_t N) {
   std::copy_n(s, N, d);
 }
 
-template <typename T>
-concept IsOne =
-  std::same_as<std::remove_cvref_t<T>, std::integral_constant<ptrdiff_t, 1>>;
 // inputs must be `ptrdiff_t` or `std::integral_constant<ptrdiff_t,value>`
 template <typename X, typename Y>
 [[gnu::always_inline]] constexpr auto check_sizes(X x, Y y) {
@@ -110,6 +107,9 @@ template <typename X, typename Y>
 template <typename A, typename B>
 [[gnu::always_inline]] constexpr auto promote_shape(const A &a, const B &b) {
   auto sa = shape(a);
+  // broadcasting static sizes is awkward, as it can prevent propogating static
+  // size information for copying an `StaticArray` to an `Array` of the same
+  // size, when the `StaticArray` has static size of `1`.
   if constexpr (!std::convertible_to<B, utils::eltype_t<A>>) {
     auto M = unwrapRow(numRows(b));
     auto N = unwrapCol(numCols(b));
@@ -179,12 +179,6 @@ protected:
     P &self{Self()};
     auto [M, N] = promote_shape(self, B);
     constexpr bool assign = std::same_as<Op, utils::CopyAssign>;
-    // if constexpr (std::same_as<Op, utils::CopyAssign> && DenseLayout<S> &&
-    //               DenseTensor<std::remove_cvref_t<decltype(B)>>) {
-    //   if constexpr (std::is_trivially_copyable_v<T>)
-    //     std::memcpy(data_(), B.begin(), M * N * sizeof(T));
-    //   else std::copy_n(B.begin(), M * N, data_());
-    // } else
 #ifdef CASTTOSCALARIZE
     using E = math::scalarize_via_cast_t<
       std::remove_cvref_t<decltype(std::declval<P>().view())>>;

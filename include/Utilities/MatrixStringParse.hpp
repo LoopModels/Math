@@ -52,13 +52,20 @@ template <String S> consteval auto dims_eltype() -> std::array<ptrdiff_t, 2> {
 template <String S> constexpr auto matrix_from_string() {
   constexpr std::array<ptrdiff_t, 2> dims = dims_eltype<S>();
   math::StaticArray<int64_t, dims[0], dims[1]> A;
-  ptrdiff_t cur = 1, i = 0;
+  ptrdiff_t cur = 1, i = 0, j = 0;
   const char *s = S.data;
   while (s[cur] != ']') {
     switch (s[cur]) {
     case ';': [[fallthrough]];
     case ' ': ++cur; break;
-    default: A.data()[i++] = cstoll(s, cur);
+    default: {
+      int64_t x = cstoll(s, cur);
+      A[i, j] = x;
+      if (++j == dims[1]) {
+        j = 0;
+        ++i;
+      }
+    }
     }
   }
   return A;
