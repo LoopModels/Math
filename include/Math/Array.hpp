@@ -125,7 +125,6 @@ template <typename T, typename P, typename S, typename R, typename C>
     auto newDim = calcNewDim(shape, r, c);
     using D = decltype(newDim);
     if constexpr (simd::index::issimd<D>) {
-      std::cout << "simdref\n";
       return simd::ref(ptr + offset, newDim);
     } else {
       constexpr bool compress = !std::same_as<T, std::remove_const_t<P>>;

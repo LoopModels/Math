@@ -32,26 +32,36 @@ template <std::size_t N> struct String {
   constexpr auto operator[](ptrdiff_t i) const -> char { return data[i]; }
 };
 
-// returns an array [nrows, ncols]
+// returns an array {nrows, ncols}
 template <String S> consteval auto dims_eltype() -> std::array<ptrdiff_t, 2> {
-  std::vector<int64_t> content;
-  ptrdiff_t cur = 1, numRows = 1;
-  const char *s = S.data;
-  while (s[cur] != ']') {
-    switch (s[cur]) {
-    case ';': ++numRows; [[fallthrough]];
-    case ' ': ++cur; break;
-    default: content.push_back(cstoll(s, cur));
+  ptrdiff_t numRows = 1, numCols = 0;
+  // count numCols
+  const char *s = S.data + 1; // skip `[`
+  // while (*s != ';'){
+  while (true) {
+    char c = *s;
+    while (c == ' ') c = *(++s);
+    if (c == ';') break;
+    if (c == ']') return {numRows, numCols};
+    while (true) {
+      c = *(++s);
+      if (c == '-') continue;
+      if (c >= '0' && c <= '9') continue;
+      break;
     }
+    ++numCols;
   }
-  ptrdiff_t numCols = ptrdiff_t(content.size()) / numRows;
-  if (content.size() % numRows != 0) __builtin_trap();
-  return {numRows, numCols};
+  ++numRows;
+  while (true) {
+    char c = *(++s);
+    if (c == ']') return {numRows, numCols};
+    if (c == ';') ++numRows;
+  }
 }
 
 template <String S> constexpr auto matrix_from_string() {
   constexpr std::array<ptrdiff_t, 2> dims = dims_eltype<S>();
-  math::StaticArray<int64_t, dims[0], dims[1]> A;
+  math::StaticArray<int64_t, dims[0], dims[1]> A{0};
   ptrdiff_t cur = 1, i = 0, j = 0;
   const char *s = S.data;
   while (s[cur] != ']') {

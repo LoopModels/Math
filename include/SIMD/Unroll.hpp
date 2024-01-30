@@ -503,7 +503,6 @@ loadunroll(const T *ptr, math::RowStride<X> rowStride, std::array<MT, NM> masks)
   else {
     constexpr auto W = ptrdiff_t(std::bit_ceil(size_t(N)));
     auto rs = ptrdiff_t(rowStride);
-    std::cout << "RowStride=" << rs << "\n";
     Unroll<R, C, N, T> ret;
     POLYMATHFULLUNROLL
     for (ptrdiff_t r = 0; r < R; ++r, ptr += rs) {
