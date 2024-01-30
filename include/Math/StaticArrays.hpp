@@ -355,6 +355,19 @@ struct StaticArray<T, M, N, false>
       return reinterpret_cast<T *>(memory_ + ptrdiff_t(r) * L)[c];
     else return index<T>(data(), S{}, r, c);
   }
+  constexpr void set(T x, ptrdiff_t r, ptrdiff_t c) {
+    if constexpr (W == 1) {
+      memory_[L * r + c] = x;
+    } else {
+      V v = memory_[L * r + c / W];
+      using IT = std::conditional_t<sizeof(T) == 8, int64_t, int32_t>;
+      v = simd::range<W, IT>() == simd::vbroadcast<W, IT>(c % W)
+            ? simd::vbroadcast<W, T>(x)
+            : v;
+      // v[c % W] = x;
+      memory_[L * r + c / W] = v;
+    }
+  }
   template <class R>
   [[gnu::flatten, gnu::always_inline]] constexpr auto
   operator[](R r, ptrdiff_t c) const noexcept -> decltype(auto) {

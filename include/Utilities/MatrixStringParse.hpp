@@ -33,7 +33,11 @@ template <std::size_t N> struct String {
 };
 
 // returns an array {nrows, ncols}
+#if defined(__clang__)
+template <String S> constexpr auto dims_eltype() -> std::array<ptrdiff_t, 2> {
+#else
 template <String S> consteval auto dims_eltype() -> std::array<ptrdiff_t, 2> {
+#endif
   ptrdiff_t numRows = 1, numCols = 0;
   // count numCols
   const char *s = S.data + 1; // skip `[`
@@ -59,9 +63,13 @@ template <String S> consteval auto dims_eltype() -> std::array<ptrdiff_t, 2> {
   }
 }
 
+#if defined(__clang__)
 template <String S> constexpr auto matrix_from_string() {
+#else
+template <String S> consteval auto matrix_from_string() {
+#endif
   constexpr std::array<ptrdiff_t, 2> dims = dims_eltype<S>();
-  math::StaticArray<int64_t, dims[0], dims[1]> A{0};
+  math::StaticArray<int64_t, dims[0], dims[1]> A(int64_t(0));
   ptrdiff_t cur = 1, i = 0, j = 0;
   const char *s = S.data;
   while (s[cur] != ']') {
@@ -70,7 +78,7 @@ template <String S> constexpr auto matrix_from_string() {
     case ' ': ++cur; break;
     default: {
       int64_t x = cstoll(s, cur);
-      A[i, j] = x;
+      A.set(x, i, j);
       if (++j == dims[1]) {
         j = 0;
         ++i;
@@ -81,7 +89,11 @@ template <String S> constexpr auto matrix_from_string() {
   return A;
 }
 
+#if defined(__clang__)
 template <String S> [[nodiscard]] constexpr auto operator"" _mat() {
+#else
+template <String S> [[nodiscard]] consteval auto operator"" _mat() {
+#endif
   return matrix_from_string<S>();
 }
 
