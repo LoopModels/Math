@@ -1,5 +1,9 @@
 # Math
 
+Supported compilers: Clang 17, GCC 13.2.
+This project uses C++23, and thus requires the latest versions of the compilers.
+Once Clang 18 and GCC 14 are released, we will update to those as the minimum supported compilers (for deducing this, and perhaps `std::print`).
+
 This is the math library used by LoopModels.
 It primarily serves to present:
 1. a convenient API for array math.
