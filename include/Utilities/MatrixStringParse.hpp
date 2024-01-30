@@ -6,6 +6,10 @@
 #include <cstddef>
 #include <cstdint>
 
+#if !defined(__clang__)
+#define CONSTEVAL_LITERAL_ARRAYS
+#endif
+
 namespace poly::utils {
 
 constexpr auto cstoll(const char *s, ptrdiff_t &cur) -> int64_t {
@@ -33,7 +37,7 @@ template <std::size_t N> struct String {
 };
 
 // returns an array {nrows, ncols}
-#if defined(__clang__)
+#ifndef CONSTEVAL_LITERAL_ARRAYS
 template <String S> constexpr auto dims_eltype() -> std::array<ptrdiff_t, 2> {
 #else
 template <String S> consteval auto dims_eltype() -> std::array<ptrdiff_t, 2> {
@@ -63,7 +67,7 @@ template <String S> consteval auto dims_eltype() -> std::array<ptrdiff_t, 2> {
   }
 }
 
-#if defined(__clang__)
+#ifndef CONSTEVAL_LITERAL_ARRAYS
 template <String S> constexpr auto matrix_from_string() {
 #else
 template <String S> consteval auto matrix_from_string() {
@@ -89,7 +93,7 @@ template <String S> consteval auto matrix_from_string() {
   return A;
 }
 
-#if defined(__clang__)
+#ifndef CONSTEVAL_LITERAL_ARRAYS
 template <String S> [[nodiscard]] constexpr auto operator"" _mat() {
 #else
 template <String S> [[nodiscard]] consteval auto operator"" _mat() {
