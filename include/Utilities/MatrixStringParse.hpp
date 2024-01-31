@@ -37,11 +37,7 @@ template <std::size_t N> struct String {
 };
 
 // returns an array {nrows, ncols}
-#ifndef CONSTEVAL_LITERAL_ARRAYS
-template <String S> constexpr auto dims_eltype() -> std::array<ptrdiff_t, 2> {
-#else
 template <String S> consteval auto dims_eltype() -> std::array<ptrdiff_t, 2> {
-#endif
   ptrdiff_t numRows = 1, numCols = 0;
   // count numCols
   const char *s = S.data + 1; // skip `[`
