@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Math/Array.hpp"
-#include "Math/MatrixDimensions.hpp"
 #include "Math/StaticArrays.hpp"
 #include <cstddef>
 #include <cstdint>
