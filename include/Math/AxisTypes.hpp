@@ -216,8 +216,13 @@ template <ptrdiff_t M> constexpr auto unwrapCol(Col<M> x) {
   if constexpr (M == -1) return ptrdiff_t(x);
   else return std::integral_constant<ptrdiff_t, M>{};
 }
+template <ptrdiff_t M> constexpr auto unwrapStride(RowStride<M> x) {
+  if constexpr (M == -1) return ptrdiff_t(x);
+  else return std::integral_constant<ptrdiff_t, M>{};
+}
 constexpr auto unwrapRow(auto x) { return x; }
 constexpr auto unwrapCol(auto x) { return x; }
+constexpr auto unwrapStride(auto x) { return x; }
 
 template <ptrdiff_t C, ptrdiff_t X>
 constexpr auto operator==(Col<C> c, RowStride<X> x) -> bool {

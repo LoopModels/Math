@@ -598,7 +598,32 @@ struct UnrollRef {
     }
     return *this;
   }
-  constexpr auto operator=(Vec<W, T> v) -> UnrollRef &
+  constexpr auto operator=(Unroll<R, C, 1, T> x)
+    -> UnrollRef &requires(!Transposed && (N != 1)) {
+      auto rs = ptrdiff_t(rowStride);
+      T *p = ptr;
+      POLYMATHFULLUNROLL
+      for (ptrdiff_t r = 0; r < R; ++r, p += rs) {
+        if constexpr (NM == 0) {
+          POLYMATHFULLUNROLL
+          for (ptrdiff_t c = 0; c < C; ++c)
+            store<T>(p + c * W, mask::None<W>{}, vbroadcast<W>(x[r, c]));
+        } else if constexpr (NM == C) {
+          POLYMATHFULLUNROLL
+          for (ptrdiff_t c = 0; c < C; ++c)
+            store<T>(p + c * W, masks[c], vbroadcast<W>(x[r, c]));
+        } else { // NM == 1
+          POLYMATHFULLUNROLL
+          for (ptrdiff_t c = 0; c < C - 1; ++c)
+            store<T>(p + c * W, mask::None<W>{}, x[r, c]);
+          store<T>(p + (C - 1) * W, masks[0], vbroadcast<W>(x[r, C - 1]));
+        }
+      }
+      return *this;
+    }
+
+  constexpr auto
+  operator=(Vec<W, T> v) -> UnrollRef &
   requires(!Transposed)
   {
     auto rs = ptrdiff_t(rowStride);

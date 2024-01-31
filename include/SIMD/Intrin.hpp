@@ -26,7 +26,8 @@ concept SIMDSupported = std::same_as<T, int64_t> || std::same_as<T, double>;
 
 template <ptrdiff_t W, typename T>
 [[gnu::always_inline]] constexpr auto vbroadcast(Vec<W, T> v) -> Vec<W, T> {
-  if constexpr (W == 2) return __builtin_shufflevector(v, v, 0, 0);
+  if constexpr (W == 1) return v;
+  else if constexpr (W == 2) return __builtin_shufflevector(v, v, 0, 0);
   else if constexpr (W == 4) return __builtin_shufflevector(v, v, 0, 0, 0, 0);
   else if constexpr (W == 8)
     return __builtin_shufflevector(v, v, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -46,7 +47,13 @@ template <ptrdiff_t W, typename T>
 }
 template <ptrdiff_t W, typename T>
 [[gnu::always_inline]] constexpr auto vbroadcast(T x) -> Vec<W, T> {
-  return vbroadcast<W, T>(Vec<W, T>{x});
+  if constexpr (W > 1) {
+    if consteval {
+      return Vec<W, T>{} + x;
+    } else {
+      return vbroadcast<W, T>(Vec<W, T>{x});
+    }
+  } else return x;
 }
 
 template <typename T>
@@ -833,6 +840,10 @@ template <ptrdiff_t W, std::integral T> constexpr auto crz(Vec<W, T> v) {
 template <typename T>
 static constexpr ptrdiff_t Width =
   SIMDSupported<T> ? VECTORWIDTH / sizeof(T) : 1;
+template <ptrdiff_t N, typename T>
+constexpr ptrdiff_t VecLen =
+  (N < Width<T>) ? ptrdiff_t(std::bit_ceil(size_t(N)))
+                 : std::max(Width<T>, ptrdiff_t(1));
 
 // returns { vector_size, num_vectors, remainder }
 template <ptrdiff_t L, typename T>

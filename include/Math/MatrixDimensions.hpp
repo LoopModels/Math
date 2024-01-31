@@ -2,7 +2,6 @@
 
 #include "Math/AxisTypes.hpp"
 #include <cstddef>
-#include <cstdint>
 
 namespace poly::math {
 template <ptrdiff_t R = -1> struct SquareDims;
@@ -169,7 +168,10 @@ template <ptrdiff_t R, ptrdiff_t C> struct DenseDims {
   constexpr auto operator=(SquareDims<R> D) -> DenseDims &requires(R == C);
   constexpr explicit operator Row<R>() const { return M; }
   constexpr explicit operator Col<C>() const { return N; }
-  constexpr explicit operator RowStride<C>() const { return {ptrdiff_t{N}}; }
+  constexpr explicit operator RowStride<C>() const {
+    if constexpr (C == -1) return {ptrdiff_t{N}};
+    else return {};
+  }
   template <ptrdiff_t S>
   [[nodiscard]] constexpr auto truncate(Row<S> r) const -> DenseDims {
     invariant(r <= Row{M});
@@ -256,7 +258,10 @@ template <ptrdiff_t R> struct SquareDims {
   // }
   constexpr explicit operator Row<R>() const { return M; }
   constexpr explicit operator Col<R>() const { return {ptrdiff_t(M)}; }
-  constexpr explicit operator RowStride<R>() const { return {ptrdiff_t(M)}; }
+  constexpr explicit operator RowStride<R>() const {
+    if constexpr (R == -1) return {ptrdiff_t(M)};
+    else return {};
+  }
   template <ptrdiff_t S>
   [[nodiscard]] constexpr auto truncate(Row<S> r) const -> DenseDims<S, R> {
     invariant(r <= Row{M});

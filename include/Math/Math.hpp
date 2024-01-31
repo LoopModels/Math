@@ -65,17 +65,24 @@ template <typename Op, typename A, typename B>
 concept BinaryFuncOfElts =
   std::is_invocable_v<Op, indextype_t<A, B>, indextype_t<B, A>>;
 
+template <typename T, typename I> consteval auto getWidth() -> ptrdiff_t {
+  if constexpr (std::same_as<I, ptrdiff_t>) return simd::Width<T>;
+  else return simd::VecLen<ptrdiff_t(I{}), T>;
+}
+
 // TODO: make this part of ArrayOps!!!
 [[gnu::flatten]] constexpr auto operator==(const AbstractTensor auto &A,
                                            const AbstractTensor auto &B)
   -> bool {
-  auto [M, N] = shape(A);
+  auto [Ma, Na] = shape(A);
   auto [Mb, Nb] = shape(B);
-  if ((M != Mb) || (N != Nb)) return false;
+
+  if ((Ma != Mb) || (Na != Nb)) return false;
   using T = std::common_type_t<utils::eltype_t<decltype(A)>,
                                utils::eltype_t<decltype(B)>>;
-  constexpr ptrdiff_t W = simd::Width<T>;
-  if constexpr (W <= 2) {
+  auto M = check_sizes(Ma, Mb);
+  auto N = check_sizes(Na, Nb);
+  if constexpr (simd::Width<T> <= 2) {
     if constexpr (AbstractMatrix<decltype(A)>) {
       for (ptrdiff_t r = 0; r < M; ++r)
         for (ptrdiff_t i = 0; i < N; ++i)
@@ -86,6 +93,7 @@ concept BinaryFuncOfElts =
         if (A[i] != B[i]) return false;
     }
   } else if constexpr (AbstractMatrix<decltype(A)>) {
+    constexpr ptrdiff_t W = getWidth<T, decltype(N)>();
     for (ptrdiff_t r = 0; r < M; ++r) {
       for (ptrdiff_t i = 0;; i += W) {
         auto u{simd::index::unrollmask<1, W>(N, i)};
@@ -94,6 +102,8 @@ concept BinaryFuncOfElts =
       }
     }
   } else {
+    constexpr ptrdiff_t W = RowVector<decltype(A)> ? getWidth<T, decltype(N)>()
+                                                   : getWidth<T, decltype(M)>();
     ptrdiff_t L = RowVector<decltype(A)> ? N : M;
     for (ptrdiff_t i = 0;; i += W) {
       auto u{simd::index::unrollmask<1, W>(L, i)};

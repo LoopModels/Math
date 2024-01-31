@@ -1,19 +1,14 @@
 #pragma once
+
 #include "Math/Array.hpp"
 #include "Math/Indexing.hpp"
 #include "Utilities/Reference.hpp"
 #include <type_traits>
-#include <utility>
 
 namespace poly::math {
 
 static_assert(
   AbstractSimilar<PtrVector<int64_t>, std::integral_constant<unsigned int, 4>>);
-
-template <ptrdiff_t N, typename T>
-constexpr ptrdiff_t VecLen =
-  (N < simd::Width<T>) ? ptrdiff_t(std::bit_ceil(size_t(N)))
-                       : std::max(simd::Width<T>, ptrdiff_t(1));
 
 template <typename T, ptrdiff_t L>
 consteval auto paddedSize() -> std::array<ptrdiff_t, 2> {
@@ -30,14 +25,14 @@ consteval auto calcPaddedCols() -> ptrdiff_t {
 }
 template <typename T, ptrdiff_t L> consteval auto alignSIMD() -> size_t {
   if constexpr (!simd::SIMDSupported<T>) return alignof(T);
-  else return alignof(simd::Vec<VecLen<L, T>, T>);
+  else return alignof(simd::Vec<simd::VecLen<L, T>, T>);
 }
 
 template <class T, ptrdiff_t M, ptrdiff_t N, bool Compress>
 using StaticDims = std::conditional_t<
   M == 1, std::integral_constant<ptrdiff_t, N>,
   std::conditional_t<
-    Compress || (((N * sizeof(T)) % VecLen<N, T>) == 0), DenseDims<M, N>,
+    Compress || (((N * sizeof(T)) % simd::VecLen<N, T>) == 0), DenseDims<M, N>,
     StridedDims<M, N, calcPaddedCols<T, N, alignSIMD<T, N>()>()>>>;
 
 template <class T, ptrdiff_t M, ptrdiff_t N, bool Compress = false>
@@ -71,12 +66,18 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Compress>,
   using decompressed_type = StaticArray<value_type, M, N, false>;
   using S = StaticDims<T, M, N, Compress>;
   constexpr StaticArray(){}; // NOLINT(modernize-use-equals-default)
-  constexpr explicit StaticArray(const T &x) noexcept { (*this) << x; }
+  constexpr explicit StaticArray(const T &x) noexcept {
+    if consteval {
+      for (ptrdiff_t i = 0; i < M * N; ++i) memory_[i] = x;
+    } else {
+      (*this) << x;
+    }
+  }
   constexpr explicit StaticArray(
     const std::convertible_to<T> auto &x) noexcept {
     (*this) << x;
   }
-  constexpr explicit StaticArray(StaticArray const &) = default;
+  constexpr StaticArray(const StaticArray &) = default;
   constexpr explicit StaticArray(StaticArray &&) noexcept = default;
   constexpr explicit StaticArray(const std::initializer_list<T> &list) {
     if (list.size() == 1) {
@@ -133,7 +134,6 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Compress>,
   constexpr auto operator[](Index<S> auto i) const noexcept -> decltype(auto) {
     return index<T>(data(), S{}, i);
   }
-  // TODO: switch to operator[] when we enable c++23
   // for vectors, we just drop the column, essentially broadcasting
   template <class R, class C>
   constexpr auto operator[](R r, C c) const noexcept -> decltype(auto) {
@@ -192,7 +192,8 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Compress>,
         if (r != c && (*this)(r, c) != 0) return false;
     return true;
   }
-  [[nodiscard]] constexpr auto view() const noexcept -> Array<T, S, Compress> {
+  [[nodiscard]] constexpr auto view() const noexcept
+    -> Array<T, S, Compress && utils::Compressible<T>> {
     const storage_type *ptr = data();
     invariant(ptr != nullptr);
     return {ptr, S{}};
@@ -212,12 +213,14 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Compress>,
   }
   constexpr auto front() noexcept -> T & { return *begin(); }
   constexpr auto back() noexcept -> T & { return *(end() - 1); }
-  constexpr auto operator[](Index<S> auto i) noexcept -> decltype(auto) {
+  [[gnu::flatten, gnu::always_inline]] constexpr auto
+  operator[](Index<S> auto i) noexcept -> decltype(auto) {
     return index<T>(data(), S{}, i);
   }
-  // TODO: switch to operator[] when we enable c++23
   template <class R, class C>
-  constexpr auto operator[](R r, C c) noexcept -> decltype(auto) {
+  [[gnu::flatten, gnu::always_inline]] constexpr auto operator[](R r,
+                                                                 C c) noexcept
+    -> decltype(auto) {
     return index<T>(data(), S{}, r, c);
   }
   constexpr void fill(T value) {
@@ -241,15 +244,21 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Compress>,
   [[nodiscard]] constexpr auto get() const -> const T & {
     return memory_[I];
   }
+  constexpr void set(T x, ptrdiff_t r, ptrdiff_t c) { memory_[r * N + c] = x; }
+  friend inline void PrintTo(const StaticArray &x, ::std::ostream *os) {
+    *os << x.view();
+  }
 };
 
 template <simd::SIMDSupported T, ptrdiff_t M, ptrdiff_t N>
-requires((M * (N + VecLen<N, T> - 1) / VecLen<N, T>) > 1)
+requires((M * (N + simd::VecLen<N, T> - 1) / simd::VecLen<N, T>) > 1)
 struct StaticArray<T, M, N, false>
   : ArrayOps<T, StaticDims<T, M, N, false>, StaticArray<T, M, N, false>> {
-  // struct StaticArray<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>
-  //   : ArrayOps<T, StaticDims<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>,
-  //              StaticArray<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>> {
+  // struct StaticArray<T, M, N, alignof(simd::Vec<simd::VecLen<N, T>, T>)>
+  //   : ArrayOps<T, StaticDims<T, M, N, alignof(simd::Vec<simd::VecLen<N, T>,
+  //   T>)>,
+  //              StaticArray<T, M, N, alignof(simd::Vec<simd::VecLen<N, T>,
+  //              T>)>> {
 
   using value_type = T;
   using reference = T &;
@@ -268,11 +277,12 @@ struct StaticArray<T, M, N, false>
   static constexpr auto decompress(const compressed_type *p) -> StaticArray {
     return StaticArray{*p};
   }
-  static constexpr ptrdiff_t W = VecLen<N, T>;
+  static constexpr ptrdiff_t W = simd::VecLen<N, T>;
   static constexpr ptrdiff_t Align = alignof(simd::Vec<W, T>);
   using S = StaticDims<T, M, N, false>;
 
   [[nodiscard]] constexpr auto view() const -> StaticArray { return *this; }
+  [[nodiscard]] static constexpr auto dim() noexcept -> S { return S{}; }
 
   static constexpr ptrdiff_t L = (N + W - 1) / W;
   static_assert(L * W == calcPaddedCols<T, N, Align>());
@@ -297,6 +307,7 @@ struct StaticArray<T, M, N, false>
   [[nodiscard]] constexpr auto data() const -> const T * {
     return reinterpret_cast<const T *>(memory_);
   }
+  [[nodiscard]] constexpr auto t() const { return Transpose{*this}; }
   template <AbstractSimilar<S> V> constexpr StaticArray(const V &b) noexcept {
     this->vcopyTo(b, utils::CopyAssign{});
   }
@@ -318,12 +329,6 @@ struct StaticArray<T, M, N, false>
     -> std::integral_constant<ptrdiff_t, M * N> {
     return {};
   }
-  inline auto operator[](ptrdiff_t i, ptrdiff_t j) -> T & {
-    return reinterpret_cast<T *>(memory_ + i * L)[j];
-  }
-  inline auto operator[](ptrdiff_t i, ptrdiff_t j) const -> T {
-    return reinterpret_cast<const T *>(memory_ + i * L)[j];
-  }
   template <ptrdiff_t U, typename Mask>
   [[gnu::always_inline]] inline auto
   operator[](ptrdiff_t i, simd::index::Unroll<U, W, Mask> j) const
@@ -340,7 +345,7 @@ struct StaticArray<T, M, N, false>
     invariant((j % W) == 0);
   }
   template <ptrdiff_t R, ptrdiff_t C, typename Mask>
-  [[gnu::always_inline]] inline auto
+  [[gnu::flatten, gnu::always_inline]] inline auto
   operator[](simd::index::Unroll<R> i, simd::index::Unroll<C, W, Mask> j) const
     -> simd::Unroll<R, C, W, T> {
     checkinds<R>(i.index, j.index);
@@ -353,6 +358,33 @@ struct StaticArray<T, M, N, false>
         ret[r, u] = memory_[(i.index + r) * L + k + u];
     }
     return ret;
+  }
+  template <class R>
+  [[gnu::flatten, gnu::always_inline]] constexpr auto
+  operator[](R r, ptrdiff_t c) noexcept -> decltype(auto) {
+    if constexpr (std::integral<R>)
+      return reinterpret_cast<T *>(memory_ + ptrdiff_t(r) * L)[c];
+    else return index<T>(data(), S{}, r, c);
+  }
+  constexpr void set(T x, ptrdiff_t r, ptrdiff_t c) {
+    if constexpr (W == 1) {
+      memory_[L * r + c] = x;
+    } else {
+      V v = memory_[L * r + c / W];
+      using IT = std::conditional_t<sizeof(T) == 8, int64_t, int32_t>;
+      v = simd::range<W, IT>() == simd::vbroadcast<W, IT>(c % W)
+            ? simd::vbroadcast<W, T>(x)
+            : v;
+      // v[c % W] = x;
+      memory_[L * r + c / W] = v;
+    }
+  }
+  template <class R>
+  [[gnu::flatten, gnu::always_inline]] constexpr auto
+  operator[](R r, ptrdiff_t c) const noexcept -> decltype(auto) {
+    if constexpr (std::integral<R>)
+      return reinterpret_cast<const T *>(memory_ + ptrdiff_t(r) * L)[c];
+    else return index<T>(data(), S{}, r, c);
   }
   template <ptrdiff_t R, ptrdiff_t C> struct Ref {
     StaticArray *parent;
@@ -411,13 +443,14 @@ struct StaticArray<T, M, N, false>
     -> Ref<R, C> {
     return Ref<R, C>{this, i.index, j.index};
   }
-  [[gnu::always_inline]] constexpr auto operator[](auto i) -> decltype(auto)
+  [[gnu::always_inline]] constexpr auto operator[](auto i) noexcept
+    -> decltype(auto)
   requires((N == 1) || (M == 1))
   {
     if constexpr (M == 1) return (*this)[0, i];
     else return (*this)[i, 0];
   }
-  [[gnu::always_inline]] constexpr auto operator[](auto i) const
+  [[gnu::always_inline]] constexpr auto operator[](auto i) const noexcept
     -> decltype(auto)
   requires((N == 1) || (M == 1))
   {
@@ -433,15 +466,20 @@ struct StaticArray<T, M, N, false>
   template <std::size_t I> [[nodiscard]] constexpr auto get() const -> T {
     return memory_[I / W][I % W];
   }
+  friend inline void PrintTo(const StaticArray &x, ::std::ostream *os) {
+    *os << x.view();
+  }
 };
 
 template <simd::SIMDSupported T, ptrdiff_t N>
-requires((N > 1) && ((N + VecLen<N, T> - 1) / VecLen<N, T>) == 1)
+requires((N > 1) && ((N + simd::VecLen<N, T> - 1) / simd::VecLen<N, T>) == 1)
 struct StaticArray<T, 1, N, false>
   : ArrayOps<T, StaticDims<T, 1, N, false>, StaticArray<T, 1, N, false>> {
-  // struct StaticArray<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>
-  //   : ArrayOps<T, StaticDims<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>,
-  //              StaticArray<T, M, N, alignof(simd::Vec<VecLen<N, T>, T>)>> {
+  // struct StaticArray<T, M, N, alignof(simd::Vec<simd::VecLen<N, T>, T>)>
+  //   : ArrayOps<T, StaticDims<T, M, N, alignof(simd::Vec<simd::VecLen<N, T>,
+  //   T>)>,
+  //              StaticArray<T, M, N, alignof(simd::Vec<simd::VecLen<N, T>,
+  //              T>)>> {
 
   using value_type = T;
   using reference = T &;
@@ -461,9 +499,10 @@ struct StaticArray<T, 1, N, false>
   static constexpr auto decompress(const compressed_type *p) -> StaticArray {
     return StaticArray{*p};
   }
-  static constexpr ptrdiff_t W = VecLen<N, T>;
+  static constexpr ptrdiff_t W = simd::VecLen<N, T>;
   static constexpr ptrdiff_t Align = alignof(simd::Vec<W, T>);
   using S = std::integral_constant<ptrdiff_t, N>;
+  [[nodiscard]] static constexpr auto dim() noexcept -> S { return S{}; }
 
   [[nodiscard]] constexpr auto view() const -> StaticArray { return *this; }
 
@@ -499,6 +538,7 @@ struct StaticArray<T, 1, N, false>
   static constexpr auto numCol() -> Col<N> { return {}; }
   static constexpr auto safeRow() -> Row<1> { return {}; }
   static constexpr auto safeCol() -> Col<W> { return {}; }
+  [[nodiscard]] constexpr auto t() const { return Transpose{*this}; }
   [[nodiscard]] static constexpr auto rowStride() noexcept -> RowStride<W> {
     return {};
   }
@@ -618,6 +658,7 @@ StaticArray(T, U...) -> StaticArray<T, 1, 1 + sizeof...(U)>;
 
 static_assert(utils::Compressible<SVector<int64_t, 3>>);
 static_assert(utils::Compressible<SVector<int64_t, 7>>);
+
 } // namespace poly::math
 
 template <class T, ptrdiff_t N> // NOLINTNEXTLINE(cert-dcl58-cpp)

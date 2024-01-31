@@ -5,6 +5,13 @@
 #include "SIMD/Unroll.hpp"
 namespace poly::simd {
 
+template <ptrdiff_t C, typename T>
+constexpr auto transpose(Unroll<1, C, 1, T> u) -> Unroll<C, 1, 1, T> {
+  Unroll<C, 1, 1, T> z;
+  POLYMATHFULLUNROLL
+  for (ptrdiff_t i = 0; i < C; ++i) z[i] = u[i];
+  return z;
+}
 // 4 x 4C -> 4C x 4
 template <ptrdiff_t C, typename T>
 constexpr auto transpose(Unroll<2, C, 2, T> u) -> Unroll<2 * C, 1, 2, T> {

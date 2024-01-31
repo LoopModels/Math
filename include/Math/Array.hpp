@@ -9,6 +9,7 @@
 #include "Math/Matrix.hpp"
 #include "Math/MatrixDimensions.hpp"
 #include "Math/Rational.hpp"
+#include "SIMD/Transpose.hpp"
 #include "Utilities/Invariant.hpp"
 #include "Utilities/Optional.hpp"
 #include "Utilities/Reference.hpp"
@@ -50,6 +51,16 @@
 namespace poly::math {
 template <typename S>
 concept Dimension = VectorDimension<S> != MatrixDimension<S>;
+
+static_assert(Dimension<ptrdiff_t>);
+static_assert(Dimension<DenseDims<3, 2>>);
+static_assert(
+  std::same_as<Col<1>, decltype(Col(std::declval<DenseDims<3, 1>>()))>);
+static_assert(Dimension<DenseDims<3, 1>>);
+static_assert(VectorDimension<StridedRange>);
+static_assert(VectorDimension<DenseDims<3, 1>>);
+static_assert(!MatrixDimension<DenseDims<3, 1>>);
+
 template <class T, Dimension S,
           ptrdiff_t N =
             containers::PreAllocStorage<utils::compressed_t<T>, S>(),
@@ -92,12 +103,12 @@ template <typename T, typename P, typename S, typename I>
   using D = decltype(newDim);
   if constexpr (simd::index::issimd<D>) return simd::ref(ptr + offset, newDim);
   else {
-    constexpr bool Compress = !std::same_as<T, std::remove_const_t<P>>;
+    constexpr bool compress = !std::same_as<T, std::remove_const_t<P>>;
     if constexpr (!std::same_as<D, Empty>)
       if constexpr (std::is_const_v<P>)
-        return Array<T, D, Compress>{ptr + offset, newDim};
-      else return MutArray<T, D, Compress>{ptr + offset, newDim};
-    else if constexpr (!Compress) return ptr[offset];
+        return Array<T, D, compress>{ptr + offset, newDim};
+      else return MutArray<T, D, compress>{ptr + offset, newDim};
+    else if constexpr (!compress) return ptr[offset];
     else if constexpr (std::is_const_v<P>) return T::decompress(ptr + offset);
     else return utils::Reference<T>{ptr + offset};
   }
@@ -113,21 +124,27 @@ template <typename T, typename P, typename S, typename R, typename C>
     auto offset = calcOffset(shape, r, c);
     auto newDim = calcNewDim(shape, r, c);
     using D = decltype(newDim);
-    if constexpr (simd::index::issimd<D>)
+    if constexpr (simd::index::issimd<D>) {
       return simd::ref(ptr + offset, newDim);
-    else {
-      constexpr bool Compress = !std::same_as<T, std::remove_const_t<P>>;
+    } else {
+      constexpr bool compress = !std::same_as<T, std::remove_const_t<P>>;
       if constexpr (!std::same_as<D, Empty>)
         if constexpr (std::is_const_v<P>)
-          return Array<T, D, Compress>{ptr + offset, newDim};
-        else return MutArray<T, D, Compress>{ptr + offset, newDim};
-      else if constexpr (!Compress) return ptr[offset];
+          return Array<T, D, compress>{ptr + offset, newDim};
+        else return MutArray<T, D, compress>{ptr + offset, newDim};
+      else if constexpr (!compress) return ptr[offset];
       else if constexpr (std::is_const_v<P>) return T::decompress(ptr + offset);
       else return utils::Reference<T>{ptr + offset};
     }
-  } else if constexpr (std::same_as<S, StridedRange>)
+  } else if constexpr (ColVectorDimension<S>)
     return index<T>(ptr, shape, unwrapRow(wr));
-  else return index<T>(ptr, shape, unwrapCol(wc));
+  else // if constexpr (RowVectorDimension<S>)
+    return index<T>(ptr, shape, unwrapCol(wc));
+  // else if constexpr (std::integral<R>)
+  //   return index<T>(ptr, unwrapRow(Row(shape)), unwrapRow(wr));
+  // else
+  //   return simd::transpose(index<T>(ptr, unwrapRow(Row(shape)),
+  //   unwrapRow(wr)));
 }
 
 template <typename T, bool Column = false> struct SliceIterator {
@@ -1498,6 +1515,21 @@ struct POLY_MATH_GSL_OWNER ManagedArray : ReallocView<T, S, A> {
       }
     }
     invariant(k == B.getNonZeros().size());
+  }
+  constexpr ManagedArray(const ColVector auto &v)
+  requires(MatrixDimension<S>)
+    : BaseT{memory.data(), S(shape(v)), U(N)} {
+    U len = U(this->sz);
+    this->growUndef(len);
+    MutArray<T, decltype(v.dim())>(this->data(), v.dim()) << v;
+    // (*this) << v;
+  }
+  constexpr ManagedArray(const RowVector auto &v)
+  requires(MatrixDimension<S>)
+    : BaseT{memory.data(), S(CartesianIndex(1, v.size())), U(N)} {
+    U len = U(this->sz);
+    this->growUndef(len);
+    (*this) << v;
   }
 #if !defined(__clang__) && defined(__GNUC__)
 #pragma GCC diagnostic pop
