@@ -66,12 +66,18 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Compress>,
   using decompressed_type = StaticArray<value_type, M, N, false>;
   using S = StaticDims<T, M, N, Compress>;
   constexpr StaticArray(){}; // NOLINT(modernize-use-equals-default)
-  constexpr explicit StaticArray(const T &x) noexcept { (*this) << x; }
+  constexpr explicit StaticArray(const T &x) noexcept {
+    if consteval {
+      for (ptrdiff_t i = 0; i < M * N; ++i) memory_[i] = x;
+    } else {
+      (*this) << x;
+    }
+  }
   constexpr explicit StaticArray(
     const std::convertible_to<T> auto &x) noexcept {
     (*this) << x;
   }
-  constexpr explicit StaticArray(StaticArray const &) = default;
+  constexpr StaticArray(const StaticArray &) = default;
   constexpr explicit StaticArray(StaticArray &&) noexcept = default;
   constexpr explicit StaticArray(const std::initializer_list<T> &list) {
     if (list.size() == 1) {
@@ -186,7 +192,8 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Compress>,
         if (r != c && (*this)(r, c) != 0) return false;
     return true;
   }
-  [[nodiscard]] constexpr auto view() const noexcept -> Array<T, S, Compress> {
+  [[nodiscard]] constexpr auto view() const noexcept
+    -> Array<T, S, Compress && utils::Compressible<T>> {
     const storage_type *ptr = data();
     invariant(ptr != nullptr);
     return {ptr, S{}};
@@ -236,6 +243,10 @@ struct StaticArray : public ArrayOps<T, StaticDims<T, M, N, Compress>,
   template <std::size_t I>
   [[nodiscard]] constexpr auto get() const -> const T & {
     return memory_[I];
+  }
+  constexpr void set(T x, ptrdiff_t r, ptrdiff_t c) { memory_[r * N + c] = x; }
+  friend inline void PrintTo(const StaticArray &x, ::std::ostream *os) {
+    *os << x.view();
   }
 };
 
@@ -454,6 +465,9 @@ struct StaticArray<T, M, N, false>
   }
   template <std::size_t I> [[nodiscard]] constexpr auto get() const -> T {
     return memory_[I / W][I % W];
+  }
+  friend inline void PrintTo(const StaticArray &x, ::std::ostream *os) {
+    *os << x.view();
   }
 };
 
