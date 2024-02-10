@@ -5,6 +5,7 @@
 #include "Math/SmallSparseMatrix.hpp"
 #include "Math/StaticArrays.hpp"
 #include "Utilities/MatrixStringParse.hpp"
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <gtest/gtest.h>
@@ -108,6 +109,7 @@ TEST(SparseIndexingTest, BasicAssertions) {
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(ExpressionTemplateTest, BasicAssertions) {
+  // 6x8
   auto A{
     "[3 -5 1 10 -4 6 4 4; 4 6 3 -1 6 1 -4 0; -7 -2 0 0 -10 -2 3 7; 2 -7 -5 "
     "-5 -7 -5 1 -7; 2 -8 2 7 4 9 6 -3; -2 -8 -5 0 10 -4 5 -3]"_mat};
@@ -155,6 +157,10 @@ TEST(ExpressionTemplateTest, BasicAssertions) {
   c.push_back(14);
   c.push_back(6);
   EXPECT_EQ(b, c);
+  c.resize(6);
+  c << A[_, 1].t();
+  Vector<int64_t> d(std::array<int64_t, 6>{-5, 6, -2, -7, -8, -8});
+  EXPECT_EQ(c, d);
   IntMatrix<> dA1x1(DenseDims<>{{1}, {1}}, 0);
   EXPECT_TRUE(dA1x1.isSquare());
   IntMatrix<> dA2x2(DenseDims<>{{2}, {2}}, 0);

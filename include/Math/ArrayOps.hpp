@@ -175,6 +175,12 @@ template <class T, class S, class P> class ArrayOps {
 
 protected:
   template <typename Op> void vcopyTo(const auto &B, Op op) {
+    static_assert(!((ColVector<P> && RowVector<decltype(B)>) ||
+                    (RowVector<P> && ColVector<decltype(B)>)),
+                  "Can't assign row and col vectors to one another. Perhaps "
+                  "transpose one another (or petition maintainer to do the "
+                  "obvious thing and transpose; not sure if this check "
+                  "actually catches mistakes or if it is just inconvenient).");
     // static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     P &self{Self()};
     auto [M, N] = promote_shape(self, B);
