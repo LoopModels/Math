@@ -108,14 +108,9 @@ template <typename X, typename Y>
 }
 template <typename A, typename B>
 [[gnu::always_inline]] constexpr auto promote_shape(const A &a, const B &b) {
-  if constexpr (ColVector<A> && RowVector<B>) {
-    return CartesianIndex(
-      std::integral_constant<ptrdiff_t, 1>{},
-      check_sizes(unwrapRow(a.numRow()), unwrapCol(b.numCol())));
-  } else if constexpr (RowVector<A> && ColVector<B>) {
-    return CartesianIndex(
-      std::integral_constant<ptrdiff_t, 1>{},
-      check_sizes(unwrapRow(b.numRow()), unwrapCol(a.numCol())));
+  if constexpr (AbstractVector<A> && AbstractVector<B>) {
+    return CartesianIndex(std::integral_constant<ptrdiff_t, 1>{},
+                          check_sizes(a.size(), b.size()));
   } else {
     auto sa = shape(a);
     // broadcasting static sizes is awkward, as it can prevent propogating
