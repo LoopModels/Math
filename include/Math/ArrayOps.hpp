@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Containers/Tuple.hpp"
+#include "Math/AxisTypes.hpp"
 #include "Math/Indexing.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/UniformScaling.hpp"
@@ -8,6 +9,7 @@
 #include "Utilities/Assign.hpp"
 #include "Utilities/LoopMacros.hpp"
 #include <algorithm>
+#include <cstddef>
 #include <cstring>
 #include <type_traits>
 
@@ -106,20 +108,31 @@ template <typename X, typename Y>
 }
 template <typename A, typename B>
 [[gnu::always_inline]] constexpr auto promote_shape(const A &a, const B &b) {
-  auto sa = shape(a);
-  // broadcasting static sizes is awkward, as it can prevent propogating static
-  // size information for copying an `StaticArray` to an `Array` of the same
-  // size, when the `StaticArray` has static size of `1`.
-  if constexpr (!std::convertible_to<B, utils::eltype_t<A>>) {
-    auto M = unwrapRow(numRows(b));
-    auto N = unwrapCol(numCols(b));
-    if constexpr (IsOne<decltype(M)>)
-      if constexpr (IsOne<decltype(N)>) return sa;
-      else return CartesianIndex(sa.row, check_sizes(sa.col, N));
-    else if constexpr (IsOne<decltype(N)>)
-      return CartesianIndex(check_sizes(sa.row, M), sa.col);
-    else return CartesianIndex(check_sizes(sa.row, M), check_sizes(sa.col, N));
-  } else return sa;
+  if constexpr (ColVector<A> && RowVector<B>) {
+    return CartesianIndex(
+      std::integral_constant<ptrdiff_t, 1>{},
+      check_sizes(unwrapRow(a.numRow()), unwrapCol(b.numCol())));
+  } else if constexpr (RowVector<A> && ColVector<B>) {
+    return CartesianIndex(
+      std::integral_constant<ptrdiff_t, 1>{},
+      check_sizes(unwrapRow(b.numRow()), unwrapCol(a.numCol())));
+  } else {
+    auto sa = shape(a);
+    // broadcasting static sizes is awkward, as it can prevent propogating
+    // static size information for copying an `StaticArray` to an `Array` of the
+    // same size, when the `StaticArray` has static size of `1`.
+    if constexpr (!std::convertible_to<B, utils::eltype_t<A>>) {
+      auto M = unwrapRow(numRows(b));
+      auto N = unwrapCol(numCols(b));
+      if constexpr (IsOne<decltype(M)>)
+        if constexpr (IsOne<decltype(N)>) return sa;
+        else return CartesianIndex(sa.row, check_sizes(sa.col, N));
+      else if constexpr (IsOne<decltype(N)>)
+        return CartesianIndex(check_sizes(sa.row, M), sa.col);
+      else
+        return CartesianIndex(check_sizes(sa.row, M), check_sizes(sa.col, N));
+    } else return sa;
+  }
 }
 
 template <typename T> class SmallSparseMatrix;
@@ -175,12 +188,6 @@ template <class T, class S, class P> class ArrayOps {
 
 protected:
   template <typename Op> void vcopyTo(const auto &B, Op op) {
-    static_assert(!((ColVector<P> && RowVector<decltype(B)>) ||
-                    (RowVector<P> && ColVector<decltype(B)>)),
-                  "Can't assign row and col vectors to one another. Perhaps "
-                  "transpose one another (or petition maintainer to do the "
-                  "obvious thing and transpose; not sure if this check "
-                  "actually catches mistakes or if it is just inconvenient).");
     // static_assert(sizeof(utils::eltype_t<decltype(B)>) <= 8);
     P &self{Self()};
     auto [M, N] = promote_shape(self, B);

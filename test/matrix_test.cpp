@@ -158,7 +158,7 @@ TEST(ExpressionTemplateTest, BasicAssertions) {
   c.push_back(6);
   EXPECT_EQ(b, c);
   c.resize(6);
-  c << A[_, 1].t();
+  c << A[_, 1];
   Vector<int64_t> d(std::array<int64_t, 6>{-5, 6, -2, -7, -8, -8});
   EXPECT_EQ(c, d);
   IntMatrix<> dA1x1(DenseDims<>{{1}, {1}}, 0);
