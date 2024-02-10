@@ -619,16 +619,16 @@ static_assert(!std::convertible_to<Array<Dual<double, 7, true>,
 static_assert(utils::Compressible<Dual<double, 7>>);
 static_assert(utils::Compressible<Dual<double, 8>>);
 static_assert(
-  AbstractVector<
-    Conditional<poly::math::ElementwiseBinaryOp<poly::math::Range<long, long>,
-                                                long, std::not_equal_to<void>>,
-                poly::math::ElementwiseBinaryOp<
-                  double, poly::math::StaticArray<double, 1, 8, false>,
-                  std::multiplies<void>>,
-                poly::math::ElementwiseBinaryOp<
-                  poly::math::StaticArray<double, 1, 8, false>, double,
-                  std::multiplies<void>>,
-                std::plus<void>>>);
+  AbstractVector<Conditional<
+    ::poly::math::ElementwiseBinaryOp<::poly::math::Range<long, long>, long,
+                                      std::not_equal_to<void>>,
+    ::poly::math::ElementwiseBinaryOp<
+      double, ::poly::math::StaticArray<double, 1, 8, false>,
+      std::multiplies<void>>,
+    ::poly::math::ElementwiseBinaryOp<
+      ::poly::math::StaticArray<double, 1, 8, false>, double,
+      std::multiplies<void>>,
+    std::plus<void>>>);
 
 template <typename T> struct IsDualImpl : std::false_type {};
 template <typename T, ptrdiff_t N, bool Compress>
