@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <utility>
 #include <version>
@@ -158,7 +159,10 @@ template <typename T, bool Column = false> struct SliceIterator {
   ptrdiff_t len;
   ptrdiff_t rowStride;
   ptrdiff_t idx;
+  // constexpr auto operator=(const SliceIterator &) -> SliceIterator & =
+  // default;
   // constexpr auto operator*() -> value_type;
+  constexpr auto operator*() const -> value_type;
   constexpr auto operator++() -> SliceIterator & {
     idx++;
     return *this;
@@ -177,44 +181,44 @@ template <typename T, bool Column = false> struct SliceIterator {
     --(*this);
     return ret;
   }
+  friend constexpr auto operator-(SliceIterator a, SliceIterator b)
+    -> ptrdiff_t {
+    return a.idx - b.idx;
+  }
+  friend constexpr auto operator+(SliceIterator a, ptrdiff_t i)
+    -> SliceIterator<T, Column> {
+    return {a.data, a.len, a.rowStride, a.idx + i};
+  }
+  friend constexpr auto operator==(SliceIterator a, SliceIterator b) -> bool {
+    return a.idx == b.idx;
+  }
+  friend constexpr auto operator<=>(SliceIterator a, SliceIterator b)
+    -> std::strong_ordering {
+    return a.idx <=> b.idx;
+  }
+  friend constexpr auto operator==(SliceIterator a, Row<> r) -> bool
+  requires(!Column)
+  {
+    return a.idx == r;
+  }
+  friend constexpr auto operator<=>(SliceIterator a, Row<> r)
+    -> std::strong_ordering
+  requires(!Column)
+  {
+    return a.idx <=> r;
+  }
+  friend constexpr auto operator==(SliceIterator a, Col<> r) -> bool
+  requires(Column)
+  {
+    return a.idx == r;
+  }
+  friend constexpr auto operator<=>(SliceIterator a, Col<> r)
+    -> std::strong_ordering
+  requires(Column)
+  {
+    return a.idx <=> r;
+  }
 };
-template <typename T, bool Column>
-constexpr auto operator-(SliceIterator<T, Column> a, SliceIterator<T, Column> b)
-  -> ptrdiff_t {
-  return a.idx - b.idx;
-}
-template <typename T, bool Column>
-constexpr auto operator+(SliceIterator<T, Column> a, ptrdiff_t i)
-  -> SliceIterator<T, Column> {
-  return {a.data, a.len, a.rowStride, a.idx + i};
-}
-template <typename T>
-constexpr auto operator==(SliceIterator<T> a, SliceIterator<T> b) -> bool {
-  return a.idx == b.idx;
-}
-template <typename T>
-constexpr auto operator<=>(SliceIterator<T> a, SliceIterator<T> b)
-  -> std::strong_ordering {
-  return a.idx <=> b.idx;
-}
-template <typename T>
-constexpr auto operator==(SliceIterator<T, false> a, Row<> r) -> bool {
-  return a.idx == r;
-}
-template <typename T>
-constexpr auto operator<=>(SliceIterator<T, false> a, Row<> r)
-  -> std::strong_ordering {
-  return a.idx <=> r;
-}
-template <typename T>
-constexpr auto operator==(SliceIterator<T, true> a, Col<> r) -> bool {
-  return a.idx == r;
-}
-template <typename T>
-constexpr auto operator<=>(SliceIterator<T, true> a, Col<> r)
-  -> std::strong_ordering {
-  return a.idx <=> r;
-}
 
 template <typename T, bool Column = false> struct SliceRange {
   T *data;
@@ -832,21 +836,32 @@ static_assert(ColVector<Transpose<Array<int64_t, ptrdiff_t>>>);
 static_assert(ColVector<Array<int64_t, StridedRange>>);
 static_assert(RowVector<Transpose<Array<int64_t, StridedRange>>>);
 
-template <typename T>
-auto operator*(SliceIterator<T, false> it)
-  -> SliceIterator<T, false>::value_type {
-  return {it.data + it.rowStride * it.idx, it.len};
+// template <typename T, bool Column>
+// inline constexpr auto SliceIterator<T, Column>::operator*()
+//   -> SliceIterator<T, Column>::value_type {
+//   if constexpr (Column) return {data + idx, StridedRange{len, rowStride}};
+//   else return {data + rowStride * idx, len};
+// }
+template <typename T, bool Column>
+inline constexpr auto SliceIterator<T, Column>::operator*() const
+  -> SliceIterator<T, Column>::value_type {
+  if constexpr (Column) return {data + idx, StridedRange{len, rowStride}};
+  else return {data + rowStride * idx, len};
 }
-template <typename T>
-auto operator*(SliceIterator<T, true> it)
-  -> SliceIterator<T, true>::value_type {
-  return {it.data + it.idx, StridedRange{it.len, it.rowStride}};
-}
+// template <typename T, bool Column>
+// inline constexpr auto operator*(SliceIterator<T, Column> it)
+//   -> SliceIterator<T, Column>::value_type {
+//   if constexpr (Column)
+//     return {it.data + it.idx, StridedRange{it.len, it.rowStride}};
+//   else return {it.data + it.rowStride * it.idx, it.len};
+// }
 
 static_assert(std::weakly_incrementable<SliceIterator<int64_t, false>>);
 static_assert(std::forward_iterator<SliceIterator<int64_t, false>>);
 static_assert(std::ranges::forward_range<SliceRange<int64_t, false>>);
 static_assert(std::ranges::range<SliceRange<int64_t, false>>);
+using ITEST = std::iter_rvalue_reference_t<SliceIterator<int64_t, true>>;
+static_assert(std::is_same_v<ITEST, MutArray<int64_t, StridedRange, false>>);
 
 /// Non-owning view of a managed array, capable of resizing,
 /// but not of re-allocating in case the capacity is exceeded.

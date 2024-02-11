@@ -101,10 +101,13 @@ TEST(SparseIndexingTest, BasicAssertions) {
     r += (++i);
   }
   EXPECT_EQ(C, D);
+  auto oldD{D};
   for (ptrdiff_t c : _(0, D.numCol()))
     D[_, c] += ptrdiff_t(c) + ptrdiff_t(D.numRow()) + 1;
   for (auto c : C.eachCol()) c += (++i);
   EXPECT_EQ(C, D);
+  for (auto c : std::ranges::reverse_view(C.eachCol())) c -= (i--);
+  EXPECT_EQ(C, oldD);
 }
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
