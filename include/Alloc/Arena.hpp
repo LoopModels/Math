@@ -135,6 +135,8 @@ public:
                   "Arena only supports trivially destructible types.");
     return static_cast<T *>(allocate(N * sizeof(T)));
   }
+  /// create<T>(args...)
+  /// constructs object of type `T` with args `args`
   template <typename T, class... Args>
   [[gnu::returns_nonnull, gnu::flatten]] constexpr auto create(Args &&...args)
     -> T * {
