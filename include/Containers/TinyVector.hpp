@@ -5,19 +5,22 @@
 #include <algorithm>
 #include <cstddef>
 #include <initializer_list>
+#include <limits>
 
 namespace poly::containers {
 using utils::invariant;
-template <class T, size_t N> class TinyVector {
+
+template <class T, size_t N, typename L = ptrdiff_t> class TinyVector {
   static_assert(N > 0);
+  static_assert(std::numeric_limits<L>::max() >= N);
   Storage<T, N> data;
-  ptrdiff_t len{};
+  L len{};
 
 public:
   constexpr TinyVector() = default;
   constexpr TinyVector(const std::initializer_list<T> &list) {
     invariant(list.size() <= N);
-    len = list.size();
+    len = L(list.size());
     std::copy(list.begin(), list.end(), data.data());
   }
   constexpr TinyVector(T t) : len{1} { data.data()[0] = std::move(t); }
@@ -70,8 +73,10 @@ public:
     --len;
   }
   [[nodiscard]] constexpr auto size() const -> ptrdiff_t {
-    invariant(len <= ptrdiff_t(N));
-    return len;
+    ptrdiff_t l = ptrdiff_t(len);
+    invariant(l >= 0);
+    invariant(l <= ptrdiff_t(N));
+    return l;
   }
   [[nodiscard]] constexpr auto empty() const -> bool { return len == 0; }
   constexpr void clear() { len = 0; }
