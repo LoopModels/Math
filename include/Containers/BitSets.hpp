@@ -97,16 +97,16 @@ template <Collection T = math::Vector<uint64_t, 1>> struct BitSet {
   constexpr explicit BitSet(ptrdiff_t N) : data{numElementsNeeded(N), 0} {}
   constexpr void resize64(ptrdiff_t N) {
     if constexpr (CanResize<T>) data.resize(N);
-    else ASSERT(N <= std::ssize(data));
+    else invariant(N <= std::ssize(data));
   }
   constexpr void resize(ptrdiff_t N) {
     if constexpr (CanResize<T>) data.resize(numElementsNeeded(N));
-    else ASSERT(N <= std::ssize(data) * 64);
+    else invariant(N <= std::ssize(data) * 64);
   }
   constexpr void resize(ptrdiff_t N, uint64_t x) {
     if constexpr (CanResize<T>) data.resize(numElementsNeeded(N), x);
     else {
-      ASSERT(N <= std::ssize(data) * 64);
+      invariant(N <= std::ssize(data) * 64);
       std::fill(data.begin(), data.end(), x);
     }
   }
@@ -114,7 +114,7 @@ template <Collection T = math::Vector<uint64_t, 1>> struct BitSet {
     if constexpr (CanResize<T>) {
       ptrdiff_t M = numElementsNeeded(N);
       if (M > std::ssize(data)) data.resize(M);
-    } else ASSERT(N <= std::ssize(data) * 64);
+    } else invariant(N <= std::ssize(data) * 64);
   }
   static constexpr auto dense(ptrdiff_t N) -> BitSet {
     BitSet b;
