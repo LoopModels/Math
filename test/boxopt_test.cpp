@@ -20,6 +20,12 @@ TEST(BoxOptTest, BasicAssertions) {
   poly::math::BoxTransform box(2, 1, 32);
   EXPECT_EQ(box.getLowerBounds().size(), 2);
   EXPECT_EQ(box.getUpperBounds().size(), 2);
+  poly::math::BoxTransformVector<poly::math::MutPtrVector<double>> trf{
+    box.transformed()};
+  trf[1] = 3;
+  box.transformed()[0] = 4;
+  EXPECT_NEAR(box.transformed()[0], 4.0, 1e-14);
+  EXPECT_NEAR(box.transformed()[1], 3.0, 1e-14);
   poly::math::MutPtrVector<double> x0{box.getRaw()};
   x0 << -3.4; // approx 2 after transform
   constexpr auto fsoft = [](auto x) {

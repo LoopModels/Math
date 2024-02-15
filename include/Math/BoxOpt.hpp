@@ -28,6 +28,13 @@ public:
     if (j < 0) return off;
     return scales()[i] * sigmoid(x[j]) + off;
   }
+  constexpr void set(AbstractVector auto &x, auto y, ptrdiff_t i) {
+    invariant(i < Ntotal);
+    int j = getInds()[i];
+    double off = offs()[i];
+    if (j < 0) return;
+    x[j] = logit((y - off) / scales()[i]);
+  }
   [[nodiscard]] constexpr auto view() const -> BoxTransformView {
     return *this;
   }
@@ -149,7 +156,13 @@ protected:
     return {s, o};
   }
 };
-
+template <typename V>
+concept IsMutable = requires(V v, utils::eltype_t<V> x, ptrdiff_t i) {
+  { v.data()[i] = x };
+};
+static_assert(IsMutable<math::MutArray<double, ptrdiff_t>>);
+static_assert(!IsMutable<math::Array<double, ptrdiff_t>>);
+static_assert(!IsMutable<DualVector<2, math::Array<double, ptrdiff_t>>>);
 template <AbstractVector V> struct BoxTransformVector {
   using value_type = utils::eltype_t<V>;
   static_assert(Trivial<V>);
@@ -159,6 +172,20 @@ template <AbstractVector V> struct BoxTransformVector {
   [[nodiscard]] constexpr auto size() const -> ptrdiff_t { return btv.size(); }
   constexpr auto operator[](ptrdiff_t i) const -> value_type {
     return btv(v, i);
+  }
+  struct Reference {
+    BoxTransformVector &x;
+    ptrdiff_t i;
+    constexpr operator value_type() const { return x.btv(x.v, i); }
+    constexpr auto operator=(value_type y) -> Reference & {
+      x.btv.set(x.v, y, i);
+      return *this;
+    }
+  };
+  constexpr auto operator[](ptrdiff_t i) -> Reference
+  requires(IsMutable<V>)
+  {
+    return {*this, i};
   }
   [[nodiscard]] constexpr auto view() const -> BoxTransformVector {
     return *this;
@@ -179,6 +206,21 @@ class BoxTransform : public BoxTransformView {
   }
 
 public:
+  template <size_t N>
+  constexpr BoxTransform(std::array<int32_t, N> lb, std::array<int32_t, N> ub)
+    : BoxTransformView{allocate(N), N} {
+    for (int32_t i = 0; i < int32_t(N); ++i) {
+      int32_t l = lb[i], u = ub[i];
+      invariant(l < u);
+      auto [s, o] = scaleOff(l, u);
+      getInds()[i] = i;
+      getLowerBounds()[i] = l;
+      getUpperBounds()[i] = u;
+      scales()[i] = s;
+      offs()[i] = o;
+    }
+  }
+
   constexpr BoxTransform(unsigned ntotal, int32_t lb, int32_t ub)
     : BoxTransformView{allocate(ntotal), ntotal} {
     invariant(lb < ub);
@@ -266,6 +308,10 @@ public:
 
   [[nodiscard]] constexpr auto transformed() const
     -> BoxTransformVector<PtrVector<double>> {
+    return {getRaw(), view()};
+  }
+  [[nodiscard]] constexpr auto transformed()
+    -> BoxTransformVector<MutPtrVector<double>> {
     return {getRaw(), view()};
   }
 };
