@@ -32,14 +32,11 @@ constexpr auto bound(alloc::Arena<> *alloc, BoxTransform &box, double upper,
 // set floor and ceil
 // Assumes that integer floor of values is optimal
 constexpr auto
-minimizeIntSol(alloc::Arena<> *alloc, MutPtrVector<int32_t> r, int32_t lb,
-               int32_t ub, const auto &f,
+minimizeIntSol(alloc::Arena<> *alloc, MutPtrVector<int32_t> r,
+               poly::math::BoxTransform &box, const auto &f,
                double globalupper = std::numeric_limits<double>::infinity()) {
   // goal is to shrink all bounds such that lb==ub, i.e. we have all
   // integer solutions.
-  unsigned N = r.size();
-  poly::math::BoxTransform box{N, lb, ub};
-  box.getRaw() << -3.0;
   if (minimize(alloc, box, f) >= globalupper) return globalupper;
   // cache upper bound result
   r << Elementwise{[](auto x) { return std::floor(x); }, box.transformed()};
@@ -49,6 +46,17 @@ minimizeIntSol(alloc::Arena<> *alloc, MutPtrVector<int32_t> r, int32_t lb,
   if (box.getRaw().empty()) r << box.getLowerBounds();
   else r << box.transformed();
   return opt;
+}
+constexpr auto
+minimizeIntSol(alloc::Arena<> *alloc, MutPtrVector<int32_t> r, int32_t lb,
+               int32_t ub, const auto &f,
+               double globalupper = std::numeric_limits<double>::infinity()) {
+  // goal is to shrink all bounds such that lb==ub, i.e. we have all
+  // integer solutions.
+  unsigned N = r.size();
+  poly::math::BoxTransform box{N, lb, ub};
+  box.getRaw() << -3.0;
+  return minimizeIntSol(alloc, r, box, f, globalupper);
 }
 
 } // namespace poly::math
