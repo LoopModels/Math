@@ -82,3 +82,20 @@ TEST(FixedSizeBitSetTest, BasicAssertions) {
   EXPECT_EQ(sv[0], 4);
   EXPECT_EQ(sv[1], 10);
 }
+// NOLINTNEXTLINE(modernize-use-trailing-return-type)
+TEST(FixedSizeSmallBitSetTest, BasicAssertions) {
+  static_assert(sizeof(BitSet<std::array<uint16_t, 1>>) == 2);
+  BitSet<std::array<uint16_t, 1>> bs;
+  bs[4] = true;
+  bs[10] = true;
+  bs[7] = true;
+  bs.insert(5);
+  EXPECT_EQ(bs.data[0], 1200);
+  Vector<size_t> sv;
+  for (auto i : bs) sv.push_back(i);
+  EXPECT_EQ(sv.size(), 4);
+  EXPECT_EQ(sv[0], 4);
+  EXPECT_EQ(sv[1], 5);
+  EXPECT_EQ(sv[2], 7);
+  EXPECT_EQ(sv[3], 10);
+}
