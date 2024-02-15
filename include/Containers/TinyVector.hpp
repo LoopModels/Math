@@ -72,6 +72,10 @@ public:
     invariant(len > 0);
     --len;
   }
+  constexpr auto pop_back_val() -> T {
+    invariant(len > 0);
+    return std::move(data.data()[--len]);
+  }
   [[nodiscard]] constexpr auto size() const -> ptrdiff_t {
     ptrdiff_t l = ptrdiff_t(len);
     invariant(l >= 0);
@@ -85,5 +89,10 @@ public:
   constexpr auto begin() const -> const T * { return data.data(); }
   constexpr auto end() -> T * { return data.data() + size(); }
   constexpr auto end() const -> const T * { return data.data() + size(); }
+  constexpr void resize(L new_size) {
+    // initialize new data
+    for (L i = len; i < new_size; ++i) data.data()[i] = T{};
+    len = new_size;
+  }
 };
 } // namespace poly::containers

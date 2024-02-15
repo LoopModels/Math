@@ -1,4 +1,5 @@
 #include "Alloc/Arena.hpp"
+#include "Containers/TinyVector.hpp"
 #include "Math/Array.hpp"
 #include "Math/Math.hpp"
 #include "Math/MatrixDimensions.hpp"
@@ -309,4 +310,39 @@ TEST(SVectorTest, BasicAssertions) {
   EXPECT_EQ(a, 11);
   EXPECT_EQ(b, 22);
   EXPECT_EQ(c, 33);
+}
+TEST(TinyVectorTest, BasicAssertions) {
+  poly::containers::TinyVector<int, 5> v{};
+  EXPECT_TRUE(v.empty());
+  EXPECT_EQ(v.size(), 0);
+  v.resize(3);
+  EXPECT_FALSE(v.empty());
+  EXPECT_EQ(v.size(), 3);
+  EXPECT_EQ(v.back(), 0);
+  v.push_back(2);
+  EXPECT_EQ(v.size(), 4);
+  EXPECT_EQ(v.back(), 2);
+  EXPECT_EQ(v.pop_back_val(), 2);
+  EXPECT_EQ(v.front(), 0);
+  EXPECT_EQ(v.back(), 0);
+  EXPECT_EQ(v.size(), 3);
+  v.pop_back();
+  EXPECT_EQ(v.size(), 2);
+  v.pop_back();
+  EXPECT_FALSE(v.empty());
+  EXPECT_EQ(v.size(), 1);
+  v.pop_back();
+  EXPECT_TRUE(v.empty());
+  EXPECT_EQ(v.size(), 0);
+  v.push_back(5);
+  EXPECT_EQ(v.front(), 5);
+  EXPECT_EQ(v.back(), 5);
+  v.push_back(2);
+  EXPECT_EQ(v.front(), 5);
+  EXPECT_EQ(v.back(), 2);
+  v.push_back(21);
+  EXPECT_EQ(v.back(), 21);
+  int s = 0;
+  for (auto x : v) s += x;
+  EXPECT_EQ(s, 28);
 }
