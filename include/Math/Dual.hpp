@@ -8,6 +8,7 @@
 #include <Math/StaticArrays.hpp>
 #include <Utilities/Invariant.hpp>
 #include <cstddef>
+#include <istream>
 #include <utility>
 
 namespace poly::math {
@@ -823,6 +824,14 @@ template <typename T, ptrdiff_t N>
 constexpr auto dval(Dual<T, N> &x) -> double & {
   return dval(x.value());
 }
+
+template <typename T, ptrdiff_t N>
+auto operator<<(std::ostream &os, const Dual<T, N> &x) -> std::ostream & {
+  os << "Dual<" << N << ">{" << x.value();
+  for (ptrdiff_t n = 0; n < N; ++n) os << ", " << x.gradient()[n];
+  os << "}";
+  return os;
+};
 
 class GradientResult {
   double x;
