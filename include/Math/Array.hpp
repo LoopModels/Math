@@ -25,6 +25,7 @@
 #include <iostream>
 #include <iterator>
 #include <memory>
+#include <type_traits>
 #include <utility>
 #include <version>
 
@@ -278,8 +279,6 @@ template <typename T, bool Column = false> struct SliceRange {
 template <class T, Dimension S, bool Compress>
 struct POLY_MATH_GSL_POINTER Array {
   static_assert(!std::is_const_v<T>, "T shouldn't be const");
-  static_assert(std::is_trivially_destructible_v<T>,
-                "maybe should add support for destroying");
 
   using storage_type = std::conditional_t<Compress, utils::compressed_t<T>, T>;
   using value_type = T;
@@ -971,7 +970,12 @@ struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
     if constexpr (std::integral<S>) {
       invariant(U(nz) <= capacity);
       if (nz > oz) std::fill(this->data() + oz, this->data() + nz, T{});
+      if constexpr (!std::is_trivially_destructible_v<T>)
+        for (ptrdiff_t i = nz; i < oz; ++i) this->data()[i].~T();
     } else {
+      static_assert(std::is_trivially_destructible_v<T>,
+                    "Resizing matrices holding non-is_trivially_destructible_v "
+                    "objects is not yet supported.");
       static_assert(MatrixDimension<S>, "Can only resize 1 or 2d containers.");
       auto newX = ptrdiff_t{RowStride(nz)}, oldX = ptrdiff_t{RowStride(oz)},
            newN = ptrdiff_t{Col(nz)}, oldN = ptrdiff_t{Col(oz)},
@@ -1039,6 +1043,10 @@ struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
     }
   }
   constexpr void resizeForOverwrite(S M) {
+    static_assert(
+      std::is_trivially_destructible_v<T>,
+      "resizeForOverwrite for arrays holding non-is_trivially_destructible_v "
+      "objects is not yet supported.");
     invariant(U(M) <= U(this->sz));
     this->sz = M;
   }
