@@ -115,17 +115,35 @@ template <typename T> struct Reference {
     return c->operator[](i, j);
   }
 
-  // TODO:: are these really needed / can we rely on implicit conversion?
-  constexpr auto operator+(const auto &x) { return T::decompress(c) + x; }
-  constexpr auto operator-(const auto &x) { return T::decompress(c) - x; }
-  constexpr auto operator*(const auto &x) { return T::decompress(c) * x; }
-  constexpr auto operator/(const auto &x) { return T::decompress(c) / x; }
-  constexpr auto operator%(const auto &x) { return T::decompress(c) % x; }
-  constexpr auto operator>>(const auto &x) { return T::decompress(c) >> x; }
-  constexpr auto operator<<(const auto &x) { return T::decompress(c) << x; }
-  constexpr auto operator&(const auto &x) { return T::decompress(c) & x; }
-  constexpr auto operator^(const auto &x) { return T::decompress(c) ^ x; }
-  constexpr auto operator|(const auto &x) { return T::decompress(c) | x; }
+  // TODO: are these really needed / can we rely on implicit conversion?
+  constexpr auto operator+(const auto &x) const { return T::decompress(c) + x; }
+  constexpr auto operator-(const auto &x) const { return T::decompress(c) - x; }
+  constexpr auto operator*(const auto &x) const { return T::decompress(c) * x; }
+  constexpr auto operator/(const auto &x) const { return T::decompress(c) / x; }
+  constexpr auto operator%(const auto &x) const { return T::decompress(c) % x; }
+  constexpr auto operator>>(const auto &x) const {
+    return T::decompress(c) >> x;
+  }
+  constexpr auto operator<<(const auto &x) const {
+    return T::decompress(c) << x;
+  }
+  constexpr auto operator&(const auto &x) const { return T::decompress(c) & x; }
+  constexpr auto operator^(const auto &x) const { return T::decompress(c) ^ x; }
+  constexpr auto operator|(const auto &x) const { return T::decompress(c) | x; }
+  constexpr auto operator>(const auto &x) const { return T::decompress(c) > x; }
+  constexpr auto operator>=(const auto &x) const {
+    return T::decompress(c) >= x;
+  }
+  constexpr auto operator<(const auto &x) const { return T::decompress(c) < x; }
+  constexpr auto operator<=(const auto &x) const {
+    return T::decompress(c) <= x;
+  }
+  constexpr auto operator==(const auto &x) const {
+    return T::decompress(c) == x;
+  }
+  constexpr auto operator!=(const auto &x) const {
+    return T::decompress(c) != x;
+  }
 
   friend constexpr auto operator+(const auto &x, Reference y) {
     return x + T::decompress(y.c);
@@ -156,6 +174,24 @@ template <typename T> struct Reference {
   }
   friend constexpr auto operator|(const auto &x, Reference y) {
     return x | T::decompress(y.c);
+  }
+  friend constexpr auto operator<(const auto &x, Reference y) {
+    return x < T::decompress(y.c);
+  }
+  friend constexpr auto operator<=(const auto &x, Reference y) {
+    return x <= T::decompress(y.c);
+  }
+  friend constexpr auto operator>(const auto &x, Reference y) {
+    return x > T::decompress(y.c);
+  }
+  friend constexpr auto operator>=(const auto &x, Reference y) {
+    return x >= T::decompress(y.c);
+  }
+  friend constexpr auto operator==(const auto &x, Reference y) {
+    return x == T::decompress(y.c);
+  }
+  friend constexpr auto operator!=(const auto &x, Reference y) {
+    return x != T::decompress(y.c);
   }
 };
 

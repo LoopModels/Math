@@ -423,7 +423,7 @@ constexpr auto softplus(double x) -> double { return log1p(exp(x)); }
 constexpr auto logit(double x) -> double { return log(x / (1.0 - x)); }
 
 template <int l = 8> constexpr auto smax(auto x, auto y) {
-  auto d = x > y ? y - x : x - y;
+  auto d = x > y ? (y - x) : (x - y);
   auto o = x > y ? decltype(d)(x) : decltype(d)(y);
   return o + softplus(l * d) / l;
 }

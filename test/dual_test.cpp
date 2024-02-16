@@ -283,4 +283,12 @@ TEST(ExpMatTest, BasicAssertions) {
     SVector<double, 2>{-0.9491225558721068, -2.5673833776578996}};
 
   EXPECT_TRUE(dualDeltaCmp(norm2(Bd - expm(Ad)), 1e-10));
+  {
+    auto x = Bd[3, 3] - 0.35;
+    auto y = -1 * (0.35 - Bd[3, 3]);
+    EXPECT_NEAR(x.value(), y.value(), 1e-14);
+    EXPECT_NEAR(x.gradient()[0], y.gradient()[0], 1e-14);
+    EXPECT_NEAR(x.gradient()[1], y.gradient()[1], 1e-14);
+  }
+  EXPECT_EQ(poly::math::smax(Bd[3, 3], 0.35), poly::math::smax(0.35, Bd[3, 3]));
 }

@@ -295,6 +295,24 @@ template <class T, ptrdiff_t N> struct Dual<T, N, false> {
   {
     return val >= other;
   }
+  friend constexpr auto operator>(double other, Dual x) -> bool {
+    return other > x.value();
+  }
+  friend constexpr auto operator>=(double other, Dual x) -> bool {
+    return other >= x.value();
+  }
+  friend constexpr auto operator<(double other, Dual x) -> bool {
+    return other < x.value();
+  }
+  friend constexpr auto operator<=(double other, Dual x) -> bool {
+    return other <= x.value();
+  }
+  friend constexpr auto operator==(double other, Dual x) -> bool {
+    return other == x.value();
+  }
+  friend constexpr auto operator!=(double other, Dual x) -> bool {
+    return other != x.value();
+  }
   constexpr void compress(compressed_type *p) const {
     utils::compress(val, &(p->val));
     partials.compress(&(p->partials));
@@ -603,6 +621,24 @@ struct Dual<T, N, false> {
     //                     -x.data / x.value())};
     // return {v, -v * x.gradient() / (x.value())};
   }
+  friend constexpr auto operator>(double other, Dual x) -> bool {
+    return other > x.value();
+  }
+  friend constexpr auto operator>=(double other, Dual x) -> bool {
+    return other >= x.value();
+  }
+  friend constexpr auto operator<(double other, Dual x) -> bool {
+    return other < x.value();
+  }
+  friend constexpr auto operator<=(double other, Dual x) -> bool {
+    return other <= x.value();
+  }
+  friend constexpr auto operator==(double other, Dual x) -> bool {
+    return other == x.value();
+  }
+  friend constexpr auto operator!=(double other, Dual x) -> bool {
+    return other != x.value();
+  }
   constexpr void compress(compressed_type *p) const { p->data << data; }
   static constexpr auto decompress(const compressed_type *p) -> Dual {
     return {SVector<T, N + 1, false>{p->data}};
@@ -743,7 +779,7 @@ template <class T, ptrdiff_t N>
 [[gnu::always_inline]] constexpr auto operator-(double other,
                                                 const Dual<T, N> &x)
   -> Dual<T, N> {
-  return {x.value() - other, -x.gradient()};
+  return {other - x.value(), -x.gradient()};
 }
 template <class T, ptrdiff_t N>
 [[gnu::always_inline]] constexpr auto operator*(double other,
