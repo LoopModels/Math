@@ -809,12 +809,13 @@ constexpr auto softplus(const Dual<T, N> &x) -> Dual<T, N> {
 }
 template <class T, ptrdiff_t N>
 constexpr auto log(const Dual<T, N> &x) -> Dual<T, N> {
-  return {log2(x.value()), x.gradient() / x.value()};
+  constexpr double logof2 = 0.6931471805599453; // log(2);
+  return {log2(x.value()) * logof2, x.gradient() / x.value()};
 }
 template <class T, ptrdiff_t N>
 constexpr auto log2(const Dual<T, N> &x) -> Dual<T, N> {
-  constexpr double log2 = 0.6931471805599453; // log(2);
-  return {log2(x.value()), x.gradient() / (log2 * x.value())};
+  constexpr double logof2 = 0.6931471805599453; // log(2);
+  return {log2(x.value()), x.gradient() / (logof2 * x.value())};
 }
 
 constexpr auto dval(double &x) -> double & { return x; }
