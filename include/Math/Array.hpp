@@ -68,9 +68,50 @@ template <class T, Dimension S,
           class A = alloc::Mallocator<utils::compressed_t<T>>>
 struct ManagedArray;
 
+template <std::integral T> static constexpr auto maxPow10() -> size_t {
+  if constexpr (sizeof(T) == 1) return 3;
+  else if constexpr (sizeof(T) == 2) return 5;
+  else if constexpr (sizeof(T) == 4) return 10;
+  else if constexpr (std::signed_integral<T>) return 19;
+  else return 20;
+}
+
+template <std::unsigned_integral T> constexpr auto countDigits(T x) {
+  std::array<T, maxPow10<T>() + 1> powers;
+  powers[0] = 0;
+  powers[1] = 10;
+  for (ptrdiff_t i = 2; i < std::ssize(powers); i++)
+    powers[i] = powers[i - 1] * 10;
+  std::array<T, sizeof(T) * 8 + 1> bits;
+  if constexpr (sizeof(T) == 8) {
+    bits = {1,  1,  1,  1,  2,  2,  2,  3,  3,  3,  4,  4,  4,  4,  5,  5,  5,
+            6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  9,  9,  9,  10, 10, 10, 10,
+            11, 11, 11, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 15, 15, 15, 16,
+            16, 16, 16, 17, 17, 17, 18, 18, 18, 19, 19, 19, 19, 20};
+  } else if constexpr (sizeof(T) == 4) {
+    bits = {1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4,  5,  5, 5,
+            6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10};
+  } else if constexpr (sizeof(T) == 2) {
+    bits = {1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5};
+  } else if constexpr (sizeof(T) == 1) {
+    bits = {1, 1, 1, 1, 2, 2, 2, 3, 3};
+  }
+  T digits = bits[8 * sizeof(T) - std::countl_zero(x)];
+  return std::make_signed_t<T>(digits - (x < powers[digits - 1]));
+}
+template <std::signed_integral T> constexpr auto countDigits(T x) -> T {
+  using U = std::make_unsigned_t<T>;
+  if (x == std::numeric_limits<T>::min()) return T(sizeof(T) == 8 ? 20 : 11);
+  return countDigits<U>(U(std::abs(x))) + T{x < 0};
+}
+constexpr auto countDigits(Rational x) -> ptrdiff_t {
+  ptrdiff_t num = countDigits(x.numerator);
+  return (x.denominator == 1) ? num : num + countDigits(x.denominator) + 2;
+}
 template <typename T>
-concept Printable = requires(std::ostream &os, T x) {
+concept Printable = std::same_as<T, double> || requires(std::ostream &os, T x) {
   { os << x } -> std::convertible_to<std::ostream &>;
+  { countDigits(x) };
 };
 static_assert(Printable<int64_t>);
 void print_obj(std::ostream &os, Printable auto x) { os << x; };
@@ -1815,46 +1856,6 @@ inline auto operator<<(std::ostream &os, const T &A) -> std::ostream & {
   if constexpr (RowVector<T>) B << A;
   else B << A.t();
   return printVector(os, B);
-}
-template <std::integral T> static constexpr auto maxPow10() -> size_t {
-  if constexpr (sizeof(T) == 1) return 3;
-  else if constexpr (sizeof(T) == 2) return 5;
-  else if constexpr (sizeof(T) == 4) return 10;
-  else if constexpr (std::signed_integral<T>) return 19;
-  else return 20;
-}
-
-template <std::unsigned_integral T> constexpr auto countDigits(T x) {
-  std::array<T, maxPow10<T>() + 1> powers;
-  powers[0] = 0;
-  powers[1] = 10;
-  for (ptrdiff_t i = 2; i < std::ssize(powers); i++)
-    powers[i] = powers[i - 1] * 10;
-  std::array<T, sizeof(T) * 8 + 1> bits;
-  if constexpr (sizeof(T) == 8) {
-    bits = {1,  1,  1,  1,  2,  2,  2,  3,  3,  3,  4,  4,  4,  4,  5,  5,  5,
-            6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  9,  9,  9,  10, 10, 10, 10,
-            11, 11, 11, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 15, 15, 15, 16,
-            16, 16, 16, 17, 17, 17, 18, 18, 18, 19, 19, 19, 19, 20};
-  } else if constexpr (sizeof(T) == 4) {
-    bits = {1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4,  5,  5, 5,
-            6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10};
-  } else if constexpr (sizeof(T) == 2) {
-    bits = {1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5};
-  } else if constexpr (sizeof(T) == 1) {
-    bits = {1, 1, 1, 1, 2, 2, 2, 3, 3};
-  }
-  T digits = bits[8 * sizeof(T) - std::countl_zero(x)];
-  return std::make_signed_t<T>(digits - (x < powers[digits - 1]));
-}
-template <std::signed_integral T> constexpr auto countDigits(T x) {
-  using U = std::make_unsigned_t<T>;
-  if (x == std::numeric_limits<T>::min()) return T(sizeof(T) == 8 ? 20 : 11);
-  return countDigits<U>(U(std::abs(x))) + T{x < 0};
-}
-constexpr auto countDigits(Rational x) -> ptrdiff_t {
-  ptrdiff_t num = countDigits(x.numerator);
-  return (x.denominator == 1) ? num : num + countDigits(x.denominator) + 2;
 }
 /// \brief Returns the maximum number of digits per column of a matrix.
 constexpr auto getMaxDigits(PtrMatrix<Rational> A) -> Vector<ptrdiff_t> {

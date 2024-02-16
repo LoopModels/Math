@@ -102,6 +102,7 @@ template <Collection T = math::Vector<uint64_t, 1>> struct BitSet {
     return unsigned(((N + usize - 1) >> ushift));
   }
   constexpr explicit BitSet(ptrdiff_t N) : data{numElementsNeeded(N), 0} {}
+  static constexpr auto fromMask(U u) -> BitSet { return BitSet{T{u}}; }
   constexpr void resizeData(ptrdiff_t N) {
     if constexpr (CanResize<T>) data.resize(N);
     else invariant(N <= std::ssize(data));
