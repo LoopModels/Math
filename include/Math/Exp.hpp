@@ -421,11 +421,19 @@ constexpr auto log1p(double x) -> double { return std::log1p(x); }
 constexpr auto sigmoid(double x) -> double { return 1.0 / (1.0 + exp(-x)); }
 constexpr auto softplus(double x) -> double { return log1p(exp(x)); }
 constexpr auto logit(double x) -> double { return log(x / (1.0 - x)); }
-constexpr auto smin(auto x, auto y, double l = 8.0) {
-  return y - softplus(l * (y - x)) / l;
+
+template <double l = 8.0> constexpr auto smax(auto x, auto y) {
+  auto d = x > y ? y - x : x - y;
+  auto o = x > y ? decltype(d)(x) : decltype(d)(y);
+  return o + softplus(l * d) / l;
 }
-constexpr auto smax(auto x, auto y, double l = 8.0) {
-  return y + softplus(l * (x - y)) / l;
+
+template <double l = 8.0> constexpr auto smax(auto x, auto y, auto z) {
+  double m = std::max(std::max(value(x), value(y)), value(z));
+  return m + log(exp(l * (x - m)) + exp(l * (y - m)) + exp(l * (z - m))) / l;
+}
+template <double l = 8.0> constexpr auto smin(auto x, auto y) {
+  return smax<-l>(x, y);
 }
 
 } // namespace poly::math
