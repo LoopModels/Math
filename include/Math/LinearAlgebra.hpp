@@ -162,7 +162,7 @@ template <ptrdiff_t L>
   Row M = B.numRow();
   SquareMatrix<Rational, L> A{B};
   // auto ipiv = Vector<unsigned>{.s = unsigned(M)};
-  auto ipiv{vector(alloc::Mallocator<unsigned>{}, ptrdiff_t(M))};
+  auto ipiv{vector(math::DefaultAlloc<unsigned>{}, ptrdiff_t(M))};
   // Vector<unsigned> ipiv{.s = unsigned(M)};
   invariant(ptrdiff_t(ipiv.size()), ptrdiff_t(M));
   for (ptrdiff_t k = 0;; ++k) {
@@ -197,7 +197,7 @@ template <ptrdiff_t L>
 template <typename S> constexpr auto factImpl(MutSquarePtrMatrix<S> A) {
   using V = decltype(value(S{}));
   Row M = A.numRow();
-  auto ipiv{vector(alloc::Mallocator<unsigned>{}, ptrdiff_t(M))};
+  auto ipiv{vector(math::DefaultAlloc<unsigned>{}, ptrdiff_t(M))};
   invariant(ptrdiff_t(ipiv.size()), ptrdiff_t(M));
   for (ptrdiff_t k = 0;; ++k) {
     containers::Pair<ptrdiff_t, V> mi{-1, {}};

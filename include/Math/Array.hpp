@@ -62,11 +62,18 @@ static_assert(Dimension<DenseDims<3, 1>>);
 static_assert(VectorDimension<StridedRange>);
 static_assert(VectorDimension<DenseDims<3, 1>>);
 static_assert(!MatrixDimension<DenseDims<3, 1>>);
+#if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__)
+template <typename T>
+using DefaultAlloc = std::allocator<utils::compressed_t<T>>;
+#else
+template <typename T>
+using DefaultAlloc = alloc::Mallocator<utils::compressed_t<T>>;
+#endif
 
 template <class T, Dimension S,
           ptrdiff_t N =
             containers::PreAllocStorage<utils::compressed_t<T>, S>(),
-          class A = alloc::Mallocator<utils::compressed_t<T>>>
+          class A = DefaultAlloc<T>>
 struct ManagedArray;
 
 template <std::integral T> static constexpr auto maxPow10() -> size_t {
@@ -969,9 +976,10 @@ struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
     this->sz = nz;
     if constexpr (std::integral<S>) {
       invariant(U(nz) <= capacity);
-      if (nz > oz) std::fill(this->data() + oz, this->data() + nz, T{});
-      if constexpr (!std::is_trivially_destructible_v<T>)
+      if constexpr (!std::is_trivially_destructible_v<T>) {
         for (ptrdiff_t i = nz; i < oz; ++i) this->data()[i].~T();
+        for (ptrdiff_t i = oz; i < nz; ++i) new (this->data() + i) T();
+      } else if (nz > oz) std::fill(this->data() + oz, this->data() + nz, T{});
     } else {
       static_assert(std::is_trivially_destructible_v<T>,
                     "Resizing matrices holding non-is_trivially_destructible_v "
@@ -1043,11 +1051,13 @@ struct POLY_MATH_GSL_POINTER ResizeableView : MutArray<T, S> {
     }
   }
   constexpr void resizeForOverwrite(S M) {
-    static_assert(
-      std::is_trivially_destructible_v<T>,
-      "resizeForOverwrite for arrays holding non-is_trivially_destructible_v "
-      "objects is not yet supported.");
     invariant(U(M) <= U(this->sz));
+    if constexpr (!std::is_trivially_destructible_v<T>) {
+      ptrdiff_t nz = U(M), oz = U(this->sz);
+      for (ptrdiff_t i = nz; i < oz; ++i) this->data()[i].~T();
+      // we set invariant smaller
+      // for (ptrdiff_t i = oz; i < nz; ++i) new (this->data() + i) T();
+    }
     this->sz = M;
   }
   constexpr void resizeForOverwrite(Row<> r) {
@@ -1185,8 +1195,16 @@ struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S> {
         maybeDeallocate(newPtr, newCap);
         invariant(newCapacity > oz);
       }
-      std::fill(this->data() + oz, this->data() + nz, T{});
+      if constexpr (!std::is_trivially_destructible_v<T>) {
+        for (ptrdiff_t i = nz; i < oz; ++i) this->data()[i].~T();
+        // new T() direct-initializes
+        // https://en.cppreference.com/w/cpp/language/direct_initialization
+        for (ptrdiff_t i = oz; i < nz; ++i) new (this->data() + i) T();
+      } else if (nz > oz) std::fill(this->data() + oz, this->data() + nz, T{});
     } else {
+      static_assert(std::is_trivially_destructible_v<T>,
+                    "Resizing matrices holding non-is_trivially_destructible_v "
+                    "objects is not yet supported.");
       static_assert(MatrixDimension<S>, "Can only resize 1 or 2d containers.");
       U len = U(nz);
       if (len == 0) return;
@@ -1265,6 +1283,13 @@ struct POLY_MATH_GSL_POINTER ReallocView : ResizeableView<T, S> {
   constexpr void resizeForOverwrite(S M) {
     U L = U(M);
     if (L > U(this->sz)) growUndef(L);
+    if constexpr (!std::is_trivially_destructible_v<T>) {
+      ptrdiff_t nz = U(M), oz = U(this->sz);
+      for (ptrdiff_t i = nz; i < oz; ++i) this->data()[i].~T();
+      // new T default-initializes
+      // https://en.cppreference.com/w/cpp/language/default_initialization
+      for (ptrdiff_t i = oz; i < nz; ++i) new (this->data() + i) T;
+    }
     this->sz = M;
   }
   constexpr void resizeForOverwrite(Row<> r) {
@@ -1379,6 +1404,8 @@ protected:
   // this method should only be called from the destructor
   // (and the implementation taking the new ptr and capacity)
   void maybeDeallocate() noexcept {
+    if constexpr (!std::is_trivially_destructible_v<T>)
+      for (ptrdiff_t i = 0; i < U(this->sz); ++i) this->data()[i].~T();
     if (wasAllocated()) allocator.deallocate(this->data(), this->capacity);
   }
   // this method should be called whenever the buffer lives
@@ -1420,7 +1447,7 @@ concept AbstractSimilar =
 /// stack memory.
 template <class T, Dimension S, ptrdiff_t N, class A>
 struct POLY_MATH_GSL_OWNER ManagedArray : ReallocView<T, S, A> {
-  static_assert(std::is_trivially_destructible_v<T>);
+  // static_assert(std::is_trivially_destructible_v<T>);
   using BaseT = ReallocView<T, S, A>;
   using U = containers::default_capacity_type_t<S>;
   using storage_type = typename BaseT::storage_type;

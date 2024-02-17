@@ -346,3 +346,15 @@ TEST(TinyVectorTest, BasicAssertions) {
   for (auto x : v) s += x;
   EXPECT_EQ(s, 28);
 }
+
+TEST(NonTriviallyDestructible, BasicAssertions) {
+  Vector<int64_t> y{std::array<int64_t, 3>{204, 205, 206}};
+  Vector<Vector<int64_t, 0>, 0> x;
+  x.emplace_back(std::array<int64_t, 3>{2, 3, 4});
+  x.emplace_back(std::array<int64_t, 3>{4, 5, 6});
+  for (ptrdiff_t i = 0; i < 100; ++i)
+    x.emplace_back(std::array<int64_t, 3>{6 + 2 * i, 7 + 2 * i, 8 + 2 * i});
+  for (ptrdiff_t i = 0; i < x.size(); ++i)
+    for (ptrdiff_t j = 0; j < 3; ++j) EXPECT_EQ(x[i][j], 2 * (i + 1) + j);
+  EXPECT_EQ(x.pop_back_val(), y);
+}
