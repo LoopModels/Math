@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <initializer_list>
+#include <iostream>
 #include <limits>
 
 namespace poly::containers {
@@ -93,6 +94,13 @@ public:
     // initialize new data
     for (L i = len; i < new_size; ++i) data.data()[i] = T{};
     len = new_size;
+  }
+  friend inline auto operator<<(std::ostream &os, const TinyVector &x)
+    -> std::ostream & {
+    os << "[";
+    if (!x.empty()) os << x[0];
+    for (L i = 1; i < x.size(); ++i) os << ", " << x[i];
+    return os << "]";
   }
 };
 } // namespace poly::containers
