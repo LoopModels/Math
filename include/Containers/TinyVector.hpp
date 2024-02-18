@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <initializer_list>
-#include <iostream>
 #include <limits>
 
 namespace poly::containers {
@@ -98,9 +97,15 @@ public:
   friend inline auto operator<<(std::ostream &os, const TinyVector &x)
     -> std::ostream & {
     os << "[";
-    if (!x.empty()) os << x[0];
-    for (L i = 1; i < x.size(); ++i) os << ", " << x[i];
+    if constexpr (std::same_as<T, int8_t> || std::same_as<T, uint8_t>) {
+      if (!x.empty()) os << int(x[0]);
+      for (L i = 1; i < x.size(); ++i) os << ", " << int(x[i]);
+    } else {
+      if (!x.empty()) os << x[0];
+      for (L i = 1; i < x.size(); ++i) os << ", " << x[i];
+    }
     return os << "]";
   }
 };
 } // namespace poly::containers
+
