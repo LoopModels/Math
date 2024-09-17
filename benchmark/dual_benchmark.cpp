@@ -1,23 +1,26 @@
 
+#include "Containers/Tuple.cxx"
+#include "Math/Array.cxx"
+#include "Math/Dual.cxx"
+#include "Math/LinearAlgebra.cxx"
+#include "Math/MatrixDimensions.cxx"
+#include "Math/Ranges.cxx"
+#include "Math/StaticArrays.cxx"
+#include "SIMD/Vec.cxx"
+#include "Utilities/Invariant.cxx"
 #include "include/randdual.hpp"
-#include <Containers/Tuple.hpp>
-#include <Math/Array.hpp>
-#include <Math/Dual.hpp>
-#include <Math/LinearAlgebra.hpp>
-#include <Math/Matrix.hpp>
-#include <Math/StaticArrays.hpp>
-#include <Utilities/Invariant.hpp>
-#include <algorithm>
 #include <array>
 #include <benchmark/benchmark.h>
+#include <bit>
 #include <concepts>
-#include <cstdint>
+#include <cstddef>
 #include <random>
-#include <ranges>
+
+using math::Vector;
 
 namespace {
 using benchmark::State;
-using poly::math::Dual, poly::math::SquareMatrix, poly::math::URand;
+using math::Dual, math::SquareMatrix, math::URand;
 
 [[gnu::noinline]] void prod(auto &c, const auto &a, const auto &b) {
   c = a * b;
@@ -35,20 +38,20 @@ template <ptrdiff_t M, ptrdiff_t N> void BM_dualprod(benchmark::State &state) {
 
 template <typename T, ptrdiff_t N, bool SIMDArray = false> struct ManualDual {
   T value;
-  poly::math::SVector<T, N> partials;
-  auto grad() -> poly::math::SVector<T, N> & { return partials; }
+  math::SVector<T, N> partials;
+  auto grad() -> math::SVector<T, N> & { return partials; }
 };
 template <std::floating_point T, ptrdiff_t N, bool SIMDArray>
 struct ManualDual<ManualDual<T, N, SIMDArray>, 2, false> {
   using V = ManualDual<T, N, SIMDArray>;
   V value;
-  poly::containers::Tuple<V, V> partials{V{}, V{}};
+  containers::Tuple<V, V> partials{V{}, V{}};
   struct Gradient {
-    poly::containers::Tuple<V, V> &partials;
+    containers::Tuple<V, V> &partials;
     auto operator[](ptrdiff_t i) -> V & {
-      poly::utils::invariant(i == 0 || i == 1);
-      if (i == 0) return partials.head;
-      return partials.tail.head;
+      utils::invariant(i == 0 || i == 1);
+      if (i == 0) return partials.head_;
+      return partials.tail_.head_;
     }
   };
   constexpr auto grad() -> Gradient { return {partials}; }
@@ -58,51 +61,49 @@ struct ManualDual<ManualDual<T, N, SIMDArray>, 2, false> {
 };
 
 template <std::floating_point T, ptrdiff_t N> struct ManualDual<T, N, false> {
-  using P = poly::simd::Vec<ptrdiff_t(std::bit_ceil(size_t(N))), T>;
+  using P = simd::Vec<ptrdiff_t(std::bit_ceil(size_t(N))), T>;
   T value;
   P partials;
   auto grad() -> P & { return partials; }
 };
 template <std::floating_point T, ptrdiff_t N> struct ManualDual<T, N, true> {
-  using P = poly::math::StaticArray<T, 1, N, false>;
+  using P = math::StaticArray<T, 1, N, false>;
   T value;
   P partials;
   auto grad() -> P & { return partials; }
 };
 template <typename T, ptrdiff_t N, bool B>
-[[gnu::always_inline]] constexpr auto operator*(ManualDual<T, N, B> a,
-                                                ManualDual<T, N, B> b)
-  -> ManualDual<T, N, B> {
-  if constexpr ((!B) && (!std::floating_point<T>)&&(N == 2))
+[[gnu::always_inline]] constexpr auto
+operator*(ManualDual<T, N, B> a, ManualDual<T, N, B> b) -> ManualDual<T, N, B> {
+  if constexpr ((!B) && (!std::floating_point<T>) && (N == 2))
     return {a.value * b.value,
             {a.value * b.grad()[0] + b.value + a.grad()[0],
              a.value * b.grad()[1] + b.value * a.grad()[1]}};
   else return {a.value * b.value, a.value * b.partials + b.value * a.partials};
 }
 template <typename T, ptrdiff_t N, bool B>
-[[gnu::always_inline]] constexpr auto operator*(ManualDual<T, N, B> a, T b)
-  -> ManualDual<T, N, B> {
+[[gnu::always_inline]] constexpr auto operator*(ManualDual<T, N, B> a,
+                                                T b) -> ManualDual<T, N, B> {
   return {a.value * b, b * a.partials};
 }
 template <typename T, ptrdiff_t N, bool B>
-[[gnu::always_inline]] constexpr auto operator*(T a, ManualDual<T, N, B> b)
-  -> ManualDual<T, N, B> {
+[[gnu::always_inline]] constexpr auto
+operator*(T a, ManualDual<T, N, B> b) -> ManualDual<T, N, B> {
   return {b.value * a, a * b.partials};
 }
 template <typename T, ptrdiff_t N, bool B>
-[[gnu::always_inline]] constexpr auto operator+(ManualDual<T, N, B> a,
-                                                ManualDual<T, N, B> b)
-  -> ManualDual<T, N, B> {
+[[gnu::always_inline]] constexpr auto
+operator+(ManualDual<T, N, B> a, ManualDual<T, N, B> b) -> ManualDual<T, N, B> {
   return {a.value + b.value, a.partials + b.partials};
 }
 template <typename T, ptrdiff_t N, bool B>
-[[gnu::always_inline]] constexpr auto operator+(ManualDual<T, N, B> a, T b)
-  -> ManualDual<T, N, B> {
+[[gnu::always_inline]] constexpr auto operator+(ManualDual<T, N, B> a,
+                                                T b) -> ManualDual<T, N, B> {
   return {a.value + b, a.partials};
 }
 template <typename T, ptrdiff_t N, bool B>
-[[gnu::always_inline]] constexpr auto operator+(T a, ManualDual<T, N, B> b)
-  -> ManualDual<T, N, B> {
+[[gnu::always_inline]] constexpr auto
+operator+(T a, ManualDual<T, N, B> b) -> ManualDual<T, N, B> {
   return {b.value + a, b.partials};
 }
 
@@ -189,3 +190,28 @@ BENCHMARK(BM_dualprod_manual_tuple<8, 2>);
 BENCHMARK(BM_dualprod_simdarray_tuple<6, 2>);
 BENCHMARK(BM_dualprod_simdarray_tuple<7, 2>);
 BENCHMARK(BM_dualprod_simdarray_tuple<8, 2>);
+
+template <ptrdiff_t M, ptrdiff_t N>
+void BM_dualdivsum(benchmark::State &state) {
+  std::mt19937_64 rng0;
+  using D =
+    std::conditional_t<(N > 0), Dual<Dual<double, M>, N>, Dual<double, M>>;
+  ptrdiff_t len = state.range(0);
+  Vector<std::array<D, 4>> x{math::length(len)};
+  for (ptrdiff_t i = 0; i < len; ++i) {
+    x[i] = {URand<D>{}(rng0), URand<D>{}(rng0), URand<D>{}(rng0),
+            URand<D>{}(rng0)};
+  }
+  for (auto _ : state) {
+    D s{};
+    for (auto a : x) s += (a[0] + a[1]) / (a[2] + a[3]);
+    benchmark::DoNotOptimize(s);
+  }
+}
+
+BENCHMARK(BM_dualdivsum<7, 0>)->RangeMultiplier(2)->Range(1, 1 << 10);
+BENCHMARK(BM_dualdivsum<8, 0>)->RangeMultiplier(2)->Range(1, 1 << 10);
+BENCHMARK(BM_dualdivsum<7, 2>)->RangeMultiplier(2)->Range(1, 1 << 10);
+BENCHMARK(BM_dualdivsum<8, 2>)->RangeMultiplier(2)->Range(1, 1 << 10);
+BENCHMARK(BM_dualdivsum<7, 4>)->RangeMultiplier(2)->Range(1, 1 << 10);
+BENCHMARK(BM_dualdivsum<8, 4>)->RangeMultiplier(2)->Range(1, 1 << 10);

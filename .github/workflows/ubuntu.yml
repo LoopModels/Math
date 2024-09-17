@@ -3,11 +3,9 @@ name: Ubuntu
 on:
   push:
     branches:
-      - master
       - main
   pull_request:
     branches:
-      - master
       - main
 
 env:
@@ -28,7 +26,7 @@ jobs:
           sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
           sudo wget https://apt.llvm.org/llvm.sh
           sudo chmod +x llvm.sh
-          sudo ./llvm.sh 17 all
+          sudo ./llvm.sh 18 all
       - uses: actions/cache@v4
         with:
           path: "**/cpm_modules"
@@ -37,8 +35,9 @@ jobs:
       - name: configure
         run: cmake -Stest -Bbuild -DENABLE_TEST_COVERAGE=1 -DCMAKE_BUILD_TYPE=Debug
         env:
-          CXX: clang++-17
-          # CXX: g++-12
+          CXX: clang++-18
+          CXXFLAGS: -stdlib=libc++ -fconstexpr-steps=1048576
+          # CXX: g++-14
       - name: build
         run: cmake --build build -j4
 

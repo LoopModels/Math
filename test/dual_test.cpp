@@ -1,25 +1,54 @@
-#include "Containers/TinyVector.hpp"
-#include "Math/Array.hpp"
-#include "Math/Constructors.hpp"
-#include "Math/Dual.hpp"
-#include "Math/Exp.hpp"
-#include "Math/LinearAlgebra.hpp"
-#include "Math/Matrix.hpp"
-#include "Utilities/TypePromotion.hpp"
 #include <gtest/gtest.h>
+#ifndef USE_MODULE
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <random>
 
-using namespace poly::math;
-using poly::utils::eltype_t, poly::math::transpose;
+#include "Alloc/Arena.cxx"
+#include "Containers/TinyVector.cxx"
+#include "Containers/Tuple.cxx"
+#include "Math/Array.cxx"
+#include "Math/ArrayConcepts.cxx"
+#include "Math/Dual.cxx"
+#include "Math/ExpressionTemplates.cxx"
+#include "Math/LinearAlgebra.cxx"
+#include "Math/ManagedArray.cxx"
+#include "Math/MatrixDimensions.cxx"
+#include "Math/Reductions.cxx"
+#include "Math/StaticArrays.cxx"
+#include "Math/UniformScaling.cxx"
+#include "Utilities/TypeCompression.cxx"
+#else
+
+import Arena;
+import Array;
+import ArrayConcepts;
+import Dual;
+import ExprTemplates;
+import LinearAlgebra;
+import ManagedArray;
+import MatDim;
+import Reductions;
+import StaticArray;
+import STL;
+import TinyVector;
+import Tuple;
+import TypeCompression;
+import UniformScaling;
+#endif
+
+using namespace math;
+using utils::eltype_t, math::transpose;
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(DualTest, BasicAssertions) {
-  OwningArena arena;
+  alloc::OwningArena arena;
 
   std::mt19937 gen(0);
   std::uniform_real_distribution<double> dist(-1, 1);
-  SquareMatrix<double> A(15);
-  Vector<double> x(15);
+  SquareMatrix<double> A(SquareDims<>{math::row(15)});
+  Vector<double> x(length(15));
   for (auto &a : A) a = dist(gen);
   for (auto &xx : x) xx = dist(gen);
   SquareMatrix<double> B = A + A.t();
@@ -58,14 +87,14 @@ constexpr void evalpoly(MutSquarePtrMatrix<T> B, MutSquarePtrMatrix<T> A,
 }
 
 template <AbstractMatrix T> constexpr auto opnorm1(const T &A) {
-  using S = decltype(value(std::declval<eltype_t<T>>()));
+  using S = decltype(extractvalue(std::declval<eltype_t<T>>()));
   auto [M, N] = shape(A);
   invariant(M > 0);
   invariant(N > 0);
   S a{};
   for (ptrdiff_t n = 0; n < N; ++n) {
     S s{};
-    for (ptrdiff_t m = 0; m < M; ++m) s += std::abs(value(A[m, n]));
+    for (ptrdiff_t m = 0; m < M; ++m) s += std::abs(extractvalue(A[m, n]));
     a = std::max(a, s);
   }
   return a;
@@ -80,17 +109,17 @@ constexpr auto log2ceil(double x) -> unsigned {
 
 template <typename T> constexpr void expmimpl(MutSquarePtrMatrix<T> A) {
   ptrdiff_t n = ptrdiff_t(A.numRow()), s = 0;
-  SquareMatrix<T> A2{SquareDims<>{{n}}}, U_{SquareDims<>{{n}}};
+  SquareMatrix<T> A2{SquareDims<>{row(n)}}, U_{SquareDims<>{row(n)}};
   MutSquarePtrMatrix<T> U{U_};
   if (double nA = opnorm1(A); nA <= 0.015) {
     A2 << A * A;
     U << A * (A2 + 60.0 * I);
     A << 12.0 * A2 + 120.0 * I;
   } else {
-    SquareMatrix<T> B{SquareDims<>{{n}}};
+    SquareMatrix<T> B{SquareDims<>{row(n)}};
     if (nA <= 2.1) {
       A2 << A * A;
-      poly::containers::TinyVector<double, 5> p0, p1;
+      containers::TinyVector<double, 5> p0, p1;
       if (nA > 0.95) {
         p0 = {1.0, 3960.0, 2162160.0, 302702400.0, 8821612800.0};
         p1 = {90.0, 110880.0, 3.027024e7, 2.0756736e9, 1.76432256e10};
@@ -124,7 +153,7 @@ template <typename T> constexpr void expmimpl(MutSquarePtrMatrix<T> A) {
              64764752532480000 * I;
     }
   }
-  poly::containers::tie(A, U) << poly::containers::Tuple(A + U, A - U);
+  containers::tie(A, U) << containers::Tuple(A + U, A - U);
   LU::ldiv(U, MutPtrMatrix<T>(A));
   for (; s--; std::swap(A, U)) U << A * A;
 }
@@ -146,7 +175,7 @@ constexpr auto dualDeltaCmp(Dual<T, N> x, double y) -> bool {
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(ExpMatTest, BasicAssertions) {
-  SquareMatrix<double> A(4);
+  SquareMatrix<double> A(SquareDims<>{math::row(4)});
   A[0, 0] = 0.13809508135032297;
   A[0, 1] = -0.10597225613986219;
   A[0, 2] = -0.5623996136438215;
@@ -163,7 +192,7 @@ TEST(ExpMatTest, BasicAssertions) {
   A[3, 1] = 0.6550780207685463;
   A[3, 2] = -0.6227535845719466;
   A[3, 3] = 0.2280514374580733;
-  SquareMatrix<double> B(4);
+  SquareMatrix<double> B(SquareDims<>{math::row(4)});
   B[0, 0] = 0.2051199361909877;
   B[0, 1] = -0.049831094437687434;
   B[0, 2] = -0.3980657896416266;
@@ -182,8 +211,8 @@ TEST(ExpMatTest, BasicAssertions) {
   B[3, 3] = 0.3930685232252409;
   EXPECT_LE(norm2(B - expm(A)), 1e-10);
 
-  static_assert(poly::utils::Compressible<Dual<double, 2>>);
-  SquareMatrix<Dual<double, 2>> Ad(4);
+  static_assert(utils::Compressible<Dual<double, 2>>);
+  SquareMatrix<Dual<double, 2>> Ad(SquareDims<>{math::row(4)});
   Ad[0, 0] = Dual<double, 2>{
     0.13809508135032297,
     SVector<double, 2>{0.23145585885555967, 0.6736099502056541}};
@@ -232,7 +261,7 @@ TEST(ExpMatTest, BasicAssertions) {
   Ad[3, 3] = Dual<double, 2>{
     0.2280514374580733,
     SVector<double, 2>{-1.2001994532706792, 0.03274459682369542}};
-  SquareMatrix<Dual<double, 2>> Bd(4);
+  SquareMatrix<Dual<double, 2>> Bd(SquareDims<>{math::row(4)});
   Bd[0, 0] = Dual<double, 2>{
     0.20511993619098767,
     SVector<double, 2>{0.09648410552837837, -2.2538795735050865}};
@@ -290,5 +319,67 @@ TEST(ExpMatTest, BasicAssertions) {
     EXPECT_NEAR(x.gradient()[0], y.gradient()[0], 1e-14);
     EXPECT_NEAR(x.gradient()[1], y.gradient()[1], 1e-14);
   }
-  EXPECT_EQ(poly::math::smax(Bd[3, 3], 0.35), poly::math::smax(0.35, Bd[3, 3]));
+  EXPECT_EQ(math::smax(Bd[3, 3], 0.35), math::smax(0.35, Bd[3, 3]));
+}
+
+// NOLINTNEXTLINE(modernize-use-trailing-return-type)
+TEST(IntDivDualTest, BasicAssertions) {
+
+  Dual<double, 2> x{
+    -0.1025638204862866,
+    SVector<double, 2>{0.5621700920192116, -0.7417763253026113}};
+  int32_t a = 4, b = 3;
+  Dual<double, 2> y = a / x + b;
+  EXPECT_NEAR(y.value(), -36.00010726038452, 1e-14);
+  EXPECT_NEAR(y.gradient()[0], -213.76635331423668, 1e-14);
+  EXPECT_NEAR(y.gradient()[1], 282.061999181122, 1e-14);
+
+  Dual<Dual<double, 8>, 2> w{
+    Dual<double, 8>{
+      0.474029877977747,
+      SVector<double, 8>{0.3086698530598352, 0.2473835557435392,
+                         0.3323869313428053, 0.5171334596793957,
+                         0.38702317404526887, 0.00047786444101627357,
+                         0.5631545736256198, 0.43922995203510906}},
+    SVector<Dual<double, 8>, 2>{
+      Dual<double, 8>{
+        0.364700717714898,
+        SVector<double, 8>{0.49478829029794746, 0.8045632402683945,
+                           0.14233875934752005, 0.6248974091625752,
+                           0.4100454368750559, 0.36093334233891017,
+                           0.7299307580759404, 0.9599831981794166}},
+      Dual<double, 8>{
+        0.8935518055743592,
+        SVector<double, 8>{0.1802316112143557, 0.7998299168331432,
+                           0.6885713578218868, 0.16063226225861582,
+                           0.8882724638859483, 0.3121292626973291,
+                           0.8389228620948505, 0.8982533827333361}}}};
+  Dual<Dual<double, 8>, 2> z = a / w + b;
+  EXPECT_NEAR(z.value().value(), 11.438286668900178, 1e-14);
+  EXPECT_NEAR(z.value().gradient()[0], -5.494684675315883, 1e-14);
+  EXPECT_NEAR(z.value().gradient()[1], -4.403716848906783, 1e-14);
+  EXPECT_NEAR(z.value().gradient()[2], -5.916876429038721, 1e-14);
+  EXPECT_NEAR(z.value().gradient()[3], -9.205580874924776, 1e-14);
+  EXPECT_NEAR(z.value().gradient()[4], -6.88946549958806, 1e-14);
+  EXPECT_NEAR(z.value().gradient()[5], -0.008506546379252392, 1e-14);
+  EXPECT_NEAR(z.value().gradient()[6], -10.024810569806137, 1e-14);
+  EXPECT_NEAR(z.value().gradient()[7], -7.818807254621021, 1e-14);
+  EXPECT_NEAR(z.gradient()[0].value(), -6.4920996489938965, 1e-14);
+  EXPECT_NEAR(z.gradient()[0].gradient()[0], -0.353004214108692, 1e-14);
+  EXPECT_NEAR(z.gradient()[0].gradient()[1], -7.546059942645349, 1e-14);
+  EXPECT_NEAR(z.gradient()[0].gradient()[2], 6.570646809055814, 1e-14);
+  EXPECT_NEAR(z.gradient()[0].gradient()[3], 3.040948459025321, 1e-14);
+  EXPECT_NEAR(z.gradient()[0].gradient()[4], 3.301701335355337, 1e-14);
+  EXPECT_NEAR(z.gradient()[0].gradient()[5], -6.4119467254828155, 1e-14);
+  EXPECT_NEAR(z.gradient()[0].gradient()[6], 2.431800795666499, 1e-14);
+  EXPECT_NEAR(z.gradient()[0].gradient()[7], -5.057833482826592, 1e-14);
+  EXPECT_NEAR(z.gradient()[1].value(), -15.906268020733835, 1e-14);
+  EXPECT_NEAR(z.gradient()[1].gradient()[0], 17.50675476102715, 1e-14);
+  EXPECT_NEAR(z.gradient()[1].gradient()[1], 2.3642057402333787, 1e-14);
+  EXPECT_NEAR(z.gradient()[1].gradient()[2], 10.049384954558796, 1e-14);
+  EXPECT_NEAR(z.gradient()[1].gradient()[3], 31.8458106722888, 1e-14);
+  EXPECT_NEAR(z.gradient()[1].gradient()[4], 10.161154827174284, 1e-14);
+  EXPECT_NEAR(z.gradient()[1].gradient()[5], -5.524196339292094, 1e-14);
+  EXPECT_NEAR(z.gradient()[1].gradient()[6], 22.859958982249076, 1e-14);
+  EXPECT_NEAR(z.gradient()[1].gradient()[7], 13.487122714859662, 1e-14);
 }

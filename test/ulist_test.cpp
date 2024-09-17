@@ -1,10 +1,13 @@
-
-#include "Alloc/Arena.hpp"
-#include "Containers/UnrolledList.hpp"
-#include <cstdint>
 #include <gtest/gtest.h>
-
-using namespace poly;
+#ifndef USE_MODULE
+#include "Alloc/Arena.cxx"
+#include "Containers/UnrolledList.cxx"
+#include <cstdint>
+#else
+import Arena;
+import STL;
+import UnrolledList;
+#endif
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(UListTest, BasicAssertions) {

@@ -1,10 +1,19 @@
-#include "Math/LinearDiophantine.hpp"
+#include <gtest/gtest.h>
+#ifndef USE_MODULE
 #include <algorithm>
 #include <cstdint>
-#include <gtest/gtest.h>
 #include <iostream>
 #include <random>
-using namespace poly::math;
+#include <vector>
+
+#include "Math/LinearDiophantine.cxx"
+#else
+
+import LinearDiophantine;
+import STL;
+#endif
+
+using namespace math;
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(LinearDiophantineTest, BasicAssertions) {

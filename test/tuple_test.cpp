@@ -1,10 +1,15 @@
-
-#include "Containers/Tuple.hpp"
+#include <gtest/gtest.h>
+#ifndef USE_MODULE
+#include "Containers/Tuple.cxx"
 #include <concepts>
 #include <cstdint>
-#include <gtest/gtest.h>
+#else
+import Pair;
+import STL;
+import Tuple;
+#endif
 
-using poly::containers::Tuple, poly::containers::tie;
+using containers::Tuple, containers::tie, containers::Add, containers::Pair;
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(TupleTest, BasicAssertions) {
@@ -53,4 +58,13 @@ TEST(TupleTest, BasicAssertions) {
     EXPECT_EQ(c, y);
     EXPECT_EQ(d, z);
   }
+
+  // auto tr = tie(Add(x), y);
+  double xtest = x + 4.7;
+  tie(Add(x), y) = Tuple(4.7, 5.0);
+  EXPECT_EQ(x, xtest);
+  EXPECT_EQ(y, 5.0);
+  tie(Add(x), y) = Pair(4.7, 8.0);
+  EXPECT_EQ(x, xtest + 4.7);
+  EXPECT_EQ(y, 8.0);
 }

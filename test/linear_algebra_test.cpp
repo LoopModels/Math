@@ -1,15 +1,30 @@
-#include "Math/LinearAlgebra.hpp"
-#include "Math/Math.hpp"
-#include <cstdint>
 #include <gtest/gtest.h>
-#include <ostream>
+
+#ifndef USE_MODULE
+#include "Math/LinearAlgebra.cxx"
+#include "Math/ManagedArray.cxx"
+#include "Math/MatrixDimensions.cxx"
+#include "Math/Rational.cxx"
+#include "Math/Reductions.cxx"
+#include "Utilities/Invariant.cxx"
 #include <random>
-using namespace poly::math;
+#else
+
+import Invariant;
+import LinearAlgebra;
+import ManagedArray;
+import MatDim;
+import Rational;
+import Reductions;
+import STL;
+#endif
+
+using namespace math;
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(LinearAlgebraTest, BasicAssertions) {
   const SquareMatrix<Rational> identity = SquareMatrix<Rational>::identity(4);
-  SquareMatrix<int64_t> A(4);
+  SquareMatrix<int64_t> A(SquareDims{row(4)});
   A[0, 0] = 2;
   A[0, 1] = -10;
   A[0, 2] = 6;
@@ -27,28 +42,28 @@ TEST(LinearAlgebraTest, BasicAssertions) {
   A[3, 2] = -2;
   A[3, 3] = 4;
 
-  auto optLUF = LU::fact(A);
-  EXPECT_TRUE(optLUF.has_value());
-  ASSERT(optLUF.has_value());
-  auto &LUF = *optLUF;
-  Matrix<Rational> B = A;
-  std::cout << "A = \n" << A << "\nB = \n" << B << "\n";
+  auto opt_luf = LU::fact(A);
+  ASSERT_TRUE(opt_luf.has_value());
+  auto &LUF = *opt_luf;
+  Matrix<Rational> B0 = A;
+  std::cout << "A = \n" << A << "\nB = \n" << B0 << "\n";
   std::cout << LUF;
 
-  auto copyB = B;
-  EXPECT_FALSE(LUF.ldivrat(copyB));
-  std::cout << "LUF.ldiv(B) = \n" << copyB << "\n";
-  EXPECT_EQ(copyB, identity);
+  auto B1 = B0;
+  EXPECT_FALSE(LUF.ldivrat(B1));
+  std::cout << "LUF.ldiv(B) = \n" << B1 << "\n";
+  EXPECT_EQ(B1, identity);
   std::cout << "I = " << identity << "\n";
 
-  EXPECT_FALSE(LUF.rdivrat(B));
-  std::cout << "LUF.rdiv(B) = \n" << B << "\n";
-  EXPECT_EQ(B, identity);
+  EXPECT_FALSE(LUF.rdivrat(B0));
+  std::cout << "LUF.rdiv(B) = \n" << B0 << "\n";
+  EXPECT_EQ(B0, identity);
 }
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(DoubleFactorization, BasicAssertions) {
-  SquareMatrix<double> A(7), B(7), C(7), D(7);
+  SquareMatrix<double> A(SquareDims{row(7)}), B(SquareDims{row(7)}),
+    C(SquareDims{row(7)}), D(SquareDims{row(7)});
   std::mt19937 gen(0);
   std::uniform_real_distribution<double> dist(-1, 1);
   for (ptrdiff_t i = 0; i < 10; ++i) {

@@ -1,23 +1,26 @@
 #pragma once
-#ifndef expm_hpp_INCLUDED
-#define expm_hpp_INCLUDED
-
+#include "Containers/TinyVector.cxx"
+#include "Containers/Tuple.cxx"
+#include "Math/Array.cxx"
+#include "Math/ArrayConcepts.cxx"
+#include "Math/AxisTypes.cxx"
+#include "Math/Dual.cxx"
+#include "Math/ElementarySIMD.cxx"
+#include "Math/GenericConstructors.cxx"
+#include "Math/LinearAlgebra.cxx"
+#include "Math/ManagedArray.cxx"
+#include "Math/MatrixDimensions.cxx"
+#include "Math/UniformScaling.cxx"
 #include "randdual.hpp"
-#include <Containers/TinyVector.hpp>
-#include <Math/Array.hpp>
-#include <Math/Dual.hpp>
-#include <Math/LinearAlgebra.hpp>
-#include <Math/Matrix.hpp>
-#include <Math/StaticArrays.hpp>
-#include <Utilities/Invariant.hpp>
 #include <algorithm>
 #include <benchmark/benchmark.h>
+#include <bit>
+#include <concepts>
+#include <cstddef>
 #include <cstdint>
-#include <random>
-#include <ranges>
 // auto x = Dual<Dual<double, 4>, 2>{1.0};
 // auto y = x * 3.4;
-namespace poly::math {
+namespace math {
 static_assert(std::convertible_to<int, Dual<double, 4>>);
 static_assert(std::convertible_to<int, Dual<Dual<double, 4>, 2>>);
 
@@ -28,31 +31,31 @@ constexpr void evalpoly(MutSquarePtrMatrix<T> B, MutSquarePtrMatrix<T> A,
   invariant(N > 0);
   invariant(ptrdiff_t(B.numRow()), ptrdiff_t(C.numRow()));
   if (N & 1) std::swap(A, B);
-  B << p[0] * C + p[1] * I;
+  B << (p[0] * C) + (p[1] * I);
   for (ptrdiff_t i = 2; i < N; ++i) {
     std::swap(A, B);
-    B << A * C + p[i] * I;
+    B << (A * C) + (p[i] * I);
   }
 }
 
 template <AbstractMatrix T> constexpr auto opnorm1(const T &A) {
-  using S = decltype(value(std::declval<utils::eltype_t<T>>()));
+  using S = decltype(extractvalue(std::declval<utils::eltype_t<T>>()));
   auto [M, N] = shape(A);
   invariant(M > 0);
   invariant(N > 0);
   S a{};
   for (ptrdiff_t n = 0; n < N; ++n) {
     S s{};
-    for (ptrdiff_t m = 0; m < M; ++m) s += std::abs(value(A[m, n]));
+    for (ptrdiff_t m = 0; m < M; ++m) s += std::abs(extractvalue(A[m, n]));
     a = std::max(a, s);
   }
   return a;
   // Vector<S> v{N};
   // for (ptrdiff_t n = 0; n < N; ++n)
-  //   v[n] = std::abs(value(A[0, n]));
+  //   v[n] = std::abs(extractvalue(A[0, n]));
   // for (ptrdiff_t m = 1; m < M; ++m)
   //   for (ptrdiff_t n = 0; n < N; ++n)
-  //     v[n] += std::abs(value(A[m, n]));
+  //     v[n] += std::abs(extractvalue(A[m, n]));
   // return *std::max_element(v.begin(), v.end());
 }
 
@@ -67,14 +70,15 @@ constexpr auto log2ceil(double x) -> ptrdiff_t {
 
 template <typename T> constexpr void expm(MutSquarePtrMatrix<T> A) {
   ptrdiff_t n = ptrdiff_t(A.numRow()), s = 0;
-  SquareMatrix<T> A2{SquareDims<>{{n}}}, U_{SquareDims<>{{n}}};
+  SquareMatrix<T> A2{SquareDims<>{math::row(n)}},
+    U_{SquareDims<>{math::row(n)}};
   MutSquarePtrMatrix<T> U{U_};
   if (double nA = opnorm1(A); nA <= 0.015) {
     A2 << A * A;
     U << A * (A2 + 60.0 * I);
-    A << 12.0 * A2 + 120.0 * I;
+    A << (12.0 * A2) + 120.0 * I;
   } else {
-    SquareMatrix<T> B{SquareDims<>{{n}}};
+    SquareMatrix<T> B{SquareDims<>{math::row(n)}};
     if (nA <= 2.1) {
       A2 << A * A;
       containers::TinyVector<double, 5> p0, p1;
@@ -101,11 +105,11 @@ template <typename T> constexpr void expm(MutSquarePtrMatrix<T> A) {
       A2 << A * A;
       // here we take an estrin (instead of horner) approach to cut down flops
       SquareMatrix<T> A4{A2 * A2}, A6{A2 * A4};
-      B << A6 * (A6 + 16380 * A4 + 40840800 * A2) +
+      B << (A6 * (A6 + 16380 * A4 + 40840800 * A2)) +
              (33522128640 * A6 + 10559470521600 * A4 + 1187353796428800 * A2) +
              32382376266240000 * I;
       U << A * B;
-      A << A6 * (182 * A6 + 960960 * A4 + 1323241920 * A2) +
+      A << (A6 * (182 * A6 + 960960 * A4 + 1323241920 * A2)) +
              (670442572800 * A6 + 129060195264000 * A4 +
               7771770303897600 * A2) +
              64764752532480000 * I;
@@ -116,21 +120,18 @@ template <typename T> constexpr void expm(MutSquarePtrMatrix<T> A) {
   for (; s--; std::swap(A, U)) U << A * A;
 }
 
-} // namespace poly::math
+} // namespace math
 
-using poly::math::Dual, poly::math::SquareDims, poly::math::SquareMatrix,
-  poly::math::URand;
+using math::Dual, math::SquareDims, math::SquareMatrix, math::URand;
 
 auto expwork(const auto &A) {
-  SquareMatrix<poly::math::eltype_t<decltype(A)>> C{SquareDims{A.numRow()}},
-    B{A};
+  SquareMatrix<math::eltype_t<decltype(A)>> C{SquareDims{A.numRow()}}, B{A};
   expm(B);
-  for (size_t i = 0; i < 8; ++i) {
-    expm(C << A * exp2(-double(i)));
+  for (int64_t i = 0; i < 8; ++i) {
+    expm(C << A * ::math::exp2(-i));
     B += C;
   }
   return B;
 }
 void expbench(const auto &A) { benchmark::DoNotOptimize(expwork(A)); }
 
-#endif // expm_hpp_INCLUDED

@@ -1,11 +1,18 @@
-#include "Math/Math.hpp"
-#include "Math/Unimodularization.hpp"
-#include "Utilities/MatrixStringParse.hpp"
 #include <gtest/gtest.h>
+#ifndef USE_MODULE
+#include "Math/ManagedArray.cxx"
+#include "Math/Unimodularization.cxx"
+#include "Utilities/MatrixStringParse.cxx"
 #include <ostream>
+#else
+import ArrayParse;
+import ManagedArray;
+import STL;
+import Unimodularization;
+#endif
 
-using namespace poly::math;
-using poly::utils::operator""_mat;
+using namespace math;
+using utils::operator""_mat;
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(UnimodularizationTest, BasicAssertions) {
@@ -13,14 +20,12 @@ TEST(UnimodularizationTest, BasicAssertions) {
   IntMatrix<> VE{"[0 1; 1 0; 0 1; 1 0]"_mat};
   std::cout << "VE=" << VE << "\n";
   auto VB = unimodularize(VE);
-  EXPECT_TRUE(VB.has_value());
-  ASSERT(VB.has_value());
+  ASSERT_TRUE(VB.has_value());
   std::cout << "VB=" << *VB << "\n";
 
   IntMatrix<> A23{"[9 5; -5 -2; 1 0]"_mat};
   auto B = unimodularize(A23);
-  EXPECT_TRUE(B.has_value());
-  ASSERT(B.has_value());
+  ASSERT_TRUE(B.has_value());
   std::cout << "B=" << *B << "\n";
   // EXPECT_EQ(j, length(bsc));
   // EXPECT_EQ(j, length(bs));

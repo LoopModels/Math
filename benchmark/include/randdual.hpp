@@ -2,11 +2,11 @@
 #ifndef randdual_hpp_INCLUDED
 #define randdual_hpp_INCLUDED
 
-#include <Math/Dual.hpp>
+#include "Math/Dual.cxx"
 #include <cstddef>
 #include <random>
 
-namespace poly::math {
+namespace math {
 template <class T> struct URand {};
 
 template <class T, ptrdiff_t N> struct URand<Dual<T, N>> {
@@ -21,6 +21,6 @@ template <> struct URand<double> {
     return std::uniform_real_distribution<double>(-2, 2)(rng);
   }
 };
-} // namespace poly::math
+} // namespace math
 
 #endif // randdual_hpp_INCLUDED

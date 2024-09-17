@@ -1,10 +1,23 @@
-#include "Containers/BitSets.hpp"
-#include <array>
-#include <cstdint>
 #include <gtest/gtest.h>
-#include <ostream>
 
-using poly::containers::BitSet, poly::math::Vector;
+#ifndef USE_MODULE
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <iostream>
+#include <ostream>
+#include <print>
+
+#include "Containers/BitSets.cxx"
+#include "Math/ManagedArray.cxx"
+#else
+
+import BitSet;
+import ManagedArray;
+import STL;
+#endif
+
+using containers::BitSet, math::Vector;
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(BitSetTest, BasicAssertions) {
@@ -24,13 +37,13 @@ TEST(BitSetTest, BasicAssertions) {
   for (auto J = bs.begin(); J != decltype(bs)::end(); ++J) {
     EXPECT_EQ(*J, bsc[j++]);
     EXPECT_TRUE(bs[*J]);
-    printf("We get: %zu\n", *J);
+    std::println("We get: {}", *J);
   }
   j = 0;
   for (auto i : bs) {
     EXPECT_EQ(i, bsc[j++]);
     EXPECT_TRUE(bs[i]);
-    printf("We get: %zu\n", i);
+    std::println("We get: {}", i);
   }
   EXPECT_EQ(j, bsc.size());
   EXPECT_EQ(j, bs.size());
@@ -50,19 +63,22 @@ TEST(BitSetInsert, BasicAssertions) {
   bs.insert(5);
   bs.insert(6);
   bs.insert(8);
-  EXPECT_EQ(bs.data[0], 354);
-  EXPECT_EQ(bs.data[1], 0);
+  EXPECT_EQ(bs.data_[0], 354);
+  EXPECT_EQ(bs.data_[1], 0);
   bs.insert(5);
-  EXPECT_EQ(bs.data[0], 354);
+  EXPECT_EQ(bs.data_[0], 354);
 }
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(DynSizeBitSetTest, BasicAssertions) {
-  BitSet bs;
-  EXPECT_EQ(bs.data.size(), 0);
+  BitSet bs, bsd{BitSet<>::dense(11)};
+  EXPECT_EQ(bs.data_.size(), 0);
   bs[4] = true;
   bs[10] = true;
-  EXPECT_EQ(bs.data.size(), 1);
-  EXPECT_EQ(bs.data.front(), 1040);
+  EXPECT_EQ(bs.data_.size(), 1);
+  EXPECT_EQ(bs.data_.front(), 1040);
+  for (ptrdiff_t i = 0; i < 11; ++i)
+    if (!bs.contains(i)) {EXPECT_TRUE(bsd.remove(i));}
+  EXPECT_EQ(bs, bsd);
   Vector<size_t> sv;
   for (auto i : bs) sv.push_back(i);
   EXPECT_EQ(sv.size(), 2);
@@ -74,8 +90,8 @@ TEST(FixedSizeBitSetTest, BasicAssertions) {
   BitSet<std::array<uint64_t, 2>> bs;
   bs[4] = true;
   bs[10] = true;
-  EXPECT_EQ(bs.data[0], 1040);
-  EXPECT_EQ(bs.data[1], 0);
+  EXPECT_EQ(bs.data_[0], 1040);
+  EXPECT_EQ(bs.data_[1], 0);
   Vector<size_t> sv;
   for (auto i : bs) sv.push_back(i);
   EXPECT_EQ(sv.size(), 2);
@@ -91,7 +107,7 @@ TEST(FixedSizeSmallBitSetTest, BasicAssertions) {
   bs[10] = true;
   bs[7] = true;
   bs.insert(5);
-  EXPECT_EQ(bs.data[0], 1200);
+  EXPECT_EQ(bs.data_[0], 1200);
   Vector<size_t> sv;
   for (auto i : bs) sv.push_back(i);
   EXPECT_EQ(sv.size(), 4);
@@ -99,5 +115,5 @@ TEST(FixedSizeSmallBitSetTest, BasicAssertions) {
   EXPECT_EQ(sv[1], 5);
   EXPECT_EQ(sv[2], 7);
   EXPECT_EQ(sv[3], 10);
-  EXPECT_EQ(SB::fromMask(1200).data[0], 1200);
+  EXPECT_EQ(SB::fromMask(1200).data_[0], 1200);
 }

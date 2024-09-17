@@ -1,12 +1,16 @@
-#include "Utilities/Optional.hpp"
-#include <cstddef>
 #include <gtest/gtest.h>
+#ifndef USE_MODULE
+#include "Utilities/Optional.cxx"
+#include <cstddef>
 #include <limits>
+#else
+import Optional;
+import STL;
+#endif
 
 // NOLINTNEXTLINE(modernize-use-trailing-return-type)
 TEST(Optional, BasicAssertions) {
-  poly::utils::Optional<ptrdiff_t> x{3}, y,
-    z{std::numeric_limits<ptrdiff_t>::min()};
+  utils::Optional<ptrdiff_t> x{3}, y, z{std::numeric_limits<ptrdiff_t>::min()};
   EXPECT_TRUE(x);
   EXPECT_EQ(*x, 3);
   EXPECT_FALSE(y);
@@ -24,9 +28,8 @@ TEST(Optional, BasicAssertions) {
   EXPECT_FALSE(y);
 
   ptrdiff_t a = 42, b = 11, c = 8;
-  poly::utils::Optional<ptrdiff_t *> p{&a}, q;
-  static_assert(sizeof(poly::utils::Optional<ptrdiff_t *>) ==
-                sizeof(ptrdiff_t *));
+  utils::Optional<ptrdiff_t *> p{&a}, q;
+  static_assert(sizeof(utils::Optional<ptrdiff_t *>) == sizeof(ptrdiff_t *));
   EXPECT_TRUE(p);
   EXPECT_FALSE(q);
   **p += 10;

@@ -10,7 +10,7 @@ It primarily serves to present:
 2. a focus on integer operations.
 3. a rational simplex solver for linear programs, focused on use cases from Polyhedral analysis.
 
-It uses expression templates for fusing operations, and has slicing via `_` for an entire slice, or `_(i,j)` to select the close-open interval from `i` to `j`. `end` and `last` are keywords for the end of an axis, and the last element. E.g., `A(i,last)` would select the element from the `i`th row and last column, while `A(i,_(j,end))` would select the `i`th row, from `j` to the end. `A(i,_(j,last))` would drop the last element, and be equivalent to `A(i,_(j,end-1))` (which is also of course legal and works as intended). Slicing creates views.
+It uses expression templates for fusing operations, and has slicing via `_` for an entire slice, or `_(i,j)` to select the close-open interval from `i` to `j`. `end` and `last` are keywords for the end of an axis, and the last element. E.g., `A[i,last]` would select the element from the `i`th row and last column, while `A[i,_(j,end)]` would select the `i`th row, from `j` to the end. `A[i,_(j,last)]` would drop the last element, and be equivalent to `A[i,_(j,end-1)]` (which is also of course legal and works as intended). Slicing creates views.
 
 Copying, e.g. from an expression template to an array, is done via `destination << source`. 
 `operator=` is reserved for copying the actual objects, rather than referenced memory, as this seems to be the behavior C++ views.
